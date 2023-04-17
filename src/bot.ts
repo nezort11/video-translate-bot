@@ -16,16 +16,24 @@ import ytdl from "ytdl-core";
 import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import FormData from "form-data";
 import path from "path";
+import http from "http";
 import https from "https";
 import { sendAdminNotification } from "./notification";
 
 dotenv.config({ path: "./.env" });
 
-const AXIOS_REQUEST_TIMEOUT = 25 * 60 * 1000; // 25 min
+const AXIOS_REQUEST_TIMEOUT = 45 * 60 * 1000; // 45 min
 
 const axiosInstance = axios.create({
   timeout: AXIOS_REQUEST_TIMEOUT,
-  httpsAgent: new https.Agent({ keepAlive: true }),
+  httpAgent: new http.Agent({
+    keepAlive: true,
+    timeout: AXIOS_REQUEST_TIMEOUT,
+  }),
+  httpsAgent: new https.Agent({
+    keepAlive: true,
+    timeout: AXIOS_REQUEST_TIMEOUT,
+  }),
 });
 
 type UploadResponse = {
@@ -76,7 +84,7 @@ const getWebsiteTitle = async (url: string) => {
       title = title.split(" - YouTube")[0];
     }
 
-    console.log("resourceTitle", title);
+    console.log("Title is:", title);
     return title;
   } catch (error) {
     console.log(error);
@@ -129,7 +137,7 @@ bot.catch(async (error, context) => {
   console.error(error);
   await Promise.allSettled([
     context.sendMessage(
-      "Ошибка! Попробуй еще раз, или сообщи об этом @nezort11"
+      "Ошибка! Попробуй еще раз 🔁, или сообщи об этом @nezort11 (буду рад помочь 😁)"
     ),
     sendAdminNotification(
       `${(error as Error)?.stack || error}\n\nMessage: ${JSON.stringify(
@@ -141,9 +149,9 @@ bot.catch(async (error, context) => {
 
 bot.start(async (context) => {
   await context.reply(
-    `Привет. Пришли мне ссылку на видео или аудио и я попробую перевести его (к примеру https://youtu.be/8pDqjafNa44, twitter.com/i/status/16248163632571853826 и др.).
-    Я поддерживаю много различных платформ/соцсетей/сайтов, а также простые ссылки для видео/аудио.
-    Перевожу не только с английского, но и с многих других языков`
+    "Привет 👋. Пришли мне ссылку 🔗 на видео или аудио и я попробую перевести его 🔊 (к примеру https://youtu.be/8pDqjafNa44 ⏯, twitter.com/i/status/16248163632571853826 и др.)."
+    //  Я поддерживаю много различных платформ / соцсетей / сайтов, а также простые ссылки для видео / аудио.
+    // Перевожу не только с английского, но и с многих других языков"
   );
 
   // await context.reply("⁣", {
@@ -155,10 +163,18 @@ bot.start(async (context) => {
   // });
 });
 
+bot.command("do", async (context) => {
+  await bot.telegram.copyMessage(
+    524215438,
+    "@vnkszljixhbrqpdfwztceeyomlnauhgm",
+    88
+  );
+});
+
 bot.command("test", async (context) => {
   const youtubeReadableStream = ytdl(
-    "https://www.youtube.com/watch?v=5weFyMoBGN4",
-    { filter: "audio" }
+    "https://www.youtube.com/watch?v=5weFyMoBGN4"
+    // { filter: "audio" }
     // { filter: "audioonly" }
   );
 
@@ -265,6 +281,7 @@ bot.on(message("text"), async (context) => {
   try {
     let translationUrl: string | undefined;
     try {
+      console.log("Request translation...");
       translationUrl = await getVoiceTranslateFinal(url.href);
     } catch (error) {
       if (error instanceof TranslateException) {
@@ -278,13 +295,15 @@ bot.on(message("text"), async (context) => {
       throw error;
     }
 
-    console.log(translationUrl);
+    console.log("Translated:", translationUrl);
 
+    console.log("Downloading tranlation...");
     const audioResponse = await axiosInstance.get<ArrayBuffer>(translationUrl, {
       responseType: "arraybuffer",
       // responseType: "stream",
     });
     const audioBuffer = Buffer.from(audioResponse.data);
+    console.log("Downloaded translation: ");
 
     await fs.writeFile("./audio.mp3", audioBuffer);
 
@@ -295,6 +314,7 @@ bot.on(message("text"), async (context) => {
 
     console.log("duration: ", audioDuration);
 
+    console.log("Requesting video page to get title...");
     const resourceTitle = await getWebsiteTitle(url.href);
 
     let resourceThumbnailUrl: string | undefined;
@@ -309,6 +329,7 @@ bot.on(message("text"), async (context) => {
       resourceThumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
       link = `https://youtu.be/${videoId}`;
 
+      console.log("Requesting video page to get author/channel name...");
       const youtubeResponse = await axiosInstance.get(link);
       const $ = load(youtubeResponse.data);
       const authorName = $('span[itemprop="author"] [itemprop="name"]').attr(
@@ -324,6 +345,7 @@ bot.on(message("text"), async (context) => {
       );
 
       const streamChunks: Uint8Array[] = [];
+      console.log("Downloading youtube video stream...");
       for await (const data of youtubeReadableStream) {
         streamChunks.push(data);
       }
@@ -336,7 +358,9 @@ bot.on(message("text"), async (context) => {
         wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
       });
       if (!ffmpeg.isLoaded()) {
+        console.log("Loading ffmpeg...");
         await ffmpeg.load();
+        console.log("FFmpeg loaded");
       }
 
       ffmpeg.FS("writeFile", "source.mp4", youtubeBuffer);
@@ -359,6 +383,7 @@ bot.on(message("text"), async (context) => {
       );
       // ffmpeg -i input.mp4 -f null /dev/null
       // ffmpeg -i ./input.mp4 -i input2.mp3 -filter_complex "[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame -q:a 4 -y output_audio.mp3
+      console.log("Getting ffmpeg output in node environment");
       const outputFile = ffmpeg.FS("readFile", "output.mp3");
 
       outputBuffer = Buffer.from(outputFile);
@@ -384,6 +409,7 @@ bot.on(message("text"), async (context) => {
     form.append("caption", link);
     form.append("thumbnail", resourceThumbnailUrl ?? "");
 
+    console.log("Uploading to telegram channel...");
     const uploadResponse = await axiosInstance.post<UploadResponse>(
       UPLOADER_URL,
       // {
@@ -400,6 +426,7 @@ bot.on(message("text"), async (context) => {
         headers: { ...form.getHeaders() },
       }
     );
+    console.log("Uploaded to telegram");
 
     const chatId = uploadResponse.data.chat_id;
     const messageId = uploadResponse.data.message_id;
