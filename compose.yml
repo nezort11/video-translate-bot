@@ -10,27 +10,27 @@ services:
     platform: linux/amd64
     command: yarn start
 
-  telegram_upload:
-    build:
-      context: ../telegram-upload
-      dockerfile: ./Dockerfile
-    restart: unless-stopped
-    image: telegram-upload:latest
-    container_name: telegram-upload
-    platform: linux/amd64
-    expose:
-      - 3000
-    command: gunicorn -w 1 'src.main:app' -b '0.0.0.0:3000'
+  # telegram_upload:
+  #   build:
+  #     context: ../telegram-upload
+  #     dockerfile: ./Dockerfile
+  #   restart: unless-stopped
+  #   image: telegram-upload:latest
+  #   container_name: telegram-upload
+  #   platform: linux/amd64
+  #   expose:
+  #     - 3000
+  #   command: gunicorn -w 1 'src.main:app' -b '0.0.0.0:3000'
 
-    # networks:
-    #   - ${CONTAINER_NAME}_net
-    # volumes:
-    #   - /app/node_modules
-    #   - .:/app:z
-    # ports:
-    #   - "${PORT}:${PORT}"
-    # env_file:
-    #   - ./.env
+  # networks:
+  #   - ${CONTAINER_NAME}_net
+  # volumes:
+  #   - /app/node_modules
+  #   - .:/app:z
+  # ports:
+  #   - "${PORT}:${PORT}"
+  # env_file:
+  #   - ./.env
 # networks:
 #   "example2_net":
 #     name: "${CONTAINER_NAME}_net"

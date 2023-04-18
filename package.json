@@ -12,6 +12,7 @@
     "command": "node --inspect --experimental-specifier-resolution=node --no-warnings",
     "dev": "yarn pre:nvm 'NODE_ENV=development yarn nodemon --exec \"yarn command --loader ts-node/esm\" --watch \"./.env\" --watch \"./src\" ./src/index.ts'",
     "start": "NODE_ENV=production yarn command ./build/index.js",
+    "start:dev": "NODE_ENV=development yarn command ./build/index.js",
     "-dev": "yarn pre:nvm 'yarn webhook:reset && yarn nodemon --exec \"yarn command --loader ts-node/esm\" ./src/main.ts'",
     "handler": "yarn command ./build/handler.js",
     "build": "yarn tsc --build",
@@ -53,8 +54,11 @@
     "express": "4.18.2",
     "form-data": "4.0.0",
     "get-audio-duration": "3.1.1",
+    "input": "1.0.1",
     "protobufjs": "7.2.2",
     "telegraf": "4.11.2",
+    "telegraf-throttler": "0.6.0",
+    "telegram": "2.15.15",
     "ytdl-core": "https://github.com/khlevon/node-ytdl-core.git#v4.11.3-patch.1"
   },
   "devDependencies": {
@@ -63,5 +67,8 @@
     "nodemon": "2.0.20",
     "ts-node": "10.9.1",
     "typescript": "4.9.5"
+  },
+  "resolutions": {
+    "@ffmpeg/core@0.11.0": "patch:@ffmpeg/core@npm%3A0.11.0#./.yarn/patches/@ffmpeg-core-npm-0.11.0-514ee933c9.patch"
   }
 }

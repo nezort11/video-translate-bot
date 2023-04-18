@@ -19,8 +19,13 @@ import path from "path";
 import http from "http";
 import https from "https";
 import { sendAdminNotification } from "./notification";
+import { getClient } from "./telegramClient";
+import { Api } from "telegram";
+import { telegrafThrottler } from "telegraf-throttler";
 
 dotenv.config({ path: "./.env" });
+
+const STORAGE_CHANNEL_CHAT_ID = process.env.STORAGE_CHANNEL_CHAT_ID as string;
 
 const AXIOS_REQUEST_TIMEOUT = 45 * 60 * 1000; // 45 min
 
@@ -118,6 +123,9 @@ const BOT_TIMEOUT = 30 * 60 * 1000;
 
 export const bot = new Telegraf(BOT_TOKEN, { handlerTimeout: BOT_TIMEOUT });
 
+const throttler = telegrafThrottler();
+bot.use(throttler);
+
 bot.use(async (context, next) => {
   let typingInterval: NodeJS.Timer | undefined;
   try {
@@ -137,7 +145,7 @@ bot.catch(async (error, context) => {
   console.error(error);
   await Promise.allSettled([
     context.sendMessage(
-      "Ошибка! Попробуй еще раз 🔁, или сообщи об этом @nezort11 (буду рад помочь 😁)"
+      "Ошибка ⚠️! Попробуй еще раз 🔁, или сообщи об этом @nezort11 (буду рад помочь 😁)"
     ),
     sendAdminNotification(
       `${(error as Error)?.stack || error}\n\nMessage: ${JSON.stringify(
@@ -353,9 +361,9 @@ bot.on(message("text"), async (context) => {
 
       const ffmpeg = createFFmpeg({
         log: true,
-        corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
-        workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
-        wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
+        // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
+        // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
+        // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
       });
       if (!ffmpeg.isLoaded()) {
         console.log("Loading ffmpeg...");
@@ -387,6 +395,8 @@ bot.on(message("text"), async (context) => {
       const outputFile = ffmpeg.FS("readFile", "output.mp3");
 
       outputBuffer = Buffer.from(outputFile);
+      // @ts-expect-error telegraf uses non-standard Buffer.`name` property
+      outputBuffer.name = "audio.mp3";
     }
     // }
     console.log("resource thumbnail: ", resourceThumbnailUrl);
@@ -401,35 +411,78 @@ bot.on(message("text"), async (context) => {
     //   }
     // );
 
-    const form = new FormData({ maxDataSize: 20971520 });
-    form.append("file", outputBuffer, "audio.mp3");
-    form.append("duration", Math.floor(audioDuration));
-    form.append("title", resourceTitle ?? "");
-    form.append("artist", artist ?? "");
-    form.append("caption", link);
-    form.append("thumbnail", resourceThumbnailUrl ?? "");
+    // const form = new FormData({ maxDataSize: 20971520 });
+    // form.append("file", outputBuffer, "audio.mp3");
+    // form.append("duration", Math.floor(audioDuration));
+    // form.append("title", resourceTitle ?? "");
+    // form.append("artist", artist ?? "");
+    // form.append("caption", link);
+    // form.append("thumbnail", resourceThumbnailUrl ?? "");
 
-    console.log("Uploading to telegram channel...");
-    const uploadResponse = await axiosInstance.post<UploadResponse>(
-      UPLOADER_URL,
-      // {
-      //   file: audioBuffer.toString("base64"),
-      //   // file: translationUrl,
-      //   duration: Math.floor(audioDuration),
-      //   title: resourceTitle ?? "",
-      //   artist: artist ?? "",
-      //   caption: link,
-      //   thumbnail: resourceThumbnailUrl ?? "",
-      // }
-      form,
+    const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
+      resourceThumbnailUrl as string,
       {
-        headers: { ...form.getHeaders() },
+        responseType: "arraybuffer",
       }
     );
+    const thumbnailBuffer = Buffer.from(thumbnailResponse.data);
+    // @ts-expect-error telegraf uses non-standard Buffer.`name` property
+    thumbnailBuffer.name = "mqdefault.jpg";
+
+    // await fs.writeFile("./thumb.jpg", thumbnailBuffer);
+
+    console.log("Uploading to telegram channel...");
+
+    const telegramClient = await getClient();
+    const { id: fileMessageId } = await telegramClient.sendFile(
+      STORAGE_CHANNEL_CHAT_ID,
+      {
+        file: outputBuffer,
+        caption: link,
+        // thumb: path.resolve("./thumb.jpg"),
+        thumb: thumbnailBuffer,
+        // thumb: "/Users/egorzorin/Downloads/response.jpeg",
+
+        attributes: [
+          new Api.DocumentAttributeAudio({
+            duration: Math.floor(audioDuration),
+            title: resourceTitle,
+            performer: artist,
+          }),
+          new Api.DocumentAttributeFilename({
+            fileName: "mqdefault.jpg",
+          }),
+          new Api.DocumentAttributeVideo({
+            w: 320,
+            h: 180,
+            duration: Math.floor(audioDuration),
+          }),
+        ],
+      }
+    );
+
+    // const uploadResponse = await axiosInstance.post<UploadResponse>(
+    //   UPLOADER_URL,
+    //   // {
+    //   //   file: audioBuffer.toString("base64"),
+    //   //   // file: translationUrl,
+    //   //   duration: Math.floor(audioDuration),
+    //   //   title: resourceTitle ?? "",
+    //   //   artist: artist ?? "",
+    //   //   caption: link,
+    //   //   thumbnail: resourceThumbnailUrl ?? "",
+    //   // }
+    //   form,
+    //   {
+    //     headers: { ...form.getHeaders() },
+    //   }
+    // );
     console.log("Uploaded to telegram");
 
-    const chatId = uploadResponse.data.chat_id;
-    const messageId = uploadResponse.data.message_id;
+    // const chatId = uploadResponse.data.chat_id;
+    // const messageId = uploadResponse.data.message_id;
+    const chatId = STORAGE_CHANNEL_CHAT_ID;
+    const messageId = fileMessageId;
     await bot.telegram.copyMessage(context.chat.id, chatId, messageId);
   } catch (error) {
     throw error;
