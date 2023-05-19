@@ -7,8 +7,18 @@ services:
     restart: unless-stopped
     image: yandex-voice-translate-bot:latest
     container_name: yandex-voice-translate-bot
-    platform: linux/amd64
+    #platform: linux/amd64
     command: yarn start
+    user: root
+
+    deploy:
+      resources:
+        limits:
+          cpus: "4" # default 1
+          memory: 2G # default 64M
+        reservations:
+          # cpus: 0.25
+          memory: 256M
 
   # telegram_upload:
   #   build:

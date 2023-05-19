@@ -22,7 +22,7 @@ RUN yarn build
 # ENV PATH ./node_modules/.bin/:$PATH
 # USER node
 
-RUN chown -Rh $user:$user /app
+# RUN chown -Rh $user:$user /app
 
 # For running image without docker compose
 # CMD yarn handler

@@ -22,6 +22,7 @@ import { sendAdminNotification } from "./notification";
 import { getClient } from "./telegramClient";
 import { Api } from "telegram";
 import { telegrafThrottler } from "telegraf-throttler";
+import Bottleneck from "bottleneck";
 
 dotenv.config({ path: "./.env" });
 
@@ -113,17 +114,48 @@ const BOT_TOKEN = (
     : process.env.BOT_TOKEN_PROD
 ) as string;
 
-const UPLOADER_URL = (
-  NODE_ENV === "development"
-    ? process.env.UPLOADER_URL_DEV
-    : process.env.UPLOADER_URL_PROD
-) as string;
+// const UPLOADER_URL = (
+//   NODE_ENV === "development"
+//     ? process.env.UPLOADER_URL_DEV
+//     : process.env.UPLOADER_URL_PROD
+// ) as string;
 
-const BOT_TIMEOUT = 30 * 60 * 1000;
+const BOT_TIMEOUT = 120 * 60 * 1000; // 2h
 
 export const bot = new Telegraf(BOT_TOKEN, { handlerTimeout: BOT_TIMEOUT });
 
-const throttler = telegrafThrottler();
+const ffmpeg = createFFmpeg({
+  log: true,
+  // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
+  // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
+  // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
+});
+
+const throttler = telegrafThrottler({
+  // Config credit: https://github.com/KnightNiwrem/telegraf-throttler/blob/master/src/index.ts#L37
+  group: {
+    maxConcurrent: 1,
+    minTime: 333,
+    reservoir: 20,
+    reservoirRefreshAmount: 20,
+    reservoirRefreshInterval: 60000,
+  },
+  in: {
+    highWater: 16, // can only translate 8 videos in the queue
+    strategy: Bottleneck.strategy.LEAK,
+    // TODO: fix why it still does 2 concurrently
+    maxConcurrent: 1, // only translate 1 video at the same time because of low server
+    minTime: 333,
+  },
+  out: {
+    // https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+    maxConcurrent: 1,
+    minTime: 25,
+    reservoir: 30,
+    reservoirRefreshAmount: 30,
+    reservoirRefreshInterval: 1000,
+  },
+});
 bot.use(throttler);
 
 bot.use(async (context, next) => {
@@ -145,7 +177,7 @@ bot.catch(async (error, context) => {
   console.error(error);
   await Promise.allSettled([
     context.sendMessage(
-      "Ошибка ⚠️! Попробуй еще раз 🔁, или сообщи об этом @nezort11 (буду рад помочь 😁)"
+      "⚠️ Ошибка! Попробуй еще раз 🔁, или сообщи об этом @nezort11 (всегда рад помочь 😁)"
     ),
     sendAdminNotification(
       `${(error as Error)?.stack || error}\n\nMessage: ${JSON.stringify(
@@ -277,6 +309,8 @@ bot.command("foo", async (context) => {
 });
 
 bot.on(message("text"), async (context) => {
+  console.log("Incoming translate request:", context);
+
   let url: URL;
   try {
     const link = getLink(context.message.text);
@@ -305,13 +339,13 @@ bot.on(message("text"), async (context) => {
 
     console.log("Translated:", translationUrl);
 
-    console.log("Downloading tranlation...");
+    console.log("Downloading translation...");
     const audioResponse = await axiosInstance.get<ArrayBuffer>(translationUrl, {
       responseType: "arraybuffer",
       // responseType: "stream",
     });
     const audioBuffer = Buffer.from(audioResponse.data);
-    console.log("Downloaded translation: ");
+    console.log("Downloaded translation:", audioBuffer.length);
 
     await fs.writeFile("./audio.mp3", audioBuffer);
 
@@ -320,7 +354,7 @@ bot.on(message("text"), async (context) => {
 
     const audioDuration = await getAudioDurationInSeconds("./audio.mp3");
 
-    console.log("duration: ", audioDuration);
+    console.log("Duration:", audioDuration);
 
     console.log("Requesting video page to get title...");
     const resourceTitle = await getWebsiteTitle(url.href);
@@ -344,7 +378,7 @@ bot.on(message("text"), async (context) => {
         "content"
       );
       artist = authorName?.toString();
-      console.log("author name: ", authorName);
+      console.log("Author name:", authorName);
 
       const youtubeReadableStream = ytdl(
         link,
@@ -359,12 +393,6 @@ bot.on(message("text"), async (context) => {
       }
       const youtubeBuffer = Buffer.concat(streamChunks);
 
-      const ffmpeg = createFFmpeg({
-        log: true,
-        // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
-        // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
-        // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
-      });
       if (!ffmpeg.isLoaded()) {
         console.log("Loading ffmpeg...");
         await ffmpeg.load();
@@ -399,7 +427,7 @@ bot.on(message("text"), async (context) => {
       outputBuffer.name = "audio.mp3";
     }
     // }
-    console.log("resource thumbnail: ", resourceThumbnailUrl);
+    console.log("Resource thumbnail:", resourceThumbnailUrl);
 
     // await context.sendAudio(
     //   {
