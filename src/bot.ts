@@ -26,7 +26,14 @@ import Bottleneck from "bottleneck";
 
 dotenv.config({ path: "./.env" });
 
+export const getChatId = (id: string) => {
+  return `-100${id}`;
+};
+
 const STORAGE_CHANNEL_CHAT_ID = process.env.STORAGE_CHANNEL_CHAT_ID as string;
+
+const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID as string;
+const LOGGING_CHANNEL_CHAT_ID = getChatId(LOGGING_CHANNEL_ID);
 
 const AXIOS_REQUEST_TIMEOUT = 45 * 60 * 1000; // 45 min
 
@@ -131,6 +138,15 @@ const ffmpeg = createFFmpeg({
   // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
 });
 
+bot.use(async (context, next) => {
+  // Disable chat bot in channels/groups
+  if (context.chat?.type !== "private") {
+    return;
+  }
+
+  await next();
+});
+
 const throttler = telegrafThrottler({
   // Config credit: https://github.com/KnightNiwrem/telegraf-throttler/blob/master/src/index.ts#L37
   group: {
@@ -161,11 +177,16 @@ bot.use(throttler);
 bot.use(async (context, next) => {
   let typingInterval: NodeJS.Timer | undefined;
   try {
-    await context.sendChatAction("typing");
-    typingInterval = setInterval(
-      async () => await context.sendChatAction("typing"),
-      5000
-    );
+    if (!context.callbackQuery) {
+      await context.sendChatAction("typing");
+
+      typingInterval = setInterval(
+        async () => await context.sendChatAction("typing"),
+        5000
+      );
+
+      context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+    }
 
     await next();
   } finally {
