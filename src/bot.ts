@@ -10,11 +10,9 @@ import {
 import axios from "axios";
 import { load } from "cheerio";
 import { getAudioDurationInSeconds } from "get-audio-duration";
-import { Readable, Stream } from "stream";
 import fs from "fs/promises";
 import ytdl from "ytdl-core";
 import { createFFmpeg } from "@ffmpeg/ffmpeg";
-import FormData from "form-data";
 import path from "path";
 import http from "http";
 import https from "https";
@@ -23,6 +21,7 @@ import { getClient } from "./telegramClient";
 import { Api } from "telegram";
 import { telegrafThrottler } from "telegraf-throttler";
 import Bottleneck from "bottleneck";
+import translate from "@iamtraction/google-translate";
 
 dotenv.config({ path: "./.env" });
 
@@ -378,7 +377,13 @@ bot.on(message("text"), async (context) => {
     console.log("Duration:", audioDuration);
 
     console.log("Requesting video page to get title...");
-    const resourceTitle = await getWebsiteTitle(url.href);
+    let resourceTitle = await getWebsiteTitle(url.href);
+    if (resourceTitle) {
+      try {
+        const translateResponse = await translate(resourceTitle, { to: "ru" });
+        resourceTitle = translateResponse.text;
+      } catch (error) {}
+    }
 
     let resourceThumbnailUrl: string | undefined;
     // if (YOUTUBE_LINK_REGEX.test(url.href)) {
@@ -399,6 +404,14 @@ bot.on(message("text"), async (context) => {
         "content"
       );
       artist = authorName?.toString();
+
+      if (artist) {
+        try {
+          const translateResponse = await translate(artist, { to: "ru" });
+          artist = translateResponse.text;
+        } catch (error) {}
+      }
+
       console.log("Author name:", authorName);
 
       const youtubeReadableStream = ytdl(

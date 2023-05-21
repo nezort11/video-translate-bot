@@ -143,6 +143,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@iamtraction/google-translate@npm:2.0.1":
+  version: 2.0.1
+  resolution: "@iamtraction/google-translate@npm:2.0.1"
+  dependencies:
+    undici: ^5.12.0
+  checksum: 19514f9c3517a77570d9545729a590bbeb8ca53680fd8ed863d1d66aad18f2b853c0017da54c127175a17d801bf2b77c6e0b0fbdb59964a9e36328727f7dc7a3
+  languageName: node
+  linkType: hard
+
 "@jridgewell/resolve-uri@npm:^3.0.3":
   version: 3.1.0
   resolution: "@jridgewell/resolve-uri@npm:3.1.0"
@@ -691,6 +700,15 @@ __metadata:
     node-gyp: latest
     node-gyp-build: ^4.3.0
   checksum: f75aa87e3d1b99b87a95f60a855e63f70af07b57fb8443e75a2ddfef2e47788d130fdd46e3a78fd7e0c10176082b26dfbed970c5b8632e1cc299cafa0e93ce45
+  languageName: node
+  linkType: hard
+
+"busboy@npm:^1.6.0":
+  version: 1.6.0
+  resolution: "busboy@npm:1.6.0"
+  dependencies:
+    streamsearch: ^1.1.0
+  checksum: 32801e2c0164e12106bf236291a00795c3c4e4b709ae02132883fe8478ba2ae23743b11c5735a0aae8afe65ac4b6ca4568b91f0d9fed1fdbc32ede824a73746e
   languageName: node
   linkType: hard
 
@@ -2780,6 +2798,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"streamsearch@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "streamsearch@npm:1.1.0"
+  checksum: 1cce16cea8405d7a233d32ca5e00a00169cc0e19fbc02aa839959985f267335d435c07f96e5e0edd0eadc6d39c98d5435fb5bbbdefc62c41834eadc5622ad942
+  languageName: node
+  linkType: hard
+
 "string-width@npm:^1.0.1":
   version: 1.0.2
   resolution: "string-width@npm:1.0.2"
@@ -2930,6 +2955,7 @@ __metadata:
   dependencies:
     "@ffmpeg/core": 0.11.0
     "@ffmpeg/ffmpeg": 0.11.6
+    "@iamtraction/google-translate": 2.0.1
     "@types/express": 4.17.17
     "@types/node": 18.15.3
     axios: 1.3.4
@@ -2946,7 +2972,7 @@ __metadata:
     telegram: 2.15.15
     ts-node: 10.9.1
     typescript: 4.9.5
-    ytdl-core: "https://github.com/khlevon/node-ytdl-core.git#v4.11.3-patch.1"
+    ytdl-core: "https://github.com/khlevon/node-ytdl-core.git#v4.11.4-patch.1"
   languageName: unknown
   linkType: soft
 
@@ -3110,6 +3136,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"undici@npm:^5.12.0":
+  version: 5.22.1
+  resolution: "undici@npm:5.22.1"
+  dependencies:
+    busboy: ^1.6.0
+  checksum: 048a3365f622be44fb319316cedfaa241c59cf7f3368ae7667a12323447e1822e8cc3d00f6956c852d1478a6fde1cbbe753f49e05f2fdaed229693e716ebaf35
+  languageName: node
+  linkType: hard
+
 "unique-filename@npm:^2.0.0":
   version: 2.0.1
   resolution: "unique-filename@npm:2.0.1"
@@ -3263,13 +3298,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ytdl-core@https://github.com/khlevon/node-ytdl-core.git#v4.11.3-patch.1":
+"ytdl-core@https://github.com/khlevon/node-ytdl-core.git#v4.11.4-patch.1":
   version: 0.0.0-development
-  resolution: "ytdl-core@https://github.com/khlevon/node-ytdl-core.git#commit=586971bd9aeda1cbb4600851cfef82a809833ac2"
+  resolution: "ytdl-core@https://github.com/khlevon/node-ytdl-core.git#commit=a9d80c0c619c8214c6fb4ef817c9d7aed5e25ff3"
   dependencies:
     m3u8stream: ^0.8.6
     miniget: ^4.2.2
     sax: ^1.1.3
-  checksum: f1ca0f2a091ce9820748cdefa16c93a4435e6ada9943cb34c951a3805463d12dfd47d551ef6d8f3edd2ca7adaaf76f3729a94c1204c87dcf35b43f6df0a1b80c
+  checksum: fe1e9da9b1bc972d5177c2c7814857120ef6d4531c2f892ad1236cb3f589871fa338fe71a0c3113a5696b723ee9c8b4e6cae726ee40779b4e33c87d12659e283
   languageName: node
   linkType: hard
