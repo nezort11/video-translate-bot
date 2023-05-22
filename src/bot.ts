@@ -55,10 +55,11 @@ type UploadResponse = {
 
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
-  /^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|v\/)?)([\w\-]+)(\S+)?$/g;
+  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|v\/)?)([\w\-]+)(\S+)?/g;
 
 const getLink = (text: string) => {
-  let link = text.match(LINK_REGEX)?.[0];
+  // Youtube link is higher priority than regular link
+  let link = text.match(YOUTUBE_LINK_REGEX)?.[0] || text.match(LINK_REGEX)?.[0];
   if (!link) {
     return;
   }
