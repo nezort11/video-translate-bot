@@ -55,7 +55,7 @@ type UploadResponse = {
 
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
-  /http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?[\w\?=]*)?/g;
+  /^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|v\/)?)([\w\-]+)(\S+)?$/g;
 
 const getLink = (text: string) => {
   let link = text.match(LINK_REGEX)?.[0];
@@ -197,7 +197,7 @@ bot.catch(async (error, context) => {
   console.error(error);
   await Promise.allSettled([
     context.sendMessage(
-      "⚠️ Ошибка! Попробуй еще раз 🔁, или сообщи об этом @nezort11 (всегда рад помочь 😁)"
+      "⚠️ Ошибка! Попробуй еще раз 🔁 чуть позже, или сообщи об этом @nezort11 (всегда рад помочь 😁). Информация об ошибке уже передана ✉️"
     ),
     sendAdminNotification(
       `${(error as Error)?.stack || error}\n\nMessage: ${JSON.stringify(
@@ -391,7 +391,8 @@ bot.on(message("text"), async (context) => {
     let link = url.href;
     let artist: string | undefined;
     let outputBuffer = audioBuffer;
-    const videoId = Array.from(url.href.matchAll(YOUTUBE_LINK_REGEX))?.[0]?.[1];
+    const youtubeMatch = Array.from(link.matchAll(YOUTUBE_LINK_REGEX));
+    const videoId = youtubeMatch?.[0]?.[6];
 
     if (videoId) {
       resourceThumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
