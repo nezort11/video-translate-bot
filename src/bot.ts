@@ -29,7 +29,8 @@ export const getChatId = (id: string) => {
   return `-100${id}`;
 };
 
-const STORAGE_CHANNEL_CHAT_ID = process.env.STORAGE_CHANNEL_CHAT_ID as string;
+const STORAGE_CHANNEL_ID = process.env.STORAGE_CHANNEL_ID as string;
+const STORAGE_CHANNEL_CHAT_ID = getChatId(STORAGE_CHANNEL_ID);
 
 const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID as string;
 const LOGGING_CHANNEL_CHAT_ID = getChatId(LOGGING_CHANNEL_ID);
@@ -208,7 +209,7 @@ bot.use(async (context, next) => {
     );
 
     if (!context.callbackQuery) {
-      context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+      // context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
     }
 
     await next();
