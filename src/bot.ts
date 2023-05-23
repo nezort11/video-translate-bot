@@ -1,4 +1,3 @@
-import process from "process";
 import { Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import * as dotenv from "dotenv";
@@ -10,6 +9,7 @@ import {
 import axios from "axios";
 import { load } from "cheerio";
 import { getAudioDurationInSeconds } from "get-audio-duration";
+import { getVideoDurationInSeconds } from "get-video-duration";
 import fs from "fs/promises";
 import ytdl from "ytdl-core";
 import { createFFmpeg } from "@ffmpeg/ffmpeg";
@@ -114,6 +114,30 @@ function toArrayBuffer(buffer: Buffer) {
   return arrayBuffer;
 }
 
+enum TranslateType {
+  Audio = "a",
+  Video = "v",
+}
+
+type TranslateAction = {
+  translateType: TranslateType;
+  url: string;
+};
+
+const encodeTranslateAction = (
+  translateType: TranslateAction["translateType"],
+  url: TranslateAction["url"]
+) => {
+  return `${translateType}${url}`;
+};
+
+const decodeTranslateAction = (actionData: string) => {
+  return {
+    translateType: actionData[0],
+    url: actionData.slice(1),
+  } as TranslateAction;
+};
+
 const NODE_ENV = process.env.NODE_ENV;
 const BOT_TOKEN = (
   NODE_ENV === "development"
@@ -177,14 +201,13 @@ bot.use(throttler);
 bot.use(async (context, next) => {
   let typingInterval: NodeJS.Timer | undefined;
   try {
+    await context.sendChatAction("typing");
+    typingInterval = setInterval(
+      async () => await context.sendChatAction("typing"),
+      5000
+    );
+
     if (!context.callbackQuery) {
-      await context.sendChatAction("typing");
-
-      typingInterval = setInterval(
-        async () => await context.sendChatAction("typing"),
-        5000
-      );
-
       context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
     }
 
@@ -198,10 +221,11 @@ bot.catch(async (error, context) => {
   console.error(error);
   await Promise.allSettled([
     context.sendMessage(
-      "⚠️ Ошибка! Попробуй еще раз 🔁 чуть позже, или сообщи об этом @nezort11 (всегда рад помочь 😁). Информация об ошибке уже передана ✉️"
+      "⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже. ✉️ Информация об ошибке уже передана. 💬 Связь: @nezort11"
+      // "⚠️ Ошибка! Попробуй еще раз 🔁 чуть позже, или сообщи об этом @nezort11 (всегда рад помочь 😁). Информация об ошибке уже передана ✉️"
     ),
     sendAdminNotification(
-      `${(error as Error)?.stack || error}\n\nMessage: ${JSON.stringify(
+      `${(error as Error)?.stack || error}\nMessage: ${JSON.stringify(
         context.message
       )}`
     ),
@@ -210,7 +234,7 @@ bot.catch(async (error, context) => {
 
 bot.start(async (context) => {
   await context.reply(
-    "Привет 👋. Пришли мне ссылку 🔗 на видео или аудио и я попробую перевести его 🔊 (к примеру https://youtu.be/8pDqjafNa44 ⏯, twitter.com/i/status/16248163632571853826 и др.)."
+    "👋 Привет. Пришли мне 🔗 ссылку на видео или аудио и я попробую 🚧 перевести его (к примеру ⏯ https://youtu.be/8pDqjafNa44)"
     //  Я поддерживаю много различных платформ / соцсетей / сайтов, а также простые ссылки для видео / аудио.
     // Перевожу не только с английского, но и с многих других языков"
   );
@@ -222,14 +246,6 @@ bot.start(async (context) => {
   //     ],
   //   },
   // });
-});
-
-bot.command("do", async (context) => {
-  await bot.telegram.copyMessage(
-    524215438,
-    "@vnkszljixhbrqpdfwztceeyomlnauhgm",
-    88
-  );
 });
 
 bot.command("test", async (context) => {
@@ -256,14 +272,31 @@ bot.command("test", async (context) => {
   }
   const youtubeBuffer = Buffer.concat(streamChunks);
 
+  // @ts-expect-error non-standard attribute
+  youtubeBuffer.name = "video.mp4";
+
   // await fs.writeFile("./output.mp4", youtubeBuffer);
 
-  const ffmpeg = createFFmpeg({
-    log: true,
-    corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
-    workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
-    wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
-  });
+  await fs.writeFile("./video.mp4", youtubeBuffer);
+
+  // const audioStream = audioResponse.data;
+  // const audioStream = Readable.from(audioBuffer);
+
+  const videoDuration = await getVideoDurationInSeconds("./video.mp4"); // ffprobe-based
+
+  // await context.replyWithVideo({
+  //   source: youtubeBuffer,
+  //   // source: youtubeBuffer,
+  //   // source: youtubeReadableStream,
+  //   // filename: "audio.mp3",
+  // });
+
+  // const ffmpeg = createFFmpeg({
+  //   log: true,
+  //   corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
+  //   workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
+  //   wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
+  // });
   if (!ffmpeg.isLoaded()) {
     await ffmpeg.load();
   }
@@ -275,31 +308,74 @@ bot.command("test", async (context) => {
     "-i", "source.mp4",
 
     "-i", "source2.mp3",
-    "-filter_complex", '[0:a]volume=0.25[a];' +
-                        '[1:a]volume=1[b];' +
+    "-filter_complex", '[0:a]volume=0.25[a];' + // 25% (30%/35%/40%) original playback
+                        '[1:a]volume=1[b];' + //  voice over
                         '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
 
     // "-qscale:a", "9", // "4",
     // "-codec:a", "libmp3lame", // "aac",
-    // "-b:a", "64k",
+    "-b:a", "64k", // decrease output size (MB) - default 128kb
     // " -pre", "ultrafast",
 
-    "output.mp3"
+    "output.mp4"
   );
   // ffmpeg -i input.mp4 -f null /dev/null
   // ffmpeg -i ./input.mp4 -i input2.mp3 -filter_complex "[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame -q:a 4 -y output_audio.mp3
-  const outputFile = ffmpeg.FS("readFile", "output.mp3");
+
+  const outputFile = ffmpeg.FS("readFile", "output.mp4");
 
   let outputBuffer: Buffer | null = Buffer.from(outputFile);
 
-  await context.replyWithAudio({
-    source: outputBuffer,
-    // source: youtubeBuffer,
-    // source: youtubeReadableStream,
-    filename: "audio.mp3",
-  });
+  // @ts-expect-error non-standard attribute
+  outputBuffer.name = "video.mp4";
 
-  outputBuffer = null;
+  const telegramClient = await getClient();
+  const { id: fileMessageId } = await telegramClient.sendFile(
+    STORAGE_CHANNEL_CHAT_ID,
+    {
+      file: outputBuffer,
+      // caption: link,
+      // thumb: path.resolve("./thumb.jpg"),
+      // thumb: thumbnailBuffer,
+      // thumb: "/Users/egorzorin/Downloads/response.jpeg",
+
+      attributes: [
+        // new Api.DocumentAttributeAudio({
+        //   // duration: Math.floor(audioDuration),
+        //   // title: resourceTitle,
+        //   // performer: artist,
+        // }),
+        // new Api.DocumentAttributeFilename({
+        //   fileName: "mqdefault.jpg",
+        // }),
+        new Api.DocumentAttributeVideo({
+          // w: 320,
+          // h: 180,
+          // w: 16,
+          // h: 9,
+          w: 640,
+          h: 360,
+          duration: Math.floor(videoDuration),
+          supportsStreaming: true,
+        }),
+      ],
+    }
+  );
+
+  await bot.telegram.copyMessage(
+    context.chat.id,
+    STORAGE_CHANNEL_CHAT_ID,
+    fileMessageId
+  );
+
+  // await context.replyWithAudio({
+  //   source: outputBuffer,
+  //   // source: youtubeBuffer,
+  //   // source: youtubeReadableStream,
+  //   filename: "audio.mp3",
+  // });
+
+  // outputBuffer = null;
 });
 
 bot.command("foo", async (context) => {
@@ -341,23 +417,67 @@ bot.on(message("text"), async (context) => {
     return;
   }
 
+  let link = url.href;
+  const youtubeMatch = Array.from(link.matchAll(YOUTUBE_LINK_REGEX));
+  const videoId = youtubeMatch?.[0]?.[6];
+
+  if (videoId) {
+    link = `https://youtu.be/${videoId}`;
+  }
+
+  await context.reply(`⚙️ Каким образом перевести это видео?\n${link}`, {
+    reply_to_message_id: context.message.message_id,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "🔊 Аудио",
+            callback_data: encodeTranslateAction(TranslateType.Audio, link),
+          },
+        ],
+        [
+          {
+            text: "📺 Видео (дольше ⏳)",
+            callback_data: encodeTranslateAction(TranslateType.Video, link),
+          },
+        ],
+      ],
+    },
+  });
+
+  // await context.reply(url.href, {
+  //   reply_markup: {
+  //     inline_keyboard: [[{ text: "Open", web_app: { url: url.href } }]],
+  //   },
+  // });
+});
+
+bot.action(/.+/, async (context) => {
   try {
+    await context.editMessageText("🚧 Видео в процессе перевода...");
+
+    const translateAction = decodeTranslateAction(context.match[0]);
+
+    let link = translateAction.url;
+    const youtubeMatch = Array.from(link.matchAll(YOUTUBE_LINK_REGEX));
+    const videoId = youtubeMatch?.[0]?.[6];
+
     let translationUrl: string | undefined;
     try {
       console.log("Request translation...");
-      translationUrl = await getVoiceTranslateFinal(url.href);
+      translationUrl = await getVoiceTranslateFinal(link);
     } catch (error) {
       if (error instanceof TranslateException) {
         if (error.message) {
           await context.reply(error.message);
           return;
         }
-        await context.reply("Ошибка при переводе!");
+        await context.deleteMessage();
+        await context.reply("⚠️ Ошибка при переводе!");
         return;
       }
       throw error;
     }
-
     console.log("Translated:", translationUrl);
 
     console.log("Downloading translation...");
@@ -369,120 +489,26 @@ bot.on(message("text"), async (context) => {
     console.log("Downloaded translation:", audioBuffer.length);
 
     await fs.writeFile("./audio.mp3", audioBuffer);
-
-    // const audioStream = audioResponse.data;
-    // const audioStream = Readable.from(audioBuffer);
-
-    const audioDuration = await getAudioDurationInSeconds("./audio.mp3");
-
+    const audioDuration = await getAudioDurationInSeconds("./audio.mp3"); // ffprobe-based
     console.log("Duration:", audioDuration);
 
     console.log("Requesting video page to get title...");
-    let resourceTitle = await getWebsiteTitle(url.href);
+    let resourceTitle = await getWebsiteTitle(link);
     if (resourceTitle) {
       try {
-        const translateResponse = await translate(resourceTitle, { to: "ru" });
+        const translateResponse = await translate(resourceTitle, {
+          to: "ru",
+        });
         resourceTitle = translateResponse.text;
       } catch (error) {}
     }
 
-    let resourceThumbnailUrl: string | undefined;
-    // if (YOUTUBE_LINK_REGEX.test(url.href)) {
-
-    let link = url.href;
     let artist: string | undefined;
-    let outputBuffer = audioBuffer;
-    const youtubeMatch = Array.from(link.matchAll(YOUTUBE_LINK_REGEX));
-    const videoId = youtubeMatch?.[0]?.[6];
+    // let outputBuffer = audioBuffer;
 
-    if (videoId) {
-      resourceThumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-      link = `https://youtu.be/${videoId}`;
-
-      console.log("Requesting video page to get author/channel name...");
-      const youtubeResponse = await axiosInstance.get(link);
-      const $ = load(youtubeResponse.data);
-      const authorName = $('span[itemprop="author"] [itemprop="name"]').attr(
-        "content"
-      );
-      artist = authorName?.toString();
-
-      if (artist) {
-        try {
-          const translateResponse = await translate(artist, { to: "ru" });
-          artist = translateResponse.text;
-        } catch (error) {}
-      }
-
-      console.log("Author name:", authorName);
-
-      const youtubeReadableStream = ytdl(
-        link,
-        { filter: "audio" }
-        // { filter: "audioonly" }
-      );
-
-      const streamChunks: Uint8Array[] = [];
-      console.log("Downloading youtube video stream...");
-      for await (const data of youtubeReadableStream) {
-        streamChunks.push(data);
-      }
-      const youtubeBuffer = Buffer.concat(streamChunks);
-
-      if (!ffmpeg.isLoaded()) {
-        console.log("Loading ffmpeg...");
-        await ffmpeg.load();
-        console.log("FFmpeg loaded");
-      }
-
-      ffmpeg.FS("writeFile", "source.mp4", youtubeBuffer);
-      ffmpeg.FS("writeFile", "source2.mp3", audioBuffer);
-      // prettier-ignore
-      await ffmpeg.run(
-        "-i", "source.mp4",
-
-        "-i", "source2.mp3",
-        "-filter_complex", '[0:a]volume=0.25[a];' + // 25% (30%/35%/40%) original playback
-                            '[1:a]volume=1[b];' + //  voice over
-                            '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
-
-        // "-qscale:a", "9", // "4",
-        // "-codec:a", "libmp3lame", // "aac",
-        "-b:a", "64k", // decrease output size (MB) - default 128kb
-        // " -pre", "ultrafast",
-
-        "output.mp3"
-      );
-      // ffmpeg -i input.mp4 -f null /dev/null
-      // ffmpeg -i ./input.mp4 -i input2.mp3 -filter_complex "[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame -q:a 4 -y output_audio.mp3
-      console.log("Getting ffmpeg output in node environment");
-      const outputFile = ffmpeg.FS("readFile", "output.mp3");
-
-      outputBuffer = Buffer.from(outputFile);
-      // @ts-expect-error telegraf uses non-standard Buffer.`name` property
-      outputBuffer.name = "audio.mp3";
-    }
-    // }
-    console.log("Resource thumbnail:", resourceThumbnailUrl);
-
-    // await context.sendAudio(
-    //   {
-    //     source: translationBuffer,
-    //     ...(resourceTitle ? { filename: resourceTitle } : {}),
-    //   },
-    //   {
-    //     ...(resourceTitle ? { title: resourceTitle } : {}),
-    //   }
-    // );
-
-    // const form = new FormData({ maxDataSize: 20971520 });
-    // form.append("file", outputBuffer, "audio.mp3");
-    // form.append("duration", Math.floor(audioDuration));
-    // form.append("title", resourceTitle ?? "");
-    // form.append("artist", artist ?? "");
-    // form.append("caption", link);
-    // form.append("thumbnail", resourceThumbnailUrl ?? "");
-
+    // if (videoId) {
+    const resourceThumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+    console.log("Youtube thumbnail:", resourceThumbnailUrl);
     const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
       resourceThumbnailUrl as string,
       {
@@ -490,71 +516,202 @@ bot.on(message("text"), async (context) => {
       }
     );
     const thumbnailBuffer = Buffer.from(thumbnailResponse.data);
+    console.log("Youtube thumbnail downloaded:", thumbnailBuffer.length);
     // @ts-expect-error telegraf uses non-standard Buffer.`name` property
     thumbnailBuffer.name = "mqdefault.jpg";
 
-    // await fs.writeFile("./thumb.jpg", thumbnailBuffer);
+    link = `https://youtu.be/${videoId}`;
+    console.log("Youtube link:", resourceThumbnailUrl);
 
-    console.log("Uploading to telegram channel...");
-
-    const telegramClient = await getClient();
-    const { id: fileMessageId } = await telegramClient.sendFile(
-      STORAGE_CHANNEL_CHAT_ID,
-      {
-        file: outputBuffer,
-        caption: link,
-        // thumb: path.resolve("./thumb.jpg"),
-        thumb: thumbnailBuffer,
-        // thumb: "/Users/egorzorin/Downloads/response.jpeg",
-
-        attributes: [
-          new Api.DocumentAttributeAudio({
-            duration: Math.floor(audioDuration),
-            title: resourceTitle,
-            performer: artist,
-          }),
-          new Api.DocumentAttributeFilename({
-            fileName: "mqdefault.jpg",
-          }),
-          new Api.DocumentAttributeVideo({
-            w: 320,
-            h: 180,
-            duration: Math.floor(audioDuration),
-          }),
-        ],
-      }
+    console.log("Requesting video page to get author/channel name...");
+    const youtubeResponse = await axiosInstance.get(link);
+    const $ = load(youtubeResponse.data);
+    const authorName = $('span[itemprop="author"] [itemprop="name"]').attr(
+      "content"
     );
+    artist = authorName?.toString();
 
-    // const uploadResponse = await axiosInstance.post<UploadResponse>(
-    //   UPLOADER_URL,
-    //   // {
-    //   //   file: audioBuffer.toString("base64"),
-    //   //   // file: translationUrl,
-    //   //   duration: Math.floor(audioDuration),
-    //   //   title: resourceTitle ?? "",
-    //   //   artist: artist ?? "",
-    //   //   caption: link,
-    //   //   thumbnail: resourceThumbnailUrl ?? "",
-    //   // }
-    //   form,
-    //   {
-    //     headers: { ...form.getHeaders() },
-    //   }
-    // );
+    if (artist) {
+      try {
+        const translateResponse = await translate(artist, { to: "ru" });
+        artist = translateResponse.text;
+      } catch (error) {}
+    }
+    console.log("Author name:", authorName);
+
+    // const videoInfo = await ytdl.getInfo(videoId);
+    // console.log("videoInfo", videoInfo);
+
+    const youtubeReadableStream = ytdl(
+      link,
+      {
+        quality: 18, // https://github.com/fent/node-ytdl-core#ytdlchooseformatformats-options
+      }
+      // { filter: "audio" }
+      // { filter: "audioonly" }
+    );
+    const streamChunks: Uint8Array[] = [];
+    console.log("Downloading youtube video stream...");
+    for await (const data of youtubeReadableStream) {
+      streamChunks.push(data);
+    }
+    const youtubeBuffer = Buffer.concat(streamChunks);
+    console.log("Youtube video downloaded:", youtubeBuffer.length);
+
+    if (!ffmpeg.isLoaded()) {
+      console.log("Loading ffmpeg...");
+      await ffmpeg.load();
+      console.log("FFmpeg loaded");
+    }
+
+    ffmpeg.FS("writeFile", "source.mp4", youtubeBuffer);
+    ffmpeg.FS("writeFile", "source2.mp3", audioBuffer);
+
+    let fileMessageId = 0;
+    await {
+      [TranslateType.Audio]: async () => {
+        // prettier-ignore
+        await ffmpeg.run(
+          "-i", "source.mp4",
+          "-i", "source2.mp3",
+
+          "-filter_complex", '[0:a]volume=0.25[a];' + // 25% (30%/35%/40%) original playback
+                              '[1:a]volume=1[b];' + //  voice over
+                              '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
+
+          // "-qscale:a", "9", // "4",
+          // "-codec:a", "libmp3lame", // "aac",
+          "-b:a", "64k", // decrease output size (MB) - default 128kb
+          // " -pre", "ultrafast",
+
+          "output.mp3"
+        );
+        // ffmpeg -i input.mp4 -f null /dev/null
+        // ffmpeg -i ./input.mp4 -i input2.mp3 -filter_complex "[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame -q:a 4 -y output_audio.mp3
+        console.log("Getting ffmpeg output in node environment");
+
+        const outputFile = ffmpeg.FS("readFile", "output.mp3");
+        const outputBuffer = Buffer.from(outputFile);
+        // @ts-expect-error telegraf uses non-standard Buffer.`name` property
+        outputBuffer.name = "audio.mp3";
+
+        // await context.sendAudio(
+        //   {
+        //     source: translationBuffer,
+        //     ...(resourceTitle ? { filename: resourceTitle } : {}),
+        //   },
+        //   {
+        //     ...(resourceTitle ? { title: resourceTitle } : {}),
+        //   }
+        // );
+        // const form = new FormData({ maxDataSize: 20971520 });
+        // form.append("file", outputBuffer, "audio.mp3");
+        // form.append("duration", Math.floor(audioDuration));
+        // form.append("title", resourceTitle ?? "");
+        // form.append("artist", artist ?? "");
+        // form.append("caption", link);
+        // form.append("thumbnail", resourceThumbnailUrl ?? "");
+        // await fs.writeFile("./thumb.jpg", thumbnailBuffer);
+
+        console.log("Uploading to telegram channel...");
+
+        const telegramClient = await getClient();
+        const fileMessage = await telegramClient.sendFile(
+          STORAGE_CHANNEL_CHAT_ID,
+          {
+            file: outputBuffer,
+            caption: link,
+            thumb: thumbnailBuffer,
+
+            attributes: [
+              new Api.DocumentAttributeAudio({
+                duration: Math.floor(audioDuration),
+                title: resourceTitle,
+                performer: artist,
+              }),
+              new Api.DocumentAttributeFilename({
+                fileName: "mqdefault.jpg",
+              }),
+            ],
+          }
+        );
+        fileMessageId = fileMessage.id;
+
+        // const uploadResponse = await axiosInstance.post<UploadResponse>(
+        //   UPLOADER_URL,
+        //   // {
+        //   //   file: audioBuffer.toString("base64"),
+        //   //   // file: translationUrl,
+        //   //   duration: Math.floor(audioDuration),
+        //   //   title: resourceTitle ?? "",
+        //   //   artist: artist ?? "",
+        //   //   caption: link,
+        //   //   thumbnail: resourceThumbnailUrl ?? "",
+        //   // }
+        //   form,
+        //   {
+        //     headers: { ...form.getHeaders() },
+        //   }
+        // );
+      },
+      [TranslateType.Video]: async () => {
+        // prettier-ignore
+        await ffmpeg.run(
+          "-i", "source.mp4",
+          "-i", "source2.mp3",
+
+          "-filter_complex", '[0:a]volume=0.25[a];' + // 25% (30%/35%/40%) original playback
+                              '[1:a]volume=1[b];' + //  voice over
+                              '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
+
+          // "-qscale:a", "9", // "4",
+          // "-codec:a", "libmp3lame", // "aac",
+          "-b:a", "64k", // decrease output size (MB) - default 128kb
+          // " -pre", "ultrafast",
+
+          "output.mp4"
+        );
+
+        const outputFile = ffmpeg.FS("readFile", "output.mp4");
+        const outputBuffer: Buffer | null = Buffer.from(outputFile);
+        // @ts-expect-error non-standard attribute
+        outputBuffer.name = "video.mp4";
+
+        const telegramClient = await getClient();
+        const fileMessage = await telegramClient.sendFile(
+          STORAGE_CHANNEL_CHAT_ID,
+          {
+            file: outputBuffer,
+            caption: link,
+            attributes: [
+              new Api.DocumentAttributeVideo({
+                // w: 320,
+                // h: 180,
+                // w: 16,
+                // h: 9,
+                w: 640,
+                h: 360,
+                duration: Math.floor(audioDuration),
+                supportsStreaming: true,
+              }),
+            ],
+          }
+        );
+        fileMessageId = fileMessage.id;
+      },
+    }[translateAction.translateType]();
     console.log("Uploaded to telegram");
 
-    // const chatId = uploadResponse.data.chat_id;
-    // const messageId = uploadResponse.data.message_id;
-    const chatId = STORAGE_CHANNEL_CHAT_ID;
-    const messageId = fileMessageId;
-    await bot.telegram.copyMessage(context.chat.id, chatId, messageId);
+    await bot.telegram.copyMessage(
+      context.chat?.id ?? 0,
+      STORAGE_CHANNEL_CHAT_ID,
+      fileMessageId
+    );
   } catch (error) {
     throw error;
+  } finally {
+    try {
+      await context.deleteMessage();
+    } catch (error) {}
   }
-
-  // await context.reply(url.href, {
-  //   reply_markup: {
-  //     inline_keyboard: [[{ text: "Open", web_app: { url: url.href } }]],
-  //   },
-  // });
 });

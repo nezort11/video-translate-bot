@@ -1457,6 +1457,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"get-video-duration@npm:4.1.0":
+  version: 4.1.0
+  resolution: "get-video-duration@npm:4.1.0"
+  dependencies:
+    "@ffprobe-installer/ffprobe": ^1.4.1
+    execa: ^5.0.0
+    is-stream: ^2.0.0
+  checksum: 8db887e7e385621b6f7bd1cf5197a9063f9d50d5110f62ea51b367c53bb429adcdb9e817099d10b973e9812a3e069ef3b022bbd32b96175579d5a9b1e8f04365
+  languageName: node
+  linkType: hard
+
 "glob-parent@npm:~5.1.2":
   version: 5.1.2
   resolution: "glob-parent@npm:5.1.2"
@@ -2964,6 +2975,7 @@ __metadata:
     express: 4.18.2
     form-data: 4.0.0
     get-audio-duration: 3.1.1
+    get-video-duration: 4.1.0
     input: 1.0.1
     nodemon: 2.0.20
     protobufjs: 7.2.2
