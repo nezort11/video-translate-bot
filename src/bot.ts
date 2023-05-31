@@ -432,13 +432,13 @@ bot.on(message("text"), async (context) => {
       inline_keyboard: [
         [
           {
-            text: "🔊 Аудио",
+            text: "🎧 Аудио (mp3)",
             callback_data: encodeTranslateAction(TranslateType.Audio, link),
           },
         ],
         [
           {
-            text: "📺 Видео (дольше ⏳)",
+            text: "📺 Видео (mp4) (дольше ⏳)",
             callback_data: encodeTranslateAction(TranslateType.Video, link),
           },
         ],
@@ -546,7 +546,8 @@ bot.action(/.+/, async (context) => {
     const youtubeReadableStream = ytdl(
       link,
       {
-        quality: 18, // https://github.com/fent/node-ytdl-core#ytdlchooseformatformats-options
+        // https://github.com/fent/node-ytdl-core#ytdlchooseformatformats-options
+        quality: 18, // mp4, audio/video, 360p, 24fps
       }
       // { filter: "audio" }
       // { filter: "audioonly" }
@@ -656,6 +657,7 @@ bot.action(/.+/, async (context) => {
         // );
       },
       [TranslateType.Video]: async () => {
+        // ffmpeg -i video.mp4 -i audio.mp3 -filter_complex '[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:dropout_transition=0' -b:a 64k output.mp4
         // prettier-ignore
         await ffmpeg.run(
           "-i", "source.mp4",
