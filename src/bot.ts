@@ -22,6 +22,7 @@ import { Api } from "telegram";
 import { telegrafThrottler } from "telegraf-throttler";
 import Bottleneck from "bottleneck";
 import translate from "@iamtraction/google-translate";
+import * as Sentry from "@sentry/node";
 
 dotenv.config({ path: "./.env" });
 
@@ -47,6 +48,17 @@ const axiosInstance = axios.create({
     keepAlive: true,
     timeout: AXIOS_REQUEST_TIMEOUT,
   }),
+});
+
+const SENTRY_DSN = process.env.SENTRY_DSN as string;
+
+Sentry.init({
+  dsn: SENTRY_DSN,
+
+  // Set tracesSampleRate to 1.0 to capture 100%
+  // of transactions for performance monitoring.
+  // We recommend adjusting this value in production
+  tracesSampleRate: 1.0,
 });
 
 type UploadResponse = {
@@ -220,6 +232,7 @@ bot.use(async (context, next) => {
 
 bot.catch(async (error, context) => {
   console.error(error);
+  Sentry.captureException(error);
   await Promise.allSettled([
     context.sendMessage(
       "⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже. ✉️ Информация об ошибке уже передана. 💬 Связь: @nezort11"
@@ -454,6 +467,11 @@ bot.on(message("text"), async (context) => {
 });
 
 bot.action(/.+/, async (context) => {
+  const translateTransaction = Sentry.startTransaction({
+    op: "translate",
+    name: "Translate Transaction",
+  });
+
   try {
     await context.editMessageText("🚧 Видео в процессе перевода...");
 
@@ -716,5 +734,6 @@ bot.action(/.+/, async (context) => {
     try {
       await context.deleteMessage();
     } catch (error) {}
+    translateTransaction.finish();
   }
 });
