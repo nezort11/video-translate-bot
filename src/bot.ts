@@ -439,25 +439,28 @@ bot.on(message("text"), async (context) => {
     link = `https://youtu.be/${videoId}`;
   }
 
-  await context.reply(`⚙️ Каким образом перевести это видео?\n${link}`, {
-    reply_to_message_id: context.message.message_id,
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: "🎧 Аудио (mp3)",
-            callback_data: encodeTranslateAction(TranslateType.Audio, link),
-          },
+  await context.replyWithMarkdownV2(
+    `⚙️ Каким образом перевести [это](${link}) видео?`,
+    {
+      reply_to_message_id: context.message.message_id,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "🎧 Аудио (mp3)",
+              callback_data: encodeTranslateAction(TranslateType.Audio, link),
+            },
+          ],
+          [
+            {
+              text: "📺 Видео (mp4) (дольше ⏳)",
+              callback_data: encodeTranslateAction(TranslateType.Video, link),
+            },
+          ],
         ],
-        [
-          {
-            text: "📺 Видео (mp4) (дольше ⏳)",
-            callback_data: encodeTranslateAction(TranslateType.Video, link),
-          },
-        ],
-      ],
-    },
-  });
+      },
+    }
+  );
 
   // await context.reply(url.href, {
   //   reply_markup: {
@@ -704,6 +707,7 @@ bot.action(/.+/, async (context) => {
           {
             file: outputBuffer,
             caption: link,
+            thumb: thumbnailBuffer,
             attributes: [
               new Api.DocumentAttributeVideo({
                 // w: 320,

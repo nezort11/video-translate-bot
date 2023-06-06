@@ -11,6 +11,8 @@ COPY ./yarn.lock ./yarn.lock
 COPY ./.yarnrc.yml ./.yarnrc.yml
 COPY ./.yarn ./.yarn
 
+# RUN git config --global --unset https.proxy
+
 RUN yarn
 
 COPY . .
