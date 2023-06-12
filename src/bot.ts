@@ -1,4 +1,4 @@
-import { Telegraf } from "telegraf";
+import { Composer, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import * as dotenv from "dotenv";
 import {
@@ -23,6 +23,7 @@ import { telegrafThrottler } from "telegraf-throttler";
 import Bottleneck from "bottleneck";
 import translate from "@iamtraction/google-translate";
 import * as Sentry from "@sentry/node";
+import moment from "moment";
 import { logger } from "./logger";
 
 dotenv.config({ path: "./.env" });
@@ -37,7 +38,7 @@ const STORAGE_CHANNEL_CHAT_ID = getChatId(STORAGE_CHANNEL_ID);
 const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID as string;
 const LOGGING_CHANNEL_CHAT_ID = getChatId(LOGGING_CHANNEL_ID);
 
-const AXIOS_REQUEST_TIMEOUT = 45 * 60 * 1000; // 45 min
+const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
 
 const axiosInstance = axios.create({
   timeout: AXIOS_REQUEST_TIMEOUT,
@@ -86,7 +87,9 @@ const getLink = (text: string) => {
 const delay = (milliseconds: number) =>
   new Promise((resolve) => setTimeout((_) => resolve(undefined), milliseconds));
 
-const TRANSLATE_PULLING_INTERVAL = 15 * 1000; // seconds
+const TRANSLATE_PULLING_INTERVAL = moment
+  .duration(15, "seconds")
+  .asMilliseconds();
 
 const getVoiceTranslateFinal = async (url: string): Promise<string> => {
   try {
@@ -115,6 +118,7 @@ const getWebsiteTitle = async (url: string) => {
     return title;
   } catch (error) {
     logger.error("Unable to get website title:", error);
+    Sentry.captureException(error);
     return;
   }
 };
@@ -165,7 +169,7 @@ const BOT_TOKEN = (
 //     : process.env.UPLOADER_URL_PROD
 // ) as string;
 
-const BOT_TIMEOUT = 120 * 60 * 1000; // 2h
+const BOT_TIMEOUT = moment.duration(4, "hours").asMilliseconds();
 
 export const bot = new Telegraf(BOT_TOKEN, { handlerTimeout: BOT_TIMEOUT });
 
@@ -177,41 +181,60 @@ const ffmpeg = createFFmpeg({
   // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
 });
 
-bot.use(async (context, next) => {
-  // Disable chat bot in channels/groups
-  if (context.chat?.type !== "private") {
-    return;
-  }
+bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
-  await next();
-});
+// bot.use(Telegraf.log());
+
+const inThrottleConfig = {
+  highWater: 8, // max queue size (per chat)
+  strategy: Bottleneck.strategy.LEAK, // forget about updates > queue
+  maxConcurrent: 8, // max updates processed at the same time (per all chats)
+  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
+};
+const inTranslateThrottleConfig = {
+  highWater: 4, // max translate 4 videos in the queue (per chat)
+  strategy: Bottleneck.strategy.LEAK,
+  maxConcurrent: 1, // max 1 video at the same time because of low server (per all chats)
+  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
+};
+
+// https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+const outPrivateChatThrottleConfig = {
+  maxConcurrent: 1,
+  minTime: moment.duration(0.025, "seconds").asMilliseconds(),
+  reservoir: 30,
+  reservoirRefreshAmount: 30,
+  reservoirRefreshInterval: moment.duration(1, "seconds").asMilliseconds(),
+};
+const outGroupChatThrottleConfig = {
+  maxConcurrent: 1,
+  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
+  reservoir: 20,
+  reservoirRefreshAmount: 20,
+  reservoirRefreshInterval: moment.duration(60, "seconds").asMilliseconds(),
+};
 
 const throttler = telegrafThrottler({
-  // Config credit: https://github.com/KnightNiwrem/telegraf-throttler/blob/master/src/index.ts#L37
-  group: {
-    maxConcurrent: 1,
-    minTime: 333,
-    reservoir: 20,
-    reservoirRefreshAmount: 20,
-    reservoirRefreshInterval: 60000,
-  },
-  in: {
-    highWater: 16, // can only translate 8 videos in the queue
-    strategy: Bottleneck.strategy.LEAK,
-    // TODO: fix why it still does 2 concurrently
-    maxConcurrent: 1, // only translate 1 video at the same time because of low server
-    minTime: 333,
-  },
-  out: {
-    // https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
-    maxConcurrent: 1,
-    minTime: 25,
-    reservoir: 30,
-    reservoirRefreshAmount: 30,
-    reservoirRefreshInterval: 1000,
-  },
+  in: inThrottleConfig,
+  out: outPrivateChatThrottleConfig,
+  group: outGroupChatThrottleConfig,
+  inThrottlerError: async (context) =>
+    logger.info("Dropping updates due to throttling queue"),
 });
+
+const translateThrottler = telegrafThrottler({
+  in: inTranslateThrottleConfig,
+  out: outPrivateChatThrottleConfig,
+  group: outGroupChatThrottleConfig,
+  inThrottlerError: async (context) =>
+    logger.info("Dropping updates due to throttling queue"),
+});
+
 bot.use(throttler);
+
+bot.use(
+  Composer.optional((context) => !!context.callbackQuery, translateThrottler)
+);
 
 bot.use(async (context, next) => {
   let typingInterval: NodeJS.Timer | undefined;
@@ -219,7 +242,7 @@ bot.use(async (context, next) => {
     await context.sendChatAction("typing");
     typingInterval = setInterval(
       async () => await context.sendChatAction("typing"),
-      5000
+      moment.duration(5, "seconds").asMilliseconds()
     );
 
     if (!context.callbackQuery) {
@@ -241,9 +264,7 @@ bot.catch(async (error, context) => {
       // "⚠️ Ошибка! Попробуй еще раз 🔁 чуть позже, или сообщи об этом @nezort11 (всегда рад помочь 😁). Информация об ошибке уже передана ✉️"
     ),
     sendAdminNotification(
-      `${(error as Error)?.stack || error}\nMessage: ${JSON.stringify(
-        context.message
-      )}`
+      `${(error as Error)?.stack || error}\nMessage: ${JSON.stringify(context)}`
     ),
   ]);
 });
@@ -512,6 +533,10 @@ bot.action(/.+/, async (context) => {
     const audioBuffer = Buffer.from(audioResponse.data);
     logger.info(`Downloaded translation: ${audioBuffer.length}`);
 
+    const tempAudioFilePath = "./temp.mp3";
+    await fs.writeFile(tempAudioFilePath, audioBuffer);
+    const audioDuration = await getAudioDurationInSeconds(tempAudioFilePath); // ffprobe-based
+    await fs.rm(tempAudioFilePath);
     logger.info("Duration:", audioDuration);
 
     logger.info("Requesting video page to get title...");
@@ -562,7 +587,7 @@ bot.action(/.+/, async (context) => {
     logger.info(`Author name: ${authorName}`);
 
     // const videoInfo = await ytdl.getInfo(videoId);
-    // console.log("videoInfo", videoInfo);
+    // logger.info(`videoInfo: ${videoInfo}`);
 
     const youtubeReadableStream = ytdl(
       link,
@@ -644,7 +669,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: link,
+            caption: `🎧 ${link}`,
             thumb: thumbnailBuffer,
 
             attributes: [
@@ -707,7 +732,8 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: link,
+            caption: `📺 <b><a href="${link}">${resourceTitle}</a>\n— ${artist}</b>`,
+            parseMode: "html",
             thumb: thumbnailBuffer,
             attributes: [
               new Api.DocumentAttributeVideo({

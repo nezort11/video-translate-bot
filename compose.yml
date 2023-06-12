@@ -11,6 +11,13 @@ services:
     command: yarn start
     user: root
 
+    logging:
+      driver: local
+      options:
+        # path: ./yandex_voice_translate_bot.log
+        max-size: "100m"
+        max-file: "5"
+
     deploy:
       resources:
         limits:

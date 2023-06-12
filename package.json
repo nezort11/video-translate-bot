@@ -10,9 +10,10 @@
     "pre:env": "bash -c 'source ./.env && '\"$0\"",
     "": "",
     "command": "node --experimental-specifier-resolution=node --no-warnings",
-    "dev": "yarn pre:nvm 'NODE_ENV=development yarn nodemon --exec \"yarn command --inspect --loader ts-node/esm\" --watch \"./.env\" --watch \"./src\" ./src/index.ts'",
+    "dev": "yarn pre:nvm 'NEW_RELIC_APPLICATION_LOGGING_FORWARDING_ENABLED=true DEBUG=* NODE_ENV=development yarn command --inspect --experimental-loader=newrelic/esm-loader.mjs --loader ts-node/esm ./src/index.ts'",
+    "dev:deamon": "yarn pre:nvm 'NEW_RELIC_APPLICATION_LOGGING_FORWARDING_ENABLED=true DEBUG=* NODE_ENV=development yarn nodemon --exec \"yarn command --inspect --experimental-loader=newrelic/esm-loader.mjs --loader ts-node/esm\" --watch \"./.env\" --watch \"./src\" ./src/index.ts'",
     "dev:prod": "yarn pre:nvm 'NODE_ENV=production yarn nodemon --exec \"yarn command --inspect --loader ts-node/esm\" --watch \"./.env\" --watch \"./src\" ./src/index.ts'",
-    "start": "NODE_ENV=production yarn command ./build/index.js",
+    "start": "DEBUG=* NODE_ENV=production yarn command ./build/index.js",
     "start:dev": "NODE_ENV=development yarn command ./build/index.js",
     "-dev": "yarn pre:nvm 'yarn webhook:reset && yarn nodemon --exec \"yarn command --loader ts-node/esm\" ./src/main.ts'",
     "handler": "yarn command ./build/handler.js",
@@ -36,7 +37,7 @@
     "docker:build": "docker compose -f compose.yml build && yarn docker:image:clean",
     "docker:up": "docker compose -f compose.yml up",
     "docker:up:daemon": "docker compose -f compose.yml up --detach",
-    "docker:logs": "docker compose -f compose.yml logs -f",
+    "docker:logs": "docker compose -f compose.yml logs --follow --timestamps --since='6h'",
     "docker:top": "docker compose -f compose.yml top",
     "docker:shell": "docker compose -f compose.yml exec yandex_voice_translate_bot bash",
     "docker:run": "docker compose -f compose.yml run -it yandex_voice_translate_bot bash",
@@ -63,6 +64,7 @@
     "get-audio-duration": "3.1.1",
     "get-video-duration": "4.1.0",
     "input": "1.0.1",
+    "moment": "2.29.4",
     "pino": "8.14.1",
     "pino-pretty": "10.0.0",
     "protobufjs": "7.2.2",
@@ -81,7 +83,8 @@
     "yarnhook": "0.6.0"
   },
   "resolutions": {
-    "@ffmpeg/core@0.11.0": "patch:@ffmpeg/core@npm%3A0.11.0#./.yarn/patches/@ffmpeg-core-npm-0.11.0-514ee933c9.patch"
+    "@ffmpeg/core@0.11.0": "patch:@ffmpeg/core@npm%3A0.11.0#./.yarn/patches/@ffmpeg-core-npm-0.11.0-514ee933c9.patch",
+    "telegraf@4.11.2": "patch:telegraf@npm%3A4.11.2#./.yarn/patches/telegraf-npm-4.11.2-9bfb14dad0.patch"
   },
   "husky": {
     "hooks": {

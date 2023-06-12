@@ -1,0 +1,13 @@
+diff --git a/lib/core/network/polling.js b/lib/core/network/polling.js
+index 42f20a5090304c56d0970da56eeaaacaa518ca92..544d8cddc6592dd4e237ac290c6836f8835fc7c7 100644
+--- a/lib/core/network/polling.js
++++ b/lib/core/network/polling.js
+@@ -71,7 +71,7 @@ class Polling {
+             throw new Error('Polling instances must not be reused!');
+         try {
+             for await (const updates of this)
+-                await Promise.all(updates.map(handleUpdate));
++                Promise.all(updates.map(handleUpdate));
+         }
+         finally {
+             debug('Long polling stopped');
