@@ -23,6 +23,7 @@ import { telegrafThrottler } from "telegraf-throttler";
 import Bottleneck from "bottleneck";
 import translate from "@iamtraction/google-translate";
 import * as Sentry from "@sentry/node";
+import { logger } from "./logger";
 
 dotenv.config({ path: "./.env" });
 
@@ -93,7 +94,7 @@ const getVoiceTranslateFinal = async (url: string): Promise<string> => {
   } catch (error) {
     if (error instanceof TranslateInProgressException) {
       await delay(TRANSLATE_PULLING_INTERVAL);
-      console.log("Rerequesting translation");
+      logger.info("Rerequesting translation");
       return await getVoiceTranslateFinal(url);
     }
     throw error;
@@ -110,10 +111,10 @@ const getWebsiteTitle = async (url: string) => {
       title = title.split(" - YouTube")[0];
     }
 
-    console.log("Title is:", title);
+    logger.info(`Title is: ${title}`);
     return title;
   } catch (error) {
-    console.log(error);
+    logger.error("Unable to get website title:", error);
     return;
   }
 };
@@ -170,6 +171,7 @@ export const bot = new Telegraf(BOT_TOKEN, { handlerTimeout: BOT_TIMEOUT });
 
 const ffmpeg = createFFmpeg({
   log: true,
+  logger: ({ message }) => logger.info(message),
   // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
   // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
   // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
@@ -231,7 +233,7 @@ bot.use(async (context, next) => {
 });
 
 bot.catch(async (error, context) => {
-  console.error(error);
+  logger.error(error);
   Sentry.captureException(error);
   await Promise.allSettled([
     context.sendMessage(
@@ -420,7 +422,7 @@ bot.command("foo", async (context) => {
 });
 
 bot.on(message("text"), async (context) => {
-  console.log("Incoming translate request:", context);
+  logger.info(`Incoming translate request: ${context}`);
 
   let url: URL;
   try {
@@ -476,7 +478,7 @@ bot.action(/.+/, async (context) => {
   });
 
   try {
-    await context.editMessageText("🚧 Видео в процессе перевода...");
+    await context.editMessageText("⏳ Видео в процессе перевода...");
 
     const translateAction = decodeTranslateAction(context.match[0]);
 
@@ -486,7 +488,7 @@ bot.action(/.+/, async (context) => {
 
     let translationUrl: string | undefined;
     try {
-      console.log("Request translation...");
+      logger.info("Request translation...");
       translationUrl = await getVoiceTranslateFinal(link);
     } catch (error) {
       if (error instanceof TranslateException) {
@@ -500,21 +502,19 @@ bot.action(/.+/, async (context) => {
       }
       throw error;
     }
-    console.log("Translated:", translationUrl);
+    logger.info(`Translated: ${translationUrl}`);
 
-    console.log("Downloading translation...");
+    logger.info("Downloading translation...");
     const audioResponse = await axiosInstance.get<ArrayBuffer>(translationUrl, {
       responseType: "arraybuffer",
       // responseType: "stream",
     });
     const audioBuffer = Buffer.from(audioResponse.data);
-    console.log("Downloaded translation:", audioBuffer.length);
+    logger.info(`Downloaded translation: ${audioBuffer.length}`);
 
-    await fs.writeFile("./audio.mp3", audioBuffer);
-    const audioDuration = await getAudioDurationInSeconds("./audio.mp3"); // ffprobe-based
-    console.log("Duration:", audioDuration);
+    logger.info("Duration:", audioDuration);
 
-    console.log("Requesting video page to get title...");
+    logger.info("Requesting video page to get title...");
     let resourceTitle = await getWebsiteTitle(link);
     if (resourceTitle) {
       try {
@@ -530,7 +530,7 @@ bot.action(/.+/, async (context) => {
 
     // if (videoId) {
     const resourceThumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-    console.log("Youtube thumbnail:", resourceThumbnailUrl);
+    logger.info("Youtube thumbnail:", resourceThumbnailUrl);
     const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
       resourceThumbnailUrl as string,
       {
@@ -538,14 +538,14 @@ bot.action(/.+/, async (context) => {
       }
     );
     const thumbnailBuffer = Buffer.from(thumbnailResponse.data);
-    console.log("Youtube thumbnail downloaded:", thumbnailBuffer.length);
+    logger.info(`Youtube thumbnail downloaded: ${thumbnailBuffer.length}`);
     // @ts-expect-error telegraf uses non-standard Buffer.`name` property
     thumbnailBuffer.name = "mqdefault.jpg";
 
     link = `https://youtu.be/${videoId}`;
-    console.log("Youtube link:", resourceThumbnailUrl);
+    logger.info(`Youtube link: ${resourceThumbnailUrl}`);
 
-    console.log("Requesting video page to get author/channel name...");
+    logger.info("Requesting video page to get author/channel name...");
     const youtubeResponse = await axiosInstance.get(link);
     const $ = load(youtubeResponse.data);
     const authorName = $('span[itemprop="author"] [itemprop="name"]').attr(
@@ -559,7 +559,7 @@ bot.action(/.+/, async (context) => {
         artist = translateResponse.text;
       } catch (error) {}
     }
-    console.log("Author name:", authorName);
+    logger.info(`Author name: ${authorName}`);
 
     // const videoInfo = await ytdl.getInfo(videoId);
     // console.log("videoInfo", videoInfo);
@@ -574,18 +574,19 @@ bot.action(/.+/, async (context) => {
       // { filter: "audioonly" }
     );
     const streamChunks: Uint8Array[] = [];
-    console.log("Downloading youtube video stream...");
+    logger.info("Downloading youtube video stream...");
     for await (const data of youtubeReadableStream) {
       streamChunks.push(data);
     }
     const youtubeBuffer = Buffer.concat(streamChunks);
-    console.log("Youtube video downloaded:", youtubeBuffer.length);
+    logger.info(`Youtube video downloaded: ${youtubeBuffer.length}`);
 
     if (!ffmpeg.isLoaded()) {
-      console.log("Loading ffmpeg...");
+      logger.info("Loading ffmpeg...");
       await ffmpeg.load();
-      console.log("FFmpeg loaded");
+      logger.info("FFmpeg loaded");
     }
+    ffmpeg.setLogger(({ message }) => logger.info(message));
 
     ffmpeg.FS("writeFile", "source.mp4", youtubeBuffer);
     ffmpeg.FS("writeFile", "source2.mp3", audioBuffer);
@@ -611,7 +612,7 @@ bot.action(/.+/, async (context) => {
         );
         // ffmpeg -i input.mp4 -f null /dev/null
         // ffmpeg -i ./input.mp4 -i input2.mp3 -filter_complex "[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame -q:a 4 -y output_audio.mp3
-        console.log("Getting ffmpeg output in node environment");
+        logger.info("Getting ffmpeg output in node environment");
 
         const outputFile = ffmpeg.FS("readFile", "output.mp3");
         const outputBuffer = Buffer.from(outputFile);
@@ -636,7 +637,7 @@ bot.action(/.+/, async (context) => {
         // form.append("thumbnail", resourceThumbnailUrl ?? "");
         // await fs.writeFile("./thumb.jpg", thumbnailBuffer);
 
-        console.log("Uploading to telegram channel...");
+        logger.info("Uploading to telegram channel...");
 
         const telegramClient = await getClient();
         const fileMessage = await telegramClient.sendFile(
@@ -725,7 +726,7 @@ bot.action(/.+/, async (context) => {
         fileMessageId = fileMessage.id;
       },
     }[translateAction.translateType]();
-    console.log("Uploaded to telegram");
+    logger.info("Uploaded to telegram");
 
     await bot.telegram.copyMessage(
       context.chat?.id ?? 0,
