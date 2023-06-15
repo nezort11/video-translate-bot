@@ -24,6 +24,8 @@ import Bottleneck from "bottleneck";
 import translate from "@iamtraction/google-translate";
 import * as Sentry from "@sentry/node";
 import moment from "moment";
+import _ from "lodash";
+const { capitalize } = _;
 import { logger } from "./logger";
 
 dotenv.config({ path: "./.env" });
@@ -584,6 +586,9 @@ bot.action(/.+/, async (context) => {
         artist = translateResponse.text;
       } catch (error) {}
     }
+    if (artist) {
+      artist = artist.split(" ").map(capitalize).join(" ");
+    }
     logger.info(`Author name: ${authorName}`);
 
     // const videoInfo = await ytdl.getInfo(videoId);
@@ -669,7 +674,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `🎧 ${link}`,
+            caption: `${link}`,
             thumb: thumbnailBuffer,
 
             attributes: [
@@ -732,7 +737,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `📺 <b><a href="${link}">${resourceTitle}</a>\n— ${artist}</b>`,
+            caption: `📺 <b>${resourceTitle}</b>\n— ${artist}${link}`,
             parseMode: "html",
             thumb: thumbnailBuffer,
             attributes: [
