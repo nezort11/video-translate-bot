@@ -34,7 +34,7 @@
     "deploy": "rsync -avzc --exclude=.DS_Store --exclude=.git --exclude=node_modules --exclude=build --exclude=.yarn/cache --exclude='*.mp3' --exclude='*.mp4' --exclude='*.log' . raspberrypi:~/yandex-voice-translate-bot",
     "deploy2": "yarn pre:env 'sshpass -p $SERVER_PASSWORD rsync -avzc --exclude=.git --exclude=node_modules --exclude=build --exclude=.yarn/install-state.gz --exclude=.yarn/cache --exclude=*.mp3 --exclude=*.mp4 . timeweb:/root/yandex-voice-translate-bot'",
     "deploy:ffmpeg": "yarn pre:env 'sshpass -p $SERVER_PASSWORD rsync -avzc ../ffmpeg-dist timeweb:/root/ffmpeg-dist'",
-    "docker:build": "docker compose -f compose.yml build && yarn docker:image:clean",
+    "docker:build": "docker compose -f compose.yml build && yarn docker:down && yarn docker:image:clean",
     "docker:up": "docker compose -f compose.yml up",
     "docker:up:daemon": "docker compose -f compose.yml up --detach",
     "docker:logs": "docker compose -f compose.yml logs --follow --timestamps --since='6h'",
