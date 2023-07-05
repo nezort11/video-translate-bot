@@ -516,6 +516,15 @@ bot.action(/.+/, async (context) => {
     } catch (error) {
       if (error instanceof TranslateException) {
         if (error.message) {
+          const YANDEX_TRANSLATE_ERROR_MESSAGE =
+            "Возникла ошибка, попробуйте позже";
+          if (error.message === YANDEX_TRANSLATE_ERROR_MESSAGE) {
+            await context.reply(
+              "⚠️ Яндекс не может перевести это видео, 😢 к сожалению, ничего не поделать. 🕔 Может в будущем получится."
+            );
+            return;
+          }
+
           await context.reply(error.message);
           return;
         }
@@ -737,7 +746,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `📺 <b>${resourceTitle}</b>\n— ${artist}${link}`,
+            caption: `📺 <b>${resourceTitle}</b>\n— ${artist}\n${link}`,
             parseMode: "html",
             thumb: thumbnailBuffer,
             attributes: [

@@ -11,12 +11,12 @@ services:
     command: yarn start
     user: root
 
-    logging:
-      driver: local
-      options:
-        # path: ./yandex_voice_translate_bot.log
-        max-size: "100m"
-        max-file: "5"
+    # logging:
+    #   driver: local
+    #   options:
+    #     # path: ./yandex_voice_translate_bot.log
+    #     max-size: "100m"
+    #     max-file: "5"
 
     deploy:
       resources:
@@ -26,6 +26,13 @@ services:
         reservations:
           # cpus: 0.25
           memory: 256M
+
+    networks:
+      - yandex-voice-translate-bot_default
+
+networks:
+  yandex-voice-translate-bot_default:
+    name: yandex-voice-translate-bot_default
 
   # telegram_upload:
   #   build:
