@@ -27,6 +27,7 @@ import moment from "moment";
 import _ from "lodash";
 const { capitalize } = _;
 import { logger } from "./logger";
+import { inspect } from "util";
 
 dotenv.config({ path: "./.env" });
 
@@ -445,7 +446,9 @@ bot.command("foo", async (context) => {
 });
 
 bot.on(message("text"), async (context) => {
-  logger.info(`Incoming translate request: ${context}`);
+  logger.info(
+    `Incoming translate request: ${inspect(context.update, { depth: null })}`
+  );
 
   let url: URL;
   try {
@@ -607,7 +610,9 @@ bot.action(/.+/, async (context) => {
       link,
       {
         // https://github.com/fent/node-ytdl-core#ytdlchooseformatformats-options
-        quality: 18, // mp4, audio/video, 360p, 24fps
+        // https://gist.github.com/kurumigi/e3bad17420afdb81496d37792813aa09
+        // quality: 18, // mp4, audio/video, 360p, 24fps
+        quality: 22, // mp4, audio/video, 720p, 24fps
       }
       // { filter: "audio" }
       // { filter: "audioonly" }
