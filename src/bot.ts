@@ -275,7 +275,9 @@ bot.catch(async (error, context) => {
       // "⚠️ Ошибка! Попробуй еще раз 🔁 чуть позже, или сообщи об этом @nezort11 (всегда рад помочь 😁). Информация об ошибке уже передана ✉️"
     ),
     sendAdminNotification(
-      `${(error as Error)?.stack || error}\nMessage: ${JSON.stringify(context)}`
+      `${(error as Error)?.stack || error}\nMessage: ${inspect(context, {
+        depth: 10,
+      })}`
     ),
   ]);
 });
