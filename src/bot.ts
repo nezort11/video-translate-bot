@@ -87,6 +87,14 @@ const getLink = (text: string) => {
   return link;
 };
 
+const getVideoId = (youtubeLink: string) =>
+  Array.from(youtubeLink.matchAll(YOUTUBE_LINK_REGEX))?.[0]?.[6];
+
+const getYoutubeLink = (videoId: string) => `https://youtu.be/${videoId}`;
+
+const getThumbnailLink = (videoId: string) =>
+  `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+
 const delay = (milliseconds: number) =>
   new Promise((resolve) => setTimeout((_) => resolve(undefined), milliseconds));
 
@@ -460,11 +468,10 @@ bot.on(message("text"), async (context) => {
   }
 
   let link = url.href;
-  const youtubeMatch = Array.from(link.matchAll(YOUTUBE_LINK_REGEX));
-  const videoId = youtubeMatch?.[0]?.[6];
+  const videoId = getVideoId(link);
 
   if (videoId) {
-    link = `https://youtu.be/${videoId}`;
+    link = getYoutubeLink(videoId);
   }
 
   await context.replyWithMarkdownV2(
@@ -509,8 +516,7 @@ bot.action(/.+/, async (context) => {
     const translateAction = decodeTranslateAction(context.match[0]);
 
     let link = translateAction.url;
-    const youtubeMatch = Array.from(link.matchAll(YOUTUBE_LINK_REGEX));
-    const videoId = youtubeMatch?.[0]?.[6];
+    const videoId = getVideoId(link);
 
     let translationUrl: string | undefined;
     try {
@@ -568,7 +574,7 @@ bot.action(/.+/, async (context) => {
     // let outputBuffer = audioBuffer;
 
     // if (videoId) {
-    const resourceThumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+    const resourceThumbnailUrl = getThumbnailLink(videoId);
     logger.info("Youtube thumbnail:", resourceThumbnailUrl);
     const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
       resourceThumbnailUrl as string,
