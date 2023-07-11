@@ -19,13 +19,14 @@ services:
     #     max-file: "5"
 
     deploy:
+      # https://docs.docker.com/compose/compose-file/compose-file-v3/#resources
       resources:
         limits:
-          cpus: "4" # default 1
-          memory: 2G # default 64M
-        reservations:
-          # cpus: 0.25
-          memory: 256M
+          cpus: "4" # (max cores)
+          memory: 3G
+        #reservations:
+        #  cpus: 0.25
+        #  memory: 256M
 
     networks:
       - yandex-voice-translate-bot_default
