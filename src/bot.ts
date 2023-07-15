@@ -180,7 +180,7 @@ const BOT_TOKEN = (
 //     : process.env.UPLOADER_URL_PROD
 // ) as string;
 
-const BOT_TIMEOUT = moment.duration(6, "hours").asMilliseconds(); // 1 hour video for 0.2x will take 6 hours
+const BOT_TIMEOUT = moment.duration(12, "hours").asMilliseconds(); // 1 hour video for 0.01x might take up to 12 hours
 
 export const bot = new Telegraf(BOT_TOKEN, { handlerTimeout: BOT_TIMEOUT });
 
