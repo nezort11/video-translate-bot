@@ -1,4 +1,4 @@
-import { Composer, Telegraf } from "telegraf";
+import { Composer, Markup, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import * as dotenv from "dotenv";
 import {
@@ -146,24 +146,34 @@ function toArrayBuffer(buffer: Buffer) {
 enum TranslateType {
   Audio = "a",
   Video = "v",
+  ChooseVideoQuality = "q",
+}
+
+enum YoutubeVideoStreamFormatCode {
+  Mp4_360p = 18,
+  Mp4_720p = 22,
 }
 
 type TranslateAction = {
   translateType: TranslateType;
   url: string;
+  quality: number;
 };
 
 const encodeTranslateAction = (
   translateType: TranslateAction["translateType"],
-  url: TranslateAction["url"]
+  url: TranslateAction["url"],
+  quality: TranslateAction["quality"]
 ) => {
-  return `${translateType}${url}`;
+  return [translateType, url, quality].join(",");
 };
 
 const decodeTranslateAction = (actionData: string) => {
+  const actionDataDecoded = actionData.split(",");
   return {
-    translateType: actionData[0],
-    url: actionData.slice(1),
+    translateType: actionDataDecoded[0],
+    url: actionDataDecoded[1],
+    quality: +actionDataDecoded[2],
   } as TranslateAction;
 };
 
@@ -485,13 +495,17 @@ bot.on(message("text"), async (context) => {
           [
             {
               text: "🎧 Аудио (mp3)",
-              callback_data: encodeTranslateAction(TranslateType.Audio, link),
+              callback_data: encodeTranslateAction(
+                TranslateType.Audio,
+                link,
+                YoutubeVideoStreamFormatCode.Mp4_360p
+              ),
             },
           ],
           [
             {
               text: "📺 Видео (mp4) (дольше ⏳)",
-              callback_data: encodeTranslateAction(TranslateType.Video, link),
+              callback_data: `${TranslateType.ChooseVideoQuality}${url}`,
             },
           ],
         ],
@@ -507,15 +521,45 @@ bot.on(message("text"), async (context) => {
 });
 
 bot.action(/.+/, async (context) => {
+  const actionData = context.match[0];
+  const actionType = actionData[0] as TranslateType;
+  if (actionType === TranslateType.ChooseVideoQuality) {
+    const link = actionData.slice(1);
+    await context.editMessageText(
+      "Выбери качество видео:",
+      Markup.inlineKeyboard([
+        Markup.button.callback(
+          "360p",
+          encodeTranslateAction(
+            TranslateType.Video,
+            link,
+            YoutubeVideoStreamFormatCode.Mp4_360p
+          )
+        ),
+        Markup.button.callback(
+          "720p (дольше ⏳)",
+          encodeTranslateAction(
+            TranslateType.Video,
+            link,
+            YoutubeVideoStreamFormatCode.Mp4_720p
+          )
+        ),
+      ])
+    );
+    return;
+  }
+
   const translateTransaction = Sentry.startTransaction({
     op: "translate",
     name: "Translate Transaction",
   });
 
   try {
-    await context.editMessageText("⏳ Видео в процессе перевода...");
+    await context.editMessageText(
+      "⏳ Видео в процессе перевода, обработка может занять до 12 часов..."
+    );
 
-    const translateAction = decodeTranslateAction(context.match[0]);
+    const translateAction = decodeTranslateAction(actionData);
 
     let link = translateAction.url;
     const videoId = getVideoId(link);
@@ -620,7 +664,7 @@ bot.action(/.+/, async (context) => {
         // https://github.com/fent/node-ytdl-core#ytdlchooseformatformats-options
         // https://gist.github.com/kurumigi/e3bad17420afdb81496d37792813aa09
         // quality: 18, // mp4, audio/video, 360p, 24fps
-        quality: 22, // mp4, audio/video, 720p, 24fps
+        quality: translateAction.quality, // mp4, audio/video, 720p, 24fps
       }
       // { filter: "audio" }
       // { filter: "audioonly" }
@@ -778,6 +822,7 @@ bot.action(/.+/, async (context) => {
         );
         fileMessageId = fileMessage.id;
       },
+      [TranslateType.ChooseVideoQuality]: async () => {},
     }[translateAction.translateType]();
     logger.info("Uploaded to telegram");
 
