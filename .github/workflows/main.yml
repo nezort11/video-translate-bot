@@ -25,5 +25,4 @@ jobs:
             cd ~/${{ secrets.REMOTE_SERVER_DIR }}2 && \
             sudo git pull https://${{ secrets.REPO_USERNAME }}:${{ secrets.REPO_TOKEN }}@github.com/${{ secrets.REPO_USERNAME }}/${{ secrets.REPO_NAME }}.git && \
             sudo chown -R ${{ secrets.REMOTE_SERVER_USER }}:${{ secrets.REMOTE_SERVER_USER }} . && \
-            sudo bash run.sh docker:build && \
             sudo bash run.sh docker:up -d
