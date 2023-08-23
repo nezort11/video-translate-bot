@@ -51,7 +51,7 @@
     "docker:down": "docker compose -f ./compose.yml down",
     "docker:stop": "docker compose -f ./compose.yml stop",
     "docker:restart": "yarn docker:down && yarn docker:up",
-    "docker:down:clean": "docker compose -f ./compose.yml down --rmi all --volumes",
+    "docker:down:clean": "docker compose -f ./compose.yml down --rmi=all --volumes",
     "docker:image:clean": "docker image rm -f $(docker image ls -aqf dangling=true)",
     "docker:container:clean": "docker rm $(docker ps --filter=status=exited --filter=status=dead -q)",
     "docker:cache:info": "docker system df",
