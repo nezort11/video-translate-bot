@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Bot",
+      "name": "Bot dev",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "/Users/egorzorin/.nvm/versions/node/v18.12.1/bin/node",
@@ -23,11 +23,26 @@
       "env": {
         "NODE_ENV": "development"
       }
-      // "internalConsoleOptions": "openOnSessionStart",
-      // "skipFiles": [
-      //   "<node_internals>/**",
-      //   "node_modules/**"
-      // ]
+    },
+    {
+      "name": "Bot prod",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "/Users/egorzorin/.nvm/versions/node/v18.12.1/bin/node",
+      "runtimeArgs": [
+        "--inspect",
+        "--experimental-specifier-resolution=node",
+        "--no-warnings",
+        "--loader",
+        "ts-node/esm",
+      ],
+      "args": [
+        "./src/index.ts"
+      ],
+      "cwd": "${workspaceRoot}",
+      "env": {
+        "NODE_ENV": "production"
+      }
     }
   ]
 }

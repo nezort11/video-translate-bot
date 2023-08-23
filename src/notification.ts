@@ -1,10 +1,5 @@
 import { Telegraf } from "telegraf";
-import * as dotenv from "dotenv";
-
-dotenv.config();
-
-const NOTIFICATION_BOT_TOKEN = process.env.NOTIFICATION_BOT_TOKEN as string;
-const NOTIFICATION_USER_ID = process.env.NOTIFICATION_USER_ID as string;
+import { NOTIFICATION_BOT_TOKEN, NOTIFICATION_USER_ID } from "./constants";
 
 export const notificationBot = new Telegraf(NOTIFICATION_BOT_TOKEN);
 

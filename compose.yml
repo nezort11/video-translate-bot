@@ -9,6 +9,7 @@ services:
     container_name: yandex-voice-translate-bot
     #platform: linux/amd64
     command: yarn start
+    env_file: ./.env
     user: root
 
     # logging:

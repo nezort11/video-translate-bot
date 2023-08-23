@@ -1,6 +1,5 @@
 import { Composer, Markup, Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
-import * as dotenv from "dotenv";
 import {
   TranslateException,
   TranslateInProgressException,
@@ -28,18 +27,12 @@ import _ from "lodash";
 const { capitalize } = _;
 import { logger } from "./logger";
 import { inspect } from "util";
-
-dotenv.config({ path: "./.env" });
-
-export const getChatId = (id: string) => {
-  return `-100${id}`;
-};
-
-const STORAGE_CHANNEL_ID = process.env.STORAGE_CHANNEL_ID as string;
-const STORAGE_CHANNEL_CHAT_ID = getChatId(STORAGE_CHANNEL_ID);
-
-const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID as string;
-const LOGGING_CHANNEL_CHAT_ID = getChatId(LOGGING_CHANNEL_ID);
+import {
+  BOT_TOKEN,
+  CONTACT_USERNAME,
+  SENTRY_DSN,
+  STORAGE_CHANNEL_CHAT_ID,
+} from "./constants";
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
 
@@ -54,8 +47,6 @@ const axiosInstance = axios.create({
     timeout: AXIOS_REQUEST_TIMEOUT,
   }),
 });
-
-const SENTRY_DSN = process.env.SENTRY_DSN as string;
 
 Sentry.init({
   dsn: SENTRY_DSN,
@@ -75,16 +66,16 @@ const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
   /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|v\/)?)([\w\-]+)(\S+)?/g;
 
-const getLink = (text: string) => {
+const getLinkMatch = (text: string) => {
   // Youtube link is higher priority than regular link
-  let link = text.match(YOUTUBE_LINK_REGEX)?.[0] || text.match(LINK_REGEX)?.[0];
-  if (!link) {
+  let linkMatch = text.match(YOUTUBE_LINK_REGEX)?.[0]; // || text.match(LINK_REGEX)?.[0];
+  if (!linkMatch) {
     return;
   }
-  if (!link.startsWith("http")) {
-    return `https://${link}`;
+  if (!linkMatch.startsWith("http")) {
+    return `https://${linkMatch}`;
   }
-  return link;
+  return linkMatch;
 };
 
 const getVideoId = (youtubeLink: string) =>
@@ -168,6 +159,10 @@ const encodeTranslateAction = (
   return [translateType, url, quality].join(",");
 };
 
+const encodeChooseVideoQualityAction = (url: TranslateAction["url"]) => {
+  return `${TranslateType.ChooseVideoQuality}${url}`;
+};
+
 const decodeTranslateAction = (actionData: string) => {
   const actionDataDecoded = actionData.split(",");
   return {
@@ -176,19 +171,6 @@ const decodeTranslateAction = (actionData: string) => {
     quality: +actionDataDecoded[2],
   } as TranslateAction;
 };
-
-const NODE_ENV = process.env.NODE_ENV;
-const BOT_TOKEN = (
-  NODE_ENV === "development"
-    ? process.env.BOT_TOKEN_DEV
-    : process.env.BOT_TOKEN_PROD
-) as string;
-
-// const UPLOADER_URL = (
-//   NODE_ENV === "development"
-//     ? process.env.UPLOADER_URL_DEV
-//     : process.env.UPLOADER_URL_PROD
-// ) as string;
 
 const BOT_TIMEOUT = moment.duration(12, "hours").asMilliseconds(); // 1 hour video for 0.01x might take up to 12 hours
 
@@ -281,8 +263,7 @@ bot.catch(async (error, context) => {
   Sentry.captureException(error);
   await Promise.allSettled([
     context.sendMessage(
-      "⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже. ✉️ Информация об ошибке уже передана. 💬 Связь: @nezort11"
-      // "⚠️ Ошибка! Попробуй еще раз 🔁 чуть позже, или сообщи об этом @nezort11 (всегда рад помочь 😁). Информация об ошибке уже передана ✉️"
+      `⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже. ✉️ Информация об ошибке уже передана. 💬 Связь: @${CONTACT_USERNAME}`
     ),
     sendAdminNotification(
       `${(error as Error)?.stack || error}\nMessage: ${inspect(context, {
@@ -470,18 +451,16 @@ bot.on(message("text"), async (context) => {
     `Incoming translate request: ${inspect(context.update, { depth: null })}`
   );
 
-  let url: URL;
+  let link: string;
   try {
-    const link = getLink(context.message.text);
-    url = new URL(link ?? "");
+    const linkMatch = getLinkMatch(context.message.text);
+    link = new URL(linkMatch ?? "").href;
   } catch (error) {
     await context.reply("Пожалуйста предоставь ссылку на ресурс для перевода");
     return;
   }
 
-  let link = url.href;
   const videoId = getVideoId(link);
-
   if (videoId) {
     link = getYoutubeLink(videoId);
   }
@@ -490,34 +469,26 @@ bot.on(message("text"), async (context) => {
     `⚙️ Каким образом перевести [это](${link}) видео?`,
     {
       reply_to_message_id: context.message.message_id,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: "🎧 Аудио (mp3)",
-              callback_data: encodeTranslateAction(
-                TranslateType.Audio,
-                link,
-                YoutubeVideoStreamFormatCode.Mp4_360p
-              ),
-            },
-          ],
-          [
-            {
-              text: "📺 Видео (mp4) (дольше ⏳)",
-              callback_data: `${TranslateType.ChooseVideoQuality}${url}`,
-            },
-          ],
+      reply_markup: Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "🎧 Аудио (mp3)",
+            encodeTranslateAction(
+              TranslateType.Audio,
+              link,
+              YoutubeVideoStreamFormatCode.Mp4_360p
+            )
+          ),
         ],
-      },
+        [
+          Markup.button.callback(
+            "📺 Видео (mp4) (дольше ⏳)",
+            encodeChooseVideoQualityAction(link)
+          ),
+        ],
+      ]).reply_markup,
     }
   );
-
-  // await context.reply(url.href, {
-  //   reply_markup: {
-  //     inline_keyboard: [[{ text: "Open", web_app: { url: url.href } }]],
-  //   },
-  // });
 });
 
 bot.action(/.+/, async (context) => {
