@@ -6,7 +6,7 @@ services:
       dockerfile: ./Dockerfile
     restart: unless-stopped
     image: yandex-voice-translate-bot:latest
-    container_name: $CONTAINER_NAME
+    container_name: yandex-voice-translate-bot$CONTAINER_NUMBER
     #platform: linux/amd64
     command: yarn start
     env_file: ./.env
@@ -34,7 +34,7 @@ services:
 
 networks:
   yandex-voice-translate-bot_default:
-    name: yandex-voice-translate-bot_default
+    name: yandex-voice-translate-bot_default$CONTAINER_NUMBER
 
   # telegram_upload:
   #   build:
