@@ -16,13 +16,17 @@ jobs:
           host: ${{ secrets.REMOTE_SERVER_IP }}
           username: ${{ secrets.REMOTE_SERVER_USER }}
           key: ${{ secrets.REMOTE_SERVER_PRIVATE_KEY }} # content of ssh private key. ex raw content of ~/.ssh/id_rsa, remember include the BEGIN and END lines
+          # Build, recreate, clean
           script: |
             cd ~/${{ secrets.REMOTE_SERVER_DIR }} && \
             sudo git pull https://${{ secrets.REPO_USERNAME }}:${{ secrets.REPO_TOKEN }}@github.com/${{ secrets.REPO_USERNAME }}/${{ secrets.REPO_NAME }}.git && \
             sudo chown -R ${{ secrets.REMOTE_SERVER_USER }}:${{ secrets.REMOTE_SERVER_USER }} . && \
-            sudo bash run.sh docker:build && \
-            sudo bash run.sh docker:up -d
+            sudo bash run.sh _docker:build && \
+            sudo bash run.sh docker:down && \
+            sudo bash run.sh docker:up -d && \
             cd ~/${{ secrets.REMOTE_SERVER_DIR }}2 && \
             sudo git pull https://${{ secrets.REPO_USERNAME }}:${{ secrets.REPO_TOKEN }}@github.com/${{ secrets.REPO_USERNAME }}/${{ secrets.REPO_NAME }}.git && \
             sudo chown -R ${{ secrets.REMOTE_SERVER_USER }}:${{ secrets.REMOTE_SERVER_USER }} . && \
-            sudo bash run.sh docker:up -d
+            sudo bash run.sh docker:down && \
+            sudo bash run.sh docker:up -d && \
+            sudo bash run.sh docker:image:clean
