@@ -591,7 +591,6 @@ bot.action(/.+/, async (context) => {
       } catch (error) {}
     }
 
-    let artist: string | undefined;
     // let outputBuffer = audioBuffer;
 
     // if (videoId) {
@@ -614,10 +613,10 @@ bot.action(/.+/, async (context) => {
     logger.info("Requesting video page to get author/channel name...");
     const youtubeResponse = await axiosInstance.get(link);
     const $ = load(youtubeResponse.data);
-    const authorName = $('span[itemprop="author"] [itemprop="name"]').attr(
-      "content"
-    );
-    artist = authorName?.toString();
+    const authorName = $('span[itemprop="author"] [itemprop="name"]')
+      .attr("content")
+      ?.toString();
+    let artist = authorName;
 
     if (artist) {
       try {
@@ -722,7 +721,7 @@ bot.action(/.+/, async (context) => {
               new Api.DocumentAttributeAudio({
                 duration: Math.floor(audioDuration),
                 title: resourceTitle,
-                performer: artist,
+                performer: `${artist} (${authorName})`,
               }),
               new Api.DocumentAttributeFilename({
                 fileName: "mqdefault.jpg",
@@ -778,7 +777,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `📺 <b>${resourceTitle}</b>\n— ${artist}\n${link}`,
+            caption: `📺 <b>${resourceTitle}</b>\n— ${artist} (${authorName})\n${link}`,
             parseMode: "html",
             thumb: thumbnailBuffer,
             attributes: [
