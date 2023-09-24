@@ -36,3 +36,9 @@ export const SENTRY_DSN = process.env.SENTRY_DSN as string;
 export const API_ID = process.env.APP_ID as string;
 export const APP_HASH = process.env.APP_HASH as string;
 export const SESSION = process.env.SESSION as string;
+
+export const IMAGE_TRANSLATE_URL = process.env.IMAGE_TRANSLATE_URL as string;
+export const IMAGE_TRANSLATE_ENDPOINT_URL = new URL(
+  "/translate",
+  IMAGE_TRANSLATE_URL
+).href;

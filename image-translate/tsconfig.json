@@ -1,0 +1,19 @@
+// Best modern CommonJS config
+{
+  "compilerOptions": {
+    "target": "ESNext", // Include latest ECMAScript features supported by `node` runtime
+    "module": "CommonJS", // Old-good CommonJS
+    "esModuleInterop": true,
+    "moduleResolution": "Node", // CommonJS module resolution
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "inlineSourceMap": true,
+    "rootDir": "./src",
+    "outDir": "./build",
+    "noImplicitAny": false
+  },
+}

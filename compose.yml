@@ -32,6 +32,21 @@ services:
     networks:
       - yandex-voice-translate-bot_default
 
+  image_translate:
+    build:
+      context: ./image-translate
+      dockerfile: ./image-translate/Dockerfile
+    restart: unless-stopped
+    image: image-translate:latest
+    container_name: image-translate$CONTAINER_NUMBER
+    command: pnpm start
+    env_file: ./image-translate/.env
+    user: root
+    volumes:
+      - $CHROME_USER_DATA_DIR:/app/$CHROME_USER_DATA_DIR
+    networks:
+      - yandex-voice-translate-bot_default
+
 networks:
   yandex-voice-translate-bot_default:
     name: yandex-voice-translate-bot_default$CONTAINER_NUMBER

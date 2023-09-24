@@ -43,6 +43,24 @@
       "env": {
         "NODE_ENV": "production"
       }
-    }
+    },
+    {
+      "name": "Image translate server",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceRoot}/image-translate",
+      "runtimeExecutable": "/Users/egorzorin/.nvm/versions/node/v18.12.1/bin/node",
+      "runtimeArgs": [
+        "-r",
+        "ts-node/register/transpile-only",
+        "--inspect",
+      ],
+      "args": [
+        "./src/server.ts"
+      ],
+      "env": {
+        "DEBUG": "*"
+      }
+    },
   ]
 }

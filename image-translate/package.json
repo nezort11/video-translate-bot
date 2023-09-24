@@ -1,0 +1,23 @@
+{
+  "name": "image-translate",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "pnpm tsc -b",
+    "start": "DEBUG='*' node ./build/server.js",
+    "translate": "DEBUG='*' node ./build/translateimage.js"
+  },
+  "dependencies": {
+    "axios": "0.27.2",
+    "express": "4.18.2",
+    "lodash": "4.17.21",
+    "moment": "2.29.4",
+    "puppeteer": "20.6.0",
+    "serialize-error": "11.0.2"
+  },
+  "devDependencies": {
+    "@types/lodash": "4.14.185",
+    "dotenv": "16.3.1",
+    "ts-node": "10.9.1",
+    "typescript": "4.8.3"
+  }
+}

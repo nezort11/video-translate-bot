@@ -5,7 +5,7 @@ import {
   TranslateInProgressException,
   getVoiceTranslate,
 } from "./translate";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { load } from "cheerio";
 import { getAudioDurationInSeconds } from "get-audio-duration";
 import { getVideoDurationInSeconds } from "get-video-duration";
@@ -30,6 +30,7 @@ import { inspect } from "util";
 import {
   BOT_TOKEN,
   CONTACT_USERNAME,
+  IMAGE_TRANSLATE_ENDPOINT_URL,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
 } from "./constants";
@@ -596,13 +597,32 @@ bot.action(/.+/, async (context) => {
     // if (videoId) {
     const resourceThumbnailUrl = getThumbnailLink(videoId);
     logger.info("Youtube thumbnail:", resourceThumbnailUrl);
-    const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
-      resourceThumbnailUrl as string,
-      {
-        responseType: "arraybuffer",
+    let thumbnailData: ArrayBuffer;
+    try {
+      const thumbnailResponse = await axiosInstance.post<ArrayBuffer>(
+        IMAGE_TRANSLATE_ENDPOINT_URL,
+        {
+          imageLink: resourceThumbnailUrl,
+        },
+        {
+          responseType: "arraybuffer",
+        }
+      );
+      thumbnailData = thumbnailResponse.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
+          resourceThumbnailUrl,
+          {
+            responseType: "arraybuffer",
+          }
+        );
+        thumbnailData = thumbnailResponse.data;
+      } else {
+        throw error;
       }
-    );
-    const thumbnailBuffer = Buffer.from(thumbnailResponse.data);
+    }
+    const thumbnailBuffer = Buffer.from(thumbnailData);
     logger.info(`Youtube thumbnail downloaded: ${thumbnailBuffer.length}`);
     // @ts-expect-error telegraf uses non-standard Buffer.`name` property
     thumbnailBuffer.name = "mqdefault.jpg";
