@@ -1,6 +1,7 @@
 {
   "name": "test-yandex-serverless-container",
-  "packageManager": "yarn@3.4.1",
+  "license": "UNLICENSED",
+  "_packageManager": "yarn@3.4.1",
   "type": "module",
   "engines": {
     "node": "18"
@@ -41,7 +42,7 @@
     "deploy:ffmpeg": "yarn pre:env 'sshpass -p $SERVER_PASSWORD rsync -avzc ../ffmpeg-dist timeweb:/root/ffmpeg-dist'",
     "": "",
     "build": "yarn tsc --build",
-    "_docker:build": "docker compose -f ./compose.yml build",
+    "_docker:build": "docker compose --env-file ./.env --env-file ./image-translate/.env -f ./compose.yml build",
     "docker:build": "yarn _docker:build && yarn docker:down && yarn docker:image:clean",
     "docker:up": "docker compose -f ./compose.yml up",
     "docker:up:daemon": "docker compose -f ./compose.yml up --detach",
