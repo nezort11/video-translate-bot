@@ -24,6 +24,7 @@ const initTranslateImage = async () => {
       ...(IS_PRODUCTION
         ? {
             headless: true,
+            executablePath: '/usr/bin/chromium',
           }
         : {
             headless: false,
