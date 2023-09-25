@@ -5,7 +5,9 @@ import puppeteer, { Browser, Page } from "puppeteer";
 import moment from "moment";
 import dotenv from "dotenv";
 
-if (!process.env.CHROME_USER_DATA_DIR) {
+const IS_PRODUCTION = !!process.env.CHROME_USER_DATA_DIR;
+
+if (!IS_PRODUCTION) {
   dotenv.config({ path: "./.env" });
 }
 
@@ -19,14 +21,20 @@ let page: Page;
 const initTranslateImage = async () => {
   try {
     browser = await puppeteer.launch({
-      // headless: "new",
-      headless: false,
-      devtools: true,
+      ...(IS_PRODUCTION
+        ? {
+            headless: true,
+          }
+        : {
+            headless: false,
+            devtools: true,
+          }),
       userDataDir: CHROME_USER_DATA_DIR,
       args: [
         "--disable-web-security",
         "--disable-features=IsolateOrigins,site-per-process",
         "--disable-site-isolation-trials",
+        ...(IS_PRODUCTION ? ["--no-sandbox", "--disable-setuid-sandbox"] : []),
       ],
     });
     page = await browser.newPage();
