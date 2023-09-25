@@ -1,6 +1,6 @@
 FROM node:18-bullseye
 
-RUN apt install chromium-browser chromium-codecs-ffmpeg
+RUN apt update && apt install chromium-browser chromium-codecs-ffmpeg
 RUN corepack enable && corepack prepare pnpm@8.6.9 --activate
 
 WORKDIR /app
