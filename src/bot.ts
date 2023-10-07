@@ -350,7 +350,7 @@ bot.command("test", async (context) => {
     "-i", "source.mp4",
 
     "-i", "source2.mp3",
-    "-filter_complex", '[0:a]volume=0.20[a];' + // 20% (25%/30%/35%/40%) original playback
+    "-filter_complex", '[0:a]volume=0.15[a];' + // 20% (25%/30%/35%/40%) original playback
                         '[1:a]volume=1[b];' + //  voice over
                         '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
 
@@ -689,7 +689,7 @@ bot.action(/.+/, async (context) => {
           "-i", "source.mp4",
           "-i", "source2.mp3",
 
-          "-filter_complex", '[0:a]volume=0.20[a];' + // 20% (25%/30%/35%/40%) original playback
+          "-filter_complex", '[0:a]volume=0.15[a];' + // 20% (25%/30%/35%/40%) original playback
                               '[1:a]volume=1[b];' + //  voice over
                               '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
 
