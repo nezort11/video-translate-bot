@@ -65,7 +65,7 @@ type UploadResponse = {
 
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
-  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|v\/)?)([\w\-]+)(\S+)?/g;
+  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/g;
 
 const getLinkMatch = (text: string) => {
   // Youtube link is higher priority than regular link
@@ -696,6 +696,7 @@ bot.action(/.+/, async (context) => {
           // "-qscale:a", "9", // "4",
           // "-codec:a", "libmp3lame", // "aac",
           "-b:a", "64k", // decrease output size (MB) - default 128kb
+          "-ac", "1", // decrease audio channel stereo to mono
           // " -pre", "ultrafast",
 
           "output.mp3"
