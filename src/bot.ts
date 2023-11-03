@@ -1,4 +1,4 @@
-import { Composer, Markup, Telegraf } from "telegraf";
+import { Composer, Markup, Telegraf, TelegramError } from "telegraf";
 import { message } from "telegraf/filters";
 import {
   TranslateException,
@@ -66,6 +66,9 @@ type UploadResponse = {
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
   /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/g;
+
+const ERROR_MESSAGE_MESSAGE_IS_NOT_MODIFIED =
+  "Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message";
 
 const getLinkMatch = (text: string) => {
   // Youtube link is higher priority than regular link
@@ -529,9 +532,19 @@ bot.action(/.+/, async (context) => {
   });
 
   try {
-    await context.editMessageText(
-      "⏳ Видео в процессе перевода, обработка может занять до 12 часов..."
-    );
+    try {
+      await context.editMessageText(
+        "⏳ Видео в процессе перевода, обработка может занять до 12 часов..."
+      );
+    } catch (error) {
+      if (
+        error instanceof TelegramError &&
+        error.response.description === ERROR_MESSAGE_MESSAGE_IS_NOT_MODIFIED
+      ) {
+      } else {
+        throw error;
+      }
+    }
 
     const translateAction = decodeTranslateAction(actionData);
 
