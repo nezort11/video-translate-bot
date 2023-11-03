@@ -1,13 +1,64 @@
 diff --git a/lib/core/network/polling.js b/lib/core/network/polling.js
-index 42f20a5090304c56d0970da56eeaaacaa518ca92..544d8cddc6592dd4e237ac290c6836f8835fc7c7 100644
+index 42f20a5090304c56d0970da56eeaaacaa518ca92..45d1112eec1a853c19e4846510781e9b9f13cc5b 100644
 --- a/lib/core/network/polling.js
 +++ b/lib/core/network/polling.js
-@@ -71,7 +71,7 @@ class Polling {
+@@ -7,6 +7,7 @@ exports.Polling = void 0;
+ const abort_controller_1 = __importDefault(require("abort-controller"));
+ const debug_1 = __importDefault(require("debug"));
+ const util_1 = require("util");
++const storage = require("node-persist");
+ const error_1 = require("./error");
+ const debug = (0, debug_1.default)('telegraf:polling');
+ const wait = (0, util_1.promisify)(setTimeout);
+@@ -20,22 +21,18 @@ class Polling {
+         this.allowedUpdates = allowedUpdates;
+         this.abortController = new abort_controller_1.default();
+         this.skipOffsetSync = false;
+-        this.offset = 0;
+     }
+     async *[Symbol.asyncIterator]() {
+         var _a, _b;
+         debug('Starting long polling');
+         do {
+             try {
++                const offset = await storage.getItem('offset');
+                 const updates = await this.telegram.callApi('getUpdates', {
+                     timeout: 50,
+-                    offset: this.offset,
++                    offset: offset ?? 0,
+                     allowed_updates: this.allowedUpdates,
+                 }, this.abortController);
+-                const last = updates[updates.length - 1];
+-                if (last !== undefined) {
+-                    this.offset = last.update_id + 1;
+-                }
+                 yield updates;
+             }
+             catch (error) {
+@@ -64,14 +61,22 @@ class Polling {
+         if (this.skipOffsetSync)
+             return;
+         debug('Syncing update offset...');
+-        await this.telegram.callApi('getUpdates', { offset: this.offset, limit: 1 });
++        const offset = await storage.getItem('offset');
++        await this.telegram.callApi('getUpdates', { offset: offset ?? 0, limit: 1 });
+     }
+     async loop(handleUpdate) {
+         if (this.abortController.signal.aborted)
              throw new Error('Polling instances must not be reused!');
-         try {
-             for await (const updates of this)
+-        try {
+-            for await (const updates of this)
 -                await Promise.all(updates.map(handleUpdate));
-+                Promise.all(updates.map(handleUpdate));
++        try {
++            for await (const updates of this) {
++                for (const update of updates) {
++                    try {
++                        await handleUpdate(update);
++                    } finally {
++                        await storage.setItem('offset', update.update_id + 1);
++                    }
++                }
++            }
          }
          finally {
              debug('Long polling stopped');

@@ -1,4 +1,5 @@
 import { fileURLToPath } from "url";
+import storage from "node-persist";
 import { bot } from "./bot";
 import { logger } from "./logger";
 import { setIsPublic, NODE_ENV, DEBUG, BOT_PUBLIC_USERNAME } from "./constants";
@@ -7,6 +8,8 @@ const main = async () => {
   logger.info(`VERSION: ${process.version}`);
   logger.info(`DEBUG: ${DEBUG}`);
   logger.info(`NODE_ENV: ${NODE_ENV}`);
+
+  await storage.init({ dir: "./session/storage" });
 
   bot.launch();
   const botInfo = await bot.telegram.getMe();
