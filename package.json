@@ -89,6 +89,7 @@
     "@types/express": "4.17.17",
     "@types/lodash": "^4",
     "@types/node": "18.15.3",
+    "@types/node-persist": "^3",
     "husky": "8.0.3",
     "nodemon": "2.0.20",
     "ts-node": "10.9.1",
