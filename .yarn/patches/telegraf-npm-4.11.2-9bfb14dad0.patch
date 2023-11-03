@@ -1,5 +1,5 @@
 diff --git a/lib/core/network/polling.js b/lib/core/network/polling.js
-index 42f20a5090304c56d0970da56eeaaacaa518ca92..45d1112eec1a853c19e4846510781e9b9f13cc5b 100644
+index 42f20a5090304c56d0970da56eeaaacaa518ca92..fedfcb50fc4a71a67a42329d9ce1e5addb535220 100644
 --- a/lib/core/network/polling.js
 +++ b/lib/core/network/polling.js
 @@ -7,6 +7,7 @@ exports.Polling = void 0;
@@ -10,7 +10,7 @@ index 42f20a5090304c56d0970da56eeaaacaa518ca92..45d1112eec1a853c19e4846510781e9b
  const error_1 = require("./error");
  const debug = (0, debug_1.default)('telegraf:polling');
  const wait = (0, util_1.promisify)(setTimeout);
-@@ -20,22 +21,18 @@ class Polling {
+@@ -20,21 +21,27 @@ class Polling {
          this.allowedUpdates = allowedUpdates;
          this.abortController = new abort_controller_1.default();
          this.skipOffsetSync = false;
@@ -21,21 +21,29 @@ index 42f20a5090304c56d0970da56eeaaacaa518ca92..45d1112eec1a853c19e4846510781e9b
          debug('Starting long polling');
          do {
              try {
-+                const offset = await storage.getItem('offset');
++                let offset = (await storage.getItem('offset')) ?? 0;
++                let updateHandleCount = (await storage.getItem('updateHandleCount')) ?? 0;
++                if (updateHandleCount >= 3) {
++                  offset += 1;
++                  updateHandleCount = 0;
++                  await storage.setItem('offset', offset);
++                  await storage.setItem('updateHandleCount', 0);
++                }
                  const updates = await this.telegram.callApi('getUpdates', {
                      timeout: 50,
 -                    offset: this.offset,
-+                    offset: offset ?? 0,
++                    offset,
                      allowed_updates: this.allowedUpdates,
                  }, this.abortController);
 -                const last = updates[updates.length - 1];
 -                if (last !== undefined) {
 -                    this.offset = last.update_id + 1;
--                }
++                if (updates.length > 0) {
++                    await storage.setItem('updateHandleCount', updateHandleCount + 1);
+                 }
                  yield updates;
              }
-             catch (error) {
-@@ -64,14 +61,22 @@ class Polling {
+@@ -64,14 +71,23 @@ class Polling {
          if (this.skipOffsetSync)
              return;
          debug('Syncing update offset...');
@@ -46,19 +54,24 @@ index 42f20a5090304c56d0970da56eeaaacaa518ca92..45d1112eec1a853c19e4846510781e9b
      async loop(handleUpdate) {
          if (this.abortController.signal.aborted)
              throw new Error('Polling instances must not be reused!');
--        try {
+         try {
 -            for await (const updates of this)
 -                await Promise.all(updates.map(handleUpdate));
-+        try {
 +            for await (const updates of this) {
 +                for (const update of updates) {
 +                    try {
 +                        await handleUpdate(update);
 +                    } finally {
 +                        await storage.setItem('offset', update.update_id + 1);
++                        await storage.setItem('updateHandleCount', 0);
 +                    }
 +                }
 +            }
          }
          finally {
              debug('Long polling stopped');
+@@ -85,3 +101,4 @@ class Polling {
+     }
+ }
+ exports.Polling = Polling;
++
