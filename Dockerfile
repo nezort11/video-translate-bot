@@ -1,6 +1,6 @@
 FROM node:18-bullseye
 
-RUN corepack enable && corepack prepare yarn@stable --activate
+RUN corepack enable && corepack prepare yarn@3 --activate
 
 # COPY ./ffmpeg-dist /ffmpeg-dist
 
