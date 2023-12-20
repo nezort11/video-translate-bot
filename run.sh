@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 PACKAGE_FILE="package.json"
-PACKAGE_RUN_COMMAND="yarn"
+PACKAGE_RUN_COMMAND="pnpm"
 RUN_COMMAND="sudo bash run.sh"
 
 # Check the package.json file
