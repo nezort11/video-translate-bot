@@ -38,7 +38,9 @@ app.post(
 );
 
 if (require.main === module) {
-  app.listen(3000, () => {
-    console.log("Image translate service listening on port 3000");
+  const PORT = process.env.PORT ?? 3000;
+
+  app.listen(PORT, () => {
+    console.log(`Image translate service listening at port ${PORT}`);
   });
 }

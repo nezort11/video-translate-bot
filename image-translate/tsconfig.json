@@ -1,12 +1,12 @@
 // Best modern CommonJS config
 {
   "compilerOptions": {
-    "target": "ESNext", // Include latest ECMAScript features supported by `node` runtime
-    "module": "CommonJS", // Old-good CommonJS
+    "target": "ESNext", // Emit latest ECMAScript features supported by `node` runtime (18) (otherwise polyfill)
+    "module": "CommonJS", // Emit old-good CommonJS
     "esModuleInterop": true,
     "moduleResolution": "Node", // CommonJS module resolution
     "lib": [
-      "ESNext",
+      "ESNext", // Support latest ECMAScript features
       "DOM"
     ],
     "allowSyntheticDefaultImports": true,
