@@ -18,6 +18,7 @@ app.post(
   async (req: Request<{}, {}, ImageTranslateRequest>, res, next) => {
     try {
       const imageLink = req.body.imageLink;
+      console.log("imageLink:", imageLink);
 
       const translatedImage = await translateImage(imageLink);
       res.set("Content-Type", "image/jpeg");

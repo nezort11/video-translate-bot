@@ -1,3 +1,4 @@
+# --platform=linux/amd64
 FROM node:18-bullseye
 
 RUN apt update && apt install chromium -y
@@ -13,3 +14,5 @@ RUN pnpm install
 COPY . .
 
 RUN pnpm build
+
+# CMD ["pnpm", "start"]

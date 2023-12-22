@@ -20,11 +20,12 @@ let page: Page;
 
 const initTranslateImage = async () => {
   try {
+    console.log("launching browser");
     browser = await puppeteer.launch({
       ...(IS_PRODUCTION
         ? {
             headless: true,
-            executablePath: '/usr/bin/chromium',
+            executablePath: "/usr/bin/chromium",
           }
         : {
             headless: false,
@@ -37,7 +38,9 @@ const initTranslateImage = async () => {
         "--disable-site-isolation-trials",
         ...(IS_PRODUCTION ? ["--no-sandbox", "--disable-setuid-sandbox"] : []),
       ],
+      protocolTimeout: moment.duration(5, "minutes").asMilliseconds(), // Chrome DevTools Protocol timeout
     });
+    console.log("creating new page");
     page = await browser.newPage();
 
     const client = await page.target().createCDPSession();
@@ -46,14 +49,17 @@ const initTranslateImage = async () => {
       downloadPath: CHROME_DOWNLOADS_DIR,
     });
 
+    console.log("opening image translate page");
     const translatePageResponse = await page.goto(YANDEX_IMAGE_TRANSLATE_URL);
     if (translatePageResponse && translatePageResponse.status() >= 400) {
       throw new ImageTranslatePageResponseError();
     }
+    console.log("getting image translate content");
     const content = await translatePageResponse?.text();
     if (content?.includes("captcha")) {
       throw new ImageTranslateCaptchaError();
     }
+    console.log("successfully opened image translate page without captcha");
   } catch (error) {
     console.error("Translate image init error");
     throw error;
@@ -66,6 +72,7 @@ export class ImageTranslateTranslateError extends Error {}
 
 export const translateImage = async (imageLink: string) => {
   if (!browser) {
+    console.log("initing image translate browser");
     await initTranslateImage();
   }
 

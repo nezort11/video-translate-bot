@@ -2,7 +2,7 @@
 
 PACKAGE_FILE="package.json"
 PACKAGE_RUN_COMMAND="pnpm"
-RUN_COMMAND="sudo bash run.sh"
+RUN_COMMAND="bash run.sh"
 
 # Check the package.json file
 if [ -f "$PACKAGE_FILE" ]; then
