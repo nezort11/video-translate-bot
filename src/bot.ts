@@ -31,6 +31,7 @@ import {
   BOT_TOKEN,
   CONTACT_USERNAME,
   IMAGE_TRANSLATE_ENDPOINT_URL,
+  LOGGING_CHANNEL_CHAT_ID,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
 } from "./constants";
@@ -253,7 +254,7 @@ bot.use(async (context, next) => {
     );
 
     if (!context.callbackQuery) {
-      // context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+      context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
     }
 
     await next();

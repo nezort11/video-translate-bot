@@ -12,7 +12,7 @@ if (!IS_PRODUCTION) {
 }
 
 const YANDEX_IMAGE_TRANSLATE_URL = "https://translate.yandex.ru/ocr";
-const CHROME_USER_DATA_DIR = process.env.CHROME_USER_DATA_DIR as string;
+const CHROME_USER_DATA_DIR = process.env.CHROME_USER_DATA_DIR!;
 const CHROME_DOWNLOADS_DIR = "./chrome_downloads";
 
 let browser: Browser;
