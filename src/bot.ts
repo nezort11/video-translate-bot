@@ -1,4 +1,6 @@
-import { Composer, Markup, Telegraf, TelegramError } from "telegraf";
+import { bot } from "./botinstance";
+
+import { Composer, Markup, TelegramError } from "telegraf";
 import { message } from "telegraf/filters";
 import {
   TranslateException,
@@ -12,7 +14,6 @@ import { getVideoDurationInSeconds } from "get-video-duration";
 import fs from "fs/promises";
 import ytdl from "ytdl-core";
 import { createFFmpeg } from "@ffmpeg/ffmpeg";
-import path from "path";
 import http from "http";
 import https from "https";
 import { sendAdminNotification } from "./notification";
@@ -28,13 +29,13 @@ const { capitalize } = _;
 import { logger } from "./logger";
 import { inspect } from "util";
 import {
-  BOT_TOKEN,
   CONTACT_USERNAME,
   IMAGE_TRANSLATE_ENDPOINT_URL,
   LOGGING_CHANNEL_CHAT_ID,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
 } from "./constants";
+import { telegramLoggerMiddleware } from "./telegramlogger";
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
 
@@ -177,10 +178,6 @@ const decodeTranslateAction = (actionData: string) => {
   } as TranslateAction;
 };
 
-const BOT_TIMEOUT = moment.duration(12, "hours").asMilliseconds(); // 1 hour video for 0.01x might take up to 12 hours
-
-export const bot = new Telegraf(BOT_TOKEN, { handlerTimeout: BOT_TIMEOUT });
-
 const ffmpeg = createFFmpeg({
   log: true,
   logger: ({ message }) => logger.info(message),
@@ -240,6 +237,8 @@ const translateThrottler = telegrafThrottler({
 
 bot.use(throttler);
 
+bot.use(telegramLoggerMiddleware);
+
 bot.use(
   Composer.optional((context) => !!context.callbackQuery, translateThrottler)
 );
@@ -254,12 +253,15 @@ bot.use(async (context, next) => {
     );
 
     if (!context.callbackQuery) {
-      context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+      try {
+        await context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+      } catch {}
     }
 
     await next();
   } finally {
     clearInterval(typingInterval);
+    // no way to clear chat action, only wait 5s
   }
 });
 
@@ -408,7 +410,7 @@ bot.command("test", async (context) => {
     }
   );
 
-  await bot.telegram.copyMessage(
+  await context.telegram.copyMessage(
     context.chat.id,
     STORAGE_CHANNEL_CHAT_ID,
     fileMessageId
@@ -446,8 +448,8 @@ bot.command("foo", async (context) => {
   // await context.reply(await getVoiceTranslate("https://youtu.be/8pDqJVdNa44"));
   // await context.forwardMessage(context.chat.id, {  })
   // context.forwardMessage()
-  // await bot.telegram.forwardMessage(context.chat.id, "@blablatest2", 3);
-  // await bot.telegram.copyMessage(context.chat.id, 1436716301, 2);
+  // await context.telegram.forwardMessage(context.chat.id, "@blablatest2", 3);
+  // await context.telegram.copyMessage(context.chat.id, 1436716301, 2);
   // await context.sendPhoto("-6657797204282829097");
 });
 
@@ -835,7 +837,7 @@ bot.action(/.+/, async (context) => {
     }[translateAction.translateType]();
     logger.info("Uploaded to telegram");
 
-    await bot.telegram.copyMessage(
+    await context.telegram.copyMessage(
       context.chat?.id ?? 0,
       STORAGE_CHANNEL_CHAT_ID,
       fileMessageId
@@ -849,3 +851,5 @@ bot.action(/.+/, async (context) => {
     translateTransaction.finish();
   }
 });
+
+export { bot } from "./botinstance";
