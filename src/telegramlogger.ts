@@ -69,7 +69,14 @@ export const telegramLoggerMiddleware: Middleware<Context> = async (
       // only forward messages forwarded to bot (not from bot)
       method !== "forwardMessage"
     ) {
-      await telegramLoggerForwardMessage(ctx, oldCallApiResponse as Message);
+      setTimeout(
+        async () =>
+          await telegramLoggerForwardMessage(
+            ctx,
+            oldCallApiResponse as Message
+          ),
+        0
+      );
     }
 
     return oldCallApiResponse;
