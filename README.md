@@ -9,6 +9,7 @@ chmod +x ./run.sh
 
 # git update-index --chmod=+x ./run.sh
 
+# don't use sudo, because root mode will break some docker-push/yc/aws stuff
 ./run.sh docker:build
 ./run.sh docker:up
 ```

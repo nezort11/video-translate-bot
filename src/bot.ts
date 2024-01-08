@@ -1,6 +1,6 @@
 import { bot } from "./botinstance";
 
-import { Composer, Markup, TelegramError } from "telegraf";
+import { Composer, Context, Markup, TelegramError } from "telegraf";
 import { message } from "telegraf/filters";
 import {
   TranslateException,
@@ -71,6 +71,9 @@ const YOUTUBE_LINK_REGEX =
 
 const ERROR_MESSAGE_MESSAGE_IS_NOT_MODIFIED =
   "Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message";
+
+const ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER =
+  "403: Forbidden: bot was blocked by the user";
 
 const getLinkMatch = (text: string) => {
   // Youtube link is higher priority than regular link
@@ -235,6 +238,30 @@ const translateThrottler = telegrafThrottler({
     logger.info("Dropping updates due to throttling queue"),
 });
 
+const handleError = async (error: unknown, context: Context) => {
+  if (typeof error === "object" && error !== null && "message" in error) {
+    if (error.message === ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER) {
+      logger.warn(error);
+      return;
+    }
+  }
+
+  logger.error(error);
+  Sentry.captureException(error);
+
+  await Promise.allSettled([
+    context.sendMessage(
+      `⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже (✉️ информация об ошибке уже передана).`
+    ),
+
+    sendAdminNotification(
+      `${(error as Error)?.stack || error}\nMessage: ${inspect(context, {
+        depth: 10,
+      })}`
+    ),
+  ]);
+};
+
 bot.use(throttler);
 
 bot.use(telegramLoggerMiddleware);
@@ -247,10 +274,15 @@ bot.use(async (context, next) => {
   let typingInterval: NodeJS.Timer | undefined;
   try {
     await context.sendChatAction("typing");
-    typingInterval = setInterval(
-      async () => await context.sendChatAction("typing"),
-      moment.duration(5, "seconds").asMilliseconds()
-    );
+    typingInterval = setInterval(async () => {
+      try {
+        await context.sendChatAction("typing");
+      } catch (error) {
+        clearInterval(typingInterval);
+
+        await handleError(error, context);
+      }
+    }, moment.duration(5, "seconds").asMilliseconds());
 
     if (!context.callbackQuery) {
       try {
@@ -261,23 +293,12 @@ bot.use(async (context, next) => {
     await next();
   } finally {
     clearInterval(typingInterval);
-    // no way to clear chat action, only wait 5s
+    // no way to clear chat action, wait 5s
   }
 });
 
 bot.catch(async (error, context) => {
-  logger.error(error);
-  Sentry.captureException(error);
-  await Promise.allSettled([
-    context.sendMessage(
-      `⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже. ✉️ Информация об ошибке уже передана. 💬 Связь: @${CONTACT_USERNAME}`
-    ),
-    sendAdminNotification(
-      `${(error as Error)?.stack || error}\nMessage: ${inspect(context, {
-        depth: 10,
-      })}`
-    ),
-  ]);
+  await handleError(error, context);
 });
 
 bot.start(async (context) => {
@@ -426,33 +447,6 @@ bot.command("test", async (context) => {
   // outputBuffer = null;
 });
 
-bot.command("foo", async (context) => {
-  // await context.replyWithAudio({ source: "./hymn.mp3" });
-  await context.replyWithAudio(
-    {
-      source:
-        "/Users/egorzorin/dev/python/webdev/test-yandex-serverless-container/src/hymn.mp3",
-      filename: "hymn.mp3",
-    },
-    {
-      title: "hello world",
-      performer: "New performer",
-      thumb: {
-        source:
-          "/Users/egorzorin/dev/python/webdev/test-yandex-serverless-container/src/cover.jpg",
-      },
-    }
-    //
-  );
-
-  // await context.reply(await getVoiceTranslate("https://youtu.be/8pDqJVdNa44"));
-  // await context.forwardMessage(context.chat.id, {  })
-  // context.forwardMessage()
-  // await context.telegram.forwardMessage(context.chat.id, "@blablatest2", 3);
-  // await context.telegram.copyMessage(context.chat.id, 1436716301, 2);
-  // await context.sendPhoto("-6657797204282829097");
-});
-
 bot.on(message("text"), async (context) => {
   logger.info(
     `Incoming translate request: ${inspect(context.update, { depth: null })}`
@@ -464,7 +458,7 @@ bot.on(message("text"), async (context) => {
     link = new URL(linkMatch ?? "").href;
   } catch (error) {
     await context.reply(
-      "⚠️ На данный момент поддерживается только YouTube, пришлите 🔗 ссылку на видео"
+      "⚠️ На данный момент поддерживается только YouTube, пришлите 🔗 ссылку на видео для перевода"
     );
     return;
   }
@@ -849,6 +843,18 @@ bot.action(/.+/, async (context) => {
       await context.deleteMessage();
     } catch (error) {}
     translateTransaction.finish();
+  }
+});
+
+bot.use(async (context) => {
+  if (context.message && "video" in context.message) {
+    await context.reply(
+      "⚠️ На данный момент поддерживается только YouTube, можете попробовать 📤 загрузить это видео на ютуб и прислать 🔗 ссылку"
+    );
+  } else {
+    await context.reply(
+      "⚠️ На данный момент поддерживается только YouTube, пришлите 🔗 ссылку на видео для перевода"
+    );
   }
 });
 

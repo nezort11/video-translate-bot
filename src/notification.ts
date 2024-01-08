@@ -1,5 +1,6 @@
 import { Telegraf } from "telegraf";
 import { NOTIFICATION_BOT_TOKEN, NOTIFICATION_USER_ID } from "./constants";
+import { logger } from "./logger";
 
 export const notificationBot = new Telegraf(NOTIFICATION_BOT_TOKEN);
 
@@ -17,9 +18,13 @@ const escapeHtml = (unsafe: string) => {
 };
 
 export const sendAdminNotification = async (message: string) => {
-  notificationBot.telegram.sendMessage(
-    NOTIFICATION_USER_ID,
-    `<b>Yandex Video Translate</b>\n\n<code>${escapeHtml(message)}</code>`,
-    { parse_mode: "HTML" }
-  );
+  try {
+    await notificationBot.telegram.sendMessage(
+      NOTIFICATION_USER_ID,
+      `<b>Yandex Video Translate</b>\n\n<code>${escapeHtml(message)}</code>`,
+      { parse_mode: "HTML" }
+    );
+  } catch (error) {
+    logger.warn(error);
+  }
 };

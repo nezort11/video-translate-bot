@@ -5,6 +5,7 @@ import { Deunionize, PropOr } from "telegraf/typings/deunionize";
 import { Update, UserFromGetMe, Message } from "telegraf/types";
 import { GetUpdateContent } from "telegraf/typings/context";
 import { LOGGING_CHANNEL_CHAT_ID } from "./constants";
+import { logger } from "./logger";
 
 // https://github.com/telegraf/telegraf/blob/2847aec91d1fc088809ceb921ed25e513b07430e/src/context.ts#L1409
 type Getter<U extends Deunionize<Update>, P extends string> = PropOr<
@@ -42,7 +43,9 @@ export const telegramLoggerForwardMessage = async (
         context.chat.id,
         message.message_id
       );
-    } catch {}
+    } catch (error) {
+      logger.warn(error);
+    }
   }
 };
 
@@ -66,7 +69,7 @@ export const telegramLoggerMiddleware: Middleware<Context> = async (
       // only forward messages forwarded to bot (not from bot)
       method !== "forwardMessage"
     ) {
-      telegramLoggerForwardMessage(ctx, oldCallApiResponse as Message);
+      await telegramLoggerForwardMessage(ctx, oldCallApiResponse as Message);
     }
 
     return oldCallApiResponse;

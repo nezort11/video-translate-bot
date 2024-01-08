@@ -43,7 +43,6 @@
     "docker": "docker compose --env-file ./.env --env-file ./image-translate/.env -f ./compose.yml",
     "docker:build": "pnpm docker build && pnpm docker:down && pnpm docker:image:clean",
     "docker:up": "pnpm docker up --detach",
-    "docker:up:daemon": "pnpm docker up --detach",
     "docker:logs": "pnpm docker logs --follow --timestamps --since='6h'",
     "docker:top": "pnpm docker top",
     "docker:shell": "pnpm docker exec yandex_voice_translate_bot bash",
