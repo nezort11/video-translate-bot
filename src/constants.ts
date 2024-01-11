@@ -37,9 +37,5 @@ export const APP_HASH = process.env.APP_HASH!;
 export const SESSION = process.env.SESSION!;
 
 export const IMAGE_TRANSLATE_URL = process.env.IMAGE_TRANSLATE_URL!;
-export const IMAGE_TRANSLATE_ENDPOINT_URL = new URL(
-  "/translate",
-  IMAGE_TRANSLATE_URL
-).href;
 
 export const DEBUG_USER_CHAT_ID = process.env.DEBUG_USER_CHAT_ID!;

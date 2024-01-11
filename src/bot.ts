@@ -31,7 +31,7 @@ import { inspect } from "util";
 import {
   CONTACT_USERNAME,
   DEBUG_USER_CHAT_ID,
-  IMAGE_TRANSLATE_ENDPOINT_URL,
+  IMAGE_TRANSLATE_URL,
   LOGGING_CHANNEL_CHAT_ID,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
@@ -617,7 +617,7 @@ bot.action(/.+/, async (context) => {
     let thumbnailData: ArrayBuffer;
     try {
       const thumbnailResponse = await axiosInstance.post<ArrayBuffer>(
-        IMAGE_TRANSLATE_ENDPOINT_URL,
+        IMAGE_TRANSLATE_URL,
         {
           imageLink: resourceThumbnailUrl,
         },
