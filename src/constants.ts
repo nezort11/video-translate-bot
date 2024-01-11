@@ -41,3 +41,5 @@ export const IMAGE_TRANSLATE_ENDPOINT_URL = new URL(
   "/translate",
   IMAGE_TRANSLATE_URL
 ).href;
+
+export const DEBUG_USER_CHAT_ID = process.env.DEBUG_USER_CHAT_ID!;

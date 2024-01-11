@@ -30,6 +30,7 @@ import { logger } from "./logger";
 import { inspect } from "util";
 import {
   CONTACT_USERNAME,
+  DEBUG_USER_CHAT_ID,
   IMAGE_TRANSLATE_ENDPOINT_URL,
   LOGGING_CHANNEL_CHAT_ID,
   SENTRY_DSN,
@@ -276,7 +277,12 @@ bot.use(async (context, next) => {
     await context.sendChatAction("typing");
     typingInterval = setInterval(async () => {
       try {
-        await context.sendChatAction("typing");
+        await Promise.allSettled([
+          context.sendChatAction("typing"),
+          ...(context.chat && context.chat.id !== +DEBUG_USER_CHAT_ID
+            ? [context.telegram.sendChatAction(DEBUG_USER_CHAT_ID, "typing")]
+            : []),
+        ]);
       } catch (error) {
         clearInterval(typingInterval);
 
@@ -318,124 +324,125 @@ bot.start(async (context) => {
 });
 
 bot.command("test", async (context) => {
-  const youtubeReadableStream = ytdl(
-    "https://www.youtube.com/watch?v=5weFyMoBGN4"
-    // { filter: "audio" }
-    // { filter: "audioonly" }
-  );
+  await context.reply(`Your chat id: ${context.chat.id}`);
+  // const youtubeReadableStream = ytdl(
+  //   "https://www.youtube.com/watch?v=5weFyMoBGN4"
+  //   // { filter: "audio" }
+  //   // { filter: "audioonly" }
+  // );
 
-  const translationUrl = await getVoiceTranslateFinal(
-    "https://www.youtube.com/watch?v=5weFyMoBGN4"
-  );
-  const audioResponse = await axiosInstance.get<ArrayBuffer>(translationUrl, {
-    responseType: "arraybuffer",
-    // responseType: "stream",
-  });
-  const audioBuffer = Buffer.from(audioResponse.data);
-
-  // let ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
-
-  const streamChunks: Uint8Array[] = [];
-  for await (const data of youtubeReadableStream) {
-    streamChunks.push(data);
-  }
-  const youtubeBuffer = Buffer.concat(streamChunks);
-
-  // @ts-expect-error non-standard attribute
-  youtubeBuffer.name = "video.mp4";
-
-  // await fs.writeFile("./output.mp4", youtubeBuffer);
-
-  await fs.writeFile("./video.mp4", youtubeBuffer);
-
-  // const audioStream = audioResponse.data;
-  // const audioStream = Readable.from(audioBuffer);
-
-  const videoDuration = await getVideoDurationInSeconds("./video.mp4"); // ffprobe-based
-
-  // await context.replyWithVideo({
-  //   source: youtubeBuffer,
-  //   // source: youtubeBuffer,
-  //   // source: youtubeReadableStream,
-  //   // filename: "audio.mp3",
+  // const translationUrl = await getVoiceTranslateFinal(
+  //   "https://www.youtube.com/watch?v=5weFyMoBGN4"
+  // );
+  // const audioResponse = await axiosInstance.get<ArrayBuffer>(translationUrl, {
+  //   responseType: "arraybuffer",
+  //   // responseType: "stream",
   // });
+  // const audioBuffer = Buffer.from(audioResponse.data);
 
-  // const ffmpeg = createFFmpeg({
-  //   log: true,
-  //   corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
-  //   workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
-  //   wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
-  // });
-  if (!ffmpeg.isLoaded()) {
-    await ffmpeg.load();
-  }
+  // // let ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
 
-  ffmpeg.FS("writeFile", "source.mp4", youtubeBuffer);
-  ffmpeg.FS("writeFile", "source2.mp3", audioBuffer);
-  // prettier-ignore
-  await ffmpeg.run(
-    "-i", "source.mp4",
+  // const streamChunks: Uint8Array[] = [];
+  // for await (const data of youtubeReadableStream) {
+  //   streamChunks.push(data);
+  // }
+  // const youtubeBuffer = Buffer.concat(streamChunks);
 
-    "-i", "source2.mp3",
-    "-filter_complex", '[0:a]volume=0.1[a];' + // 20% (25%/30%/35%/40%) original playback
-                        '[1:a]volume=1[b];' + //  voice over
-                        '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
+  // // @ts-expect-error non-standard attribute
+  // youtubeBuffer.name = "video.mp4";
 
-    // "-qscale:a", "9", // "4",
-    // "-codec:a", "libmp3lame", // "aac",
-    "-b:a", "64k", // decrease output size (MB) - default 128kb
-    // " -pre", "ultrafast",
+  // // await fs.writeFile("./output.mp4", youtubeBuffer);
 
-    "output.mp4"
-  );
-  // ffmpeg -i input.mp4 -f null /dev/null
-  // ffmpeg -i ./input.mp4 -i input2.mp3 -filter_complex "[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame -q:a 4 -y output_audio.mp3
+  // await fs.writeFile("./video.mp4", youtubeBuffer);
 
-  const outputFile = ffmpeg.FS("readFile", "output.mp4");
+  // // const audioStream = audioResponse.data;
+  // // const audioStream = Readable.from(audioBuffer);
 
-  let outputBuffer: Buffer | null = Buffer.from(outputFile);
+  // const videoDuration = await getVideoDurationInSeconds("./video.mp4"); // ffprobe-based
 
-  // @ts-expect-error non-standard attribute
-  outputBuffer.name = "video.mp4";
+  // // await context.replyWithVideo({
+  // //   source: youtubeBuffer,
+  // //   // source: youtubeBuffer,
+  // //   // source: youtubeReadableStream,
+  // //   // filename: "audio.mp3",
+  // // });
 
-  const telegramClient = await getClient();
-  const { id: fileMessageId } = await telegramClient.sendFile(
-    STORAGE_CHANNEL_CHAT_ID,
-    {
-      file: outputBuffer,
-      // caption: link,
-      // thumb: path.resolve("./thumb.jpg"),
-      // thumb: thumbnailBuffer,
-      // thumb: "/Users/egorzorin/Downloads/response.jpeg",
+  // // const ffmpeg = createFFmpeg({
+  // //   log: true,
+  // //   corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
+  // //   workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
+  // //   wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
+  // // });
+  // if (!ffmpeg.isLoaded()) {
+  //   await ffmpeg.load();
+  // }
 
-      attributes: [
-        // new Api.DocumentAttributeAudio({
-        //   // duration: Math.floor(audioDuration),
-        //   // title: resourceTitle,
-        //   // performer: artist,
-        // }),
-        // new Api.DocumentAttributeFilename({
-        //   fileName: "mqdefault.jpg",
-        // }),
-        new Api.DocumentAttributeVideo({
-          // w: 320,
-          // h: 180,
-          // w: 16,
-          // h: 9,
-          w: 640,
-          h: 360,
-          duration: Math.floor(videoDuration),
-          supportsStreaming: true,
-        }),
-      ],
-    }
-  );
+  // ffmpeg.FS("writeFile", "source.mp4", youtubeBuffer);
+  // ffmpeg.FS("writeFile", "source2.mp3", audioBuffer);
+  // // prettier-ignore
+  // await ffmpeg.run(
+  //   "-i", "source.mp4",
 
-  await context.telegram.copyMessage(
-    context.chat.id,
-    STORAGE_CHANNEL_CHAT_ID,
-    fileMessageId
-  );
+  //   "-i", "source2.mp3",
+  //   "-filter_complex", '[0:a]volume=0.1[a];' + // 20% (25%/30%/35%/40%) original playback
+  //                       '[1:a]volume=1[b];' + //  voice over
+  //                       '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
+
+  //   // "-qscale:a", "9", // "4",
+  //   // "-codec:a", "libmp3lame", // "aac",
+  //   "-b:a", "64k", // decrease output size (MB) - default 128kb
+  //   // " -pre", "ultrafast",
+
+  //   "output.mp4"
+  // );
+  // // ffmpeg -i input.mp4 -f null /dev/null
+  // // ffmpeg -i ./input.mp4 -i input2.mp3 -filter_complex "[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame -q:a 4 -y output_audio.mp3
+
+  // const outputFile = ffmpeg.FS("readFile", "output.mp4");
+
+  // let outputBuffer: Buffer | null = Buffer.from(outputFile);
+
+  // // @ts-expect-error non-standard attribute
+  // outputBuffer.name = "video.mp4";
+
+  // const telegramClient = await getClient();
+  // const { id: fileMessageId } = await telegramClient.sendFile(
+  //   STORAGE_CHANNEL_CHAT_ID,
+  //   {
+  //     file: outputBuffer,
+  //     // caption: link,
+  //     // thumb: path.resolve("./thumb.jpg"),
+  //     // thumb: thumbnailBuffer,
+  //     // thumb: "/Users/egorzorin/Downloads/response.jpeg",
+
+  //     attributes: [
+  //       // new Api.DocumentAttributeAudio({
+  //       //   // duration: Math.floor(audioDuration),
+  //       //   // title: resourceTitle,
+  //       //   // performer: artist,
+  //       // }),
+  //       // new Api.DocumentAttributeFilename({
+  //       //   fileName: "mqdefault.jpg",
+  //       // }),
+  //       new Api.DocumentAttributeVideo({
+  //         // w: 320,
+  //         // h: 180,
+  //         // w: 16,
+  //         // h: 9,
+  //         w: 640,
+  //         h: 360,
+  //         duration: Math.floor(videoDuration),
+  //         supportsStreaming: true,
+  //       }),
+  //     ],
+  //   }
+  // );
+
+  // await context.telegram.copyMessage(
+  //   context.chat.id,
+  //   STORAGE_CHANNEL_CHAT_ID,
+  //   fileMessageId
+  // );
 
   // await context.replyWithAudio({
   //   source: outputBuffer,
