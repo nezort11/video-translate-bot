@@ -32,11 +32,13 @@ import {
   CONTACT_USERNAME,
   DEBUG_USER_CHAT_ID,
   IMAGE_TRANSLATE_URL,
-  LOGGING_CHANNEL_CHAT_ID,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
 } from "./constants";
-import { telegramLoggerMiddleware } from "./telegramlogger";
+import {
+  telegramLoggerIncomingMiddleware,
+  telegramLoggerCallApiMiddleware,
+} from "./telegramlogger";
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
 
@@ -265,8 +267,6 @@ const handleError = async (error: unknown, context: Context) => {
 
 bot.use(throttler);
 
-bot.use(telegramLoggerMiddleware);
-
 bot.use(
   Composer.optional((context) => !!context.callbackQuery, translateThrottler)
 );
@@ -290,18 +290,16 @@ bot.use(async (context, next) => {
       }
     }, moment.duration(5, "seconds").asMilliseconds());
 
-    if (!context.callbackQuery) {
-      try {
-        await context.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
-      } catch {}
-    }
-
-    await next();
+    return await next();
   } finally {
     clearInterval(typingInterval);
     // no way to clear chat action, wait 5s
   }
 });
+
+bot.use(telegramLoggerIncomingMiddleware);
+
+bot.use(telegramLoggerCallApiMiddleware);
 
 bot.catch(async (error, context) => {
   await handleError(error, context);

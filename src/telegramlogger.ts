@@ -49,7 +49,22 @@ export const telegramLoggerForwardMessage = async (
   }
 };
 
-export const telegramLoggerMiddleware: Middleware<Context> = async (
+export const telegramLoggerIncomingMiddleware: Middleware<Context> = async (
+  ctx,
+  next
+) => {
+  if (!ctx.callbackQuery) {
+    (async () => {
+      try {
+        await ctx.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+      } catch {}
+    })();
+  }
+
+  return await next();
+};
+
+export const telegramLoggerCallApiMiddleware: Middleware<Context> = async (
   ctx,
   next
 ) => {
@@ -75,7 +90,7 @@ export const telegramLoggerMiddleware: Middleware<Context> = async (
             ctx,
             oldCallApiResponse as Message
           ),
-        0
+        1000
       );
     }
 
