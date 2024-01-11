@@ -1,13 +1,28 @@
 #!/usr/bin/env bash
 
 PACKAGE_FILE="package.json"
-PACKAGE_RUN_COMMAND="pnpm"
-RUN_COMMAND="bash run.sh"
+PACKAGE_RUN_COMMAND="npm"
+RUN_COMMAND="bash ${0}"
+SCRIPT="$1"
 
-# Check the package.json file
+# Check package manager
+if [ -f "package-lock.json" ]; then
+  PACKAGE_RUN_COMMAND="npm"
+fi
+if [ -f "yarn.lock" ]; then
+  PACKAGE_RUN_COMMAND="yarn"
+fi
+if [ -f "pnpm-lock.yaml" ]; then
+  PACKAGE_RUN_COMMAND="pnpm"
+fi
+
+# Check run as superuser
+if [ "$EUID" -eq 0 ]; then
+  RUN_COMMAND="sudo $RUN_COMMAND"
+fi
+
+# Check package file
 if [ -f "$PACKAGE_FILE" ]; then
-  SCRIPT=$1
-
   # Extract the script command using jq (Install jq: https://stedolan.github.io/jq/download/)
   script_command=$(jq -r ".scripts.\"$SCRIPT\"" "$PACKAGE_FILE")
 
