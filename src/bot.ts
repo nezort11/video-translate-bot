@@ -28,6 +28,8 @@ import _ from "lodash";
 const { capitalize } = _;
 import { logger } from "./logger";
 import { inspect } from "util";
+import { TimeoutError } from "p-timeout";
+
 import {
   CONTACT_USERNAME,
   DEBUG_USER_CHAT_ID,
@@ -242,9 +244,18 @@ const translateThrottler = telegrafThrottler({
 });
 
 const handleError = async (error: unknown, context: Context) => {
-  if (typeof error === "object" && error !== null && "message" in error) {
-    if (error.message === ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER) {
+  if (typeof error === "object" && error !== null) {
+    if (
+      "message" in error &&
+      error.message === ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER
+    ) {
       logger.warn(error);
+      return;
+    }
+    if ("name" in error && error.name === TimeoutError.name) {
+      await context.reply(
+        `⚠️ Не получилось перевести видео, так как это занимает слишком ⏳ много времени.`
+      );
       return;
     }
   }
@@ -253,7 +264,7 @@ const handleError = async (error: unknown, context: Context) => {
   Sentry.captureException(error);
 
   await Promise.allSettled([
-    context.sendMessage(
+    context.reply(
       `⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже (✉️ информация об ошибке уже передана).`
     ),
 
@@ -478,6 +489,7 @@ bot.on(message("text"), async (context) => {
   await context.replyWithMarkdownV2(
     `⚙️ Каким образом перевести [это](${link}) видео?`,
     {
+      disable_notification: true,
       reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
         [
