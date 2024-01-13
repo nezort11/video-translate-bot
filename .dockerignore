@@ -1,6 +1,7 @@
 .git
 .env
 .env.example
+.github
 node_modules
 Dockerfile
 compose.yml
