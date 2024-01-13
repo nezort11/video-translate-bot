@@ -33,4 +33,4 @@ jobs:
             sudo chown -R ${{ secrets.REMOTE_SERVER_USER }}:${{ secrets.REMOTE_SERVER_USER }} . && \
             sudo bash run.sh docker build && \
             sudo bash run.sh docker down && \
-            sudo bash run.sh docker:image:clean 2>/dev/null
+            sudo bash run.sh docker:image:clean || echo ''
