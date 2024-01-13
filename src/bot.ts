@@ -92,13 +92,14 @@ const getLinkMatch = (text: string) => {
   return linkMatch;
 };
 
-const getVideoId = (youtubeLink: string) =>
-  Array.from(youtubeLink.matchAll(YOUTUBE_LINK_REGEX))?.[0]?.[6];
+const getYoutubeVideoId = (youtubeLink: string) =>
+  Array.from(youtubeLink.matchAll(YOUTUBE_LINK_REGEX))[0][6];
 
-const getYoutubeLink = (videoId: string) => `https://youtu.be/${videoId}`;
+const getShortYoutubeLink = (youtubeVideoId: string) =>
+  `https://youtu.be/${youtubeVideoId}`;
 
-const getThumbnailLink = (videoId: string) =>
-  `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+const getYoutubeThumbnailLink = (youtubeVideoId: string) =>
+  `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
 
 const delay = (milliseconds: number) =>
   new Promise((resolve) => setTimeout((_) => resolve(undefined), milliseconds));
@@ -162,7 +163,7 @@ enum YoutubeVideoStreamFormatCode {
 type TranslateAction = {
   translateType: TranslateType;
   url: string;
-  quality: number;
+  quality: YoutubeVideoStreamFormatCode;
 };
 
 const encodeTranslateAction = (
@@ -469,11 +470,11 @@ bot.on(message("text"), async (context) => {
     `Incoming translate request: ${inspect(context.update, { depth: null })}`
   );
 
-  let link: string;
-  try {
-    const linkMatch = getLinkMatch(context.message.text);
-    link = new URL(linkMatch ?? "").href;
-  } catch (error) {
+  const link = context.message.text;
+
+  // https://stackoverflow.com/a/10940138/13774599
+  // but https://stackoverflow.com/a/34034823/13774599
+  if (!link.match(YOUTUBE_LINK_REGEX)) {
     await context.reply(
       "⚠️ На данный момент поддерживается только YouTube, пришлите 🔗 ссылку на видео для перевода",
       { disable_notification: true }
@@ -481,13 +482,11 @@ bot.on(message("text"), async (context) => {
     return;
   }
 
-  const videoId = getVideoId(link);
-  if (videoId) {
-    link = getYoutubeLink(videoId);
-  }
+  const videoId = getYoutubeVideoId(link);
+  const shortLink = getShortYoutubeLink(videoId);
 
   await context.replyWithMarkdownV2(
-    `⚙️ Каким образом перевести [это](${link}) видео?`,
+    `⚙️ Каким образом перевести [это](${shortLink}) видео?`,
     {
       disable_notification: true,
       reply_to_message_id: context.message.message_id,
@@ -497,7 +496,7 @@ bot.on(message("text"), async (context) => {
             "🎧 Аудио (mp3)",
             encodeTranslateAction(
               TranslateType.Audio,
-              link,
+              shortLink,
               YoutubeVideoStreamFormatCode.Mp4_360p
             )
           ),
@@ -505,7 +504,7 @@ bot.on(message("text"), async (context) => {
         [
           Markup.button.callback(
             "📺 Видео (mp4) (дольше ⏳)",
-            encodeChooseVideoQualityAction(link)
+            encodeChooseVideoQualityAction(shortLink)
           ),
         ],
       ]).reply_markup,
@@ -542,6 +541,45 @@ bot.action(/.+/, async (context) => {
     return;
   }
 
+  const translateAction = decodeTranslateAction(actionData);
+  let link = translateAction.url;
+
+  const videoInfo = await ytdl.getInfo(link);
+  const originalVideoDuration = +videoInfo.videoDetails.lengthSeconds;
+
+  let isTooLongVideoError = false;
+  if (originalVideoDuration > moment.duration({ hours: 4 }).asSeconds()) {
+    await context.reply(
+      "⚠️ Видео для перевода слишком длинное, попробуйте перевести другое видео",
+      { disable_notification: true }
+    );
+    isTooLongVideoError = true;
+  } else if (
+    translateAction.translateType === TranslateType.Video &&
+    originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
+  ) {
+    await context.reply(
+      "⚠️ Видео перевод слишком долго обрабатывать, попробуйте выбрать обычный аудио перевод",
+      { disable_notification: true }
+    );
+    isTooLongVideoError = true;
+  } else if (
+    translateAction.quality === YoutubeVideoStreamFormatCode.Mp4_720p &&
+    originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
+  ) {
+    await context.reply(
+      "⚠️ Видео в выбранном качестве слишком долго обрабатывать, попробуй уменьшить качество или выбрать аудио",
+      { disable_notification: true }
+    );
+    isTooLongVideoError = true;
+  }
+  if (isTooLongVideoError) {
+    try {
+      await context.deleteMessage();
+    } catch (error) {}
+    return;
+  }
+
   const translateTransaction = Sentry.startTransaction({
     op: "translate",
     name: "Translate Transaction",
@@ -557,15 +595,11 @@ bot.action(/.+/, async (context) => {
         error instanceof TelegramError &&
         error.response.description === ERROR_MESSAGE_MESSAGE_IS_NOT_MODIFIED
       ) {
+        // pass
       } else {
         throw error;
       }
     }
-
-    const translateAction = decodeTranslateAction(actionData);
-
-    let link = translateAction.url;
-    const videoId = getVideoId(link);
 
     let translationUrl: string | undefined;
     try {
@@ -578,15 +612,15 @@ bot.action(/.+/, async (context) => {
             "Возникла ошибка, попробуйте позже";
           if (error.message === YANDEX_TRANSLATE_ERROR_MESSAGE) {
             await context.reply(
-              "⚠️ Яндекс не может перевести это видео, 😢 к сожалению, ничего не поделать. 🕔 Может в будущем получится."
+              "⚠️ Не получается перевести это видео, 😢 к сожалению, ничего не поделать. 🕔 Может в будущем получится"
             );
             return;
           }
 
-          await context.reply(`⚠️ Ошибка: ${error.message}`);
+          await context.reply(`⚠️ Ошибка переводчика: ${error.message}`);
           return;
         }
-        await context.deleteMessage();
+
         await context.reply(
           "⚠️ Возникла ошибка при переводе. Информация ✉️ передана разработчикам, попробуй позже"
         );
@@ -624,7 +658,8 @@ bot.action(/.+/, async (context) => {
     // let outputBuffer = audioBuffer;
 
     // if (videoId) {
-    const resourceThumbnailUrl = getThumbnailLink(videoId);
+    const videoId = getYoutubeVideoId(link);
+    const resourceThumbnailUrl = getYoutubeThumbnailLink(videoId);
     logger.info("Youtube thumbnail:", resourceThumbnailUrl);
     let thumbnailData: ArrayBuffer;
     try {
@@ -640,6 +675,7 @@ bot.action(/.+/, async (context) => {
       thumbnailData = thumbnailResponse.data;
     } catch (error) {
       if (error instanceof AxiosError) {
+        // Use original thumbnail
         const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
           resourceThumbnailUrl,
           {
@@ -659,24 +695,24 @@ bot.action(/.+/, async (context) => {
     link = `https://youtu.be/${videoId}`;
     logger.info(`Youtube link: ${resourceThumbnailUrl}`);
 
-    logger.info("Requesting video page to get author/channel name...");
-    const youtubeResponse = await axiosInstance.get(link);
-    const $ = load(youtubeResponse.data);
-    const authorName = $('span[itemprop="author"] [itemprop="name"]')
-      .attr("content")
-      ?.toString();
-    let artist = authorName;
+    // logger.info("Requesting video page to get author/channel name...");
+    // const youtubeResponse = await axiosInstance.get(link);
+    // const $ = load(youtubeResponse.data);
+    // const authorName = $('span[itemprop="author"] [itemprop="name"]')
+    //   .attr("content")
+    //   ?.toString();
+    // let artist = authorName;
+    const originalArtist = videoInfo.videoDetails.author.name;
 
-    if (artist) {
-      try {
-        const translateResponse = await translate(artist, { to: "ru" });
-        artist = translateResponse.text;
-      } catch (error) {}
-    }
-    if (artist) {
-      artist = artist.split(" ").map(capitalize).join(" ");
-    }
-    logger.info(`Author name: ${authorName}`);
+    let artist = originalArtist;
+    try {
+      const translateResponse = await translate(artist, { to: "ru" });
+      artist = translateResponse.text;
+    } catch (error) {}
+
+    artist = artist.split(" ").map(capitalize).join(" ");
+
+    logger.info(`Author name: ${artist}`);
 
     // const videoInfo = await ytdl.getInfo(videoId);
     // logger.info(`videoInfo: ${videoInfo}`);
@@ -771,7 +807,7 @@ bot.action(/.+/, async (context) => {
               new Api.DocumentAttributeAudio({
                 duration: Math.floor(audioDuration),
                 title: resourceTitle,
-                performer: `${artist} (${authorName})`,
+                performer: `${artist} (${originalArtist})`,
               }),
               new Api.DocumentAttributeFilename({
                 fileName: "mqdefault.jpg",
@@ -827,7 +863,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `📺 <b>${resourceTitle}</b>\n— ${artist} (${authorName})\n${link}`,
+            caption: `📺 <b>${resourceTitle}</b>\n— ${artist} (${originalArtist})\n${link}`,
             parseMode: "html",
             thumb: thumbnailBuffer,
             attributes: [
