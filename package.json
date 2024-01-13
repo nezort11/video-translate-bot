@@ -51,7 +51,7 @@
     "docker:stop": "pnpm docker stop",
     "docker:restart": "pnpm docker:down && pnpm docker:up",
     "docker:down:clean": "pnpm docker down --rmi=all --volumes",
-    "docker:image:clean": "docker image rm -f $(docker image ls -aqf dangling=true)",
+    "docker:image:clean": "docker image rm -f $(docker image ls -aqf dangling=true) || echo ''",
     "docker:container:clean": "docker rm $(docker ps --filter=status=exited --filter=status=dead -q)",
     "docker:cache:info": "docker system df",
     "docker:cache:clean": "docker system prune --volumes",
