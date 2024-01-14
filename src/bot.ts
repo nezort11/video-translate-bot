@@ -187,6 +187,9 @@ const decodeTranslateAction = (actionData: string) => {
   } as TranslateAction;
 };
 
+// https://github.com/ffmpegwasm/ffmpeg.wasm/tree/0.11.x
+// https://ffmpegwasm.netlify.app/docs/migration
+// https://ffmpegwasm.netlify.app/docs/faq#why-ffmpegwasm-doesnt-support-nodejs
 const ffmpeg = createFFmpeg({
   log: true,
   logger: ({ message }) => logger.info(message),
@@ -275,6 +278,28 @@ const handleError = async (error: unknown, context: Context) => {
       })}`
     ),
   ]);
+};
+
+const handleTranslateInProgress = async (
+  context: Context,
+  progress: number
+) => {
+  try {
+    await context.editMessageText(
+      `⏳ Видео в процессе перевода, обработка может занять до нескольких часов... (прогресс ${Math.floor(
+        progress * 100
+      )}%)`
+    );
+  } catch (error) {
+    if (
+      error instanceof TelegramError &&
+      error.response.description === ERROR_MESSAGE_MESSAGE_IS_NOT_MODIFIED
+    ) {
+      // pass
+    } else {
+      throw error;
+    }
+  }
 };
 
 bot.use(throttler);
@@ -585,21 +610,19 @@ bot.action(/.+/, async (context) => {
     name: "Translate Transaction",
   });
 
+  let progressInterval: NodeJS.Timer | undefined;
+  let ffmpegProgress = 0;
   try {
-    try {
-      await context.editMessageText(
-        "⏳ Видео в процессе перевода, обработка может занять несколько часов..."
-      );
-    } catch (error) {
-      if (
-        error instanceof TelegramError &&
-        error.response.description === ERROR_MESSAGE_MESSAGE_IS_NOT_MODIFIED
-      ) {
-        // pass
-      } else {
-        throw error;
+    await handleTranslateInProgress(context, ffmpegProgress);
+
+    progressInterval = setInterval(async () => {
+      try {
+        await handleTranslateInProgress(context, ffmpegProgress);
+      } catch (error) {
+        clearInterval(progressInterval);
+        await handleError(error, context);
       }
-    }
+    }, moment.duration({ minutes: 5 }).asMilliseconds());
 
     let translationUrl: string | undefined;
     try {
@@ -742,6 +765,9 @@ bot.action(/.+/, async (context) => {
       logger.info("FFmpeg loaded");
     }
     ffmpeg.setLogger(({ message }) => logger.info(message));
+    ffmpeg.setProgress(({ ratio }) => {
+      ffmpegProgress = ratio;
+    });
 
     ffmpeg.FS("writeFile", "source.mp4", youtubeBuffer);
     ffmpeg.FS("writeFile", "source2.mp3", audioBuffer);
@@ -894,6 +920,7 @@ bot.action(/.+/, async (context) => {
   } catch (error) {
     throw error;
   } finally {
+    clearInterval(progressInterval);
     try {
       await context.deleteMessage();
     } catch (error) {}
