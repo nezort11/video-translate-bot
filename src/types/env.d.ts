@@ -12,7 +12,8 @@ declare global {
       STORAGE_CHANNEL_ID: string;
       APP_ID: string;
       APP_HASH: string;
-      SESSION: string;
+      SESSION_DEV: string;
+      SESSION_PROD: string;
 
       SENTRY_DSN: string;
       NOTIFICATION_BOT_TOKEN: string;

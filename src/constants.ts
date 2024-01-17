@@ -14,7 +14,7 @@ if (!IS_PRODUCTION) {
 
 // Dynamically loaded env variables
 export const DEBUG = process.env.DEBUG!;
-export const BOT_PUBLIC_USERNAME = process.env.BOT_PUBLIC_USERNAME;
+export const BOT_PUBLIC_USERNAME = process.env.BOT_PUBLIC_USERNAME!;
 export const NOTIFICATION_BOT_TOKEN = process.env.NOTIFICATION_BOT_TOKEN!;
 export const NOTIFICATION_USER_ID = process.env.NOTIFICATION_USER_ID!;
 
@@ -34,7 +34,9 @@ export const LOGGING_CHANNEL_CHAT_ID = getChatId(LOGGING_CHANNEL_ID);
 
 export const API_ID = process.env.APP_ID!;
 export const APP_HASH = process.env.APP_HASH!;
-export const SESSION = process.env.SESSION!;
+export const SESSION = (
+  IS_PRODUCTION ? process.env.SESSION_PROD : process.env.SESSION_DEV
+)!;
 
 export const IMAGE_TRANSLATE_URL = process.env.IMAGE_TRANSLATE_URL!;
 

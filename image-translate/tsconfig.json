@@ -3,17 +3,17 @@
   "compilerOptions": {
     "target": "ESNext", // Emit latest ECMAScript features supported by `node` runtime (18) (otherwise polyfill)
     "module": "CommonJS", // Emit old-good CommonJS
-    "esModuleInterop": true,
     "moduleResolution": "Node", // CommonJS module resolution
     "lib": [
       "ESNext", // Support latest ECMAScript features
       "DOM"
     ],
+    "rootDir": "./src",
+    "outDir": "./build",
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "inlineSourceMap": true,
-    "rootDir": "./src",
-    "outDir": "./build",
     "noImplicitAny": false
   },
 }

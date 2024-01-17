@@ -16,6 +16,8 @@ jobs:
           # IN CASE THIS ERROR:
           # 2020/08/29 01:19:13 ssh: handshake failed: ssh: unable to authenticate, attempted methods [none publickey], no supported methods remain
           # DO THIS: https://github.com/appleboy/ssh-action/issues/80#issuecomment-1519113584 and https://github.com/appleboy/ssh-action/issues/80#issuecomment-1716795876
+          # 2024/01/15 15:17:19 dial tcp ***:22: i/o timeout
+          # DO THIS: check server is ssh-able
           host: ${{ secrets.REMOTE_SERVER_IP }}
           username: ${{ secrets.REMOTE_SERVER_USER }}
           key: ${{ secrets.REMOTE_SERVER_PRIVATE_KEY }} # content of ssh private key. ex raw content of ~/.ssh/id_rsa, remember include the BEGIN and END lines
