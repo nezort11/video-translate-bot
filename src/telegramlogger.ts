@@ -1,9 +1,9 @@
 import { bot } from "./botinstance";
 
-import { Context, Middleware, Telegram } from "telegraf";
-import { Deunionize, PropOr } from "telegraf/typings/deunionize";
-import { Update, UserFromGetMe, Message } from "telegraf/types";
-import { GetUpdateContent } from "telegraf/typings/context";
+import { Context, type Middleware, Telegram } from "telegraf";
+import type { Deunionize, PropOr } from "telegraf/typings/deunionize";
+import type { Update, UserFromGetMe, Message } from "telegraf/types";
+import type { GetUpdateContent } from "telegraf/typings/context";
 import { LOGGING_CHANNEL_CHAT_ID } from "./constants";
 import { logger } from "./logger";
 

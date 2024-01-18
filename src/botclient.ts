@@ -1,8 +1,8 @@
 import { Telegraf } from "telegraf";
 
 import { TelegramError } from "telegraf";
-import { Update } from "telegraf/types";
-import { UpdateType } from "telegraf/typings/telegram-types";
+import { type Update } from "telegraf/types";
+import { type UpdateType } from "telegraf/typings/telegram-types";
 import ApiClient from "telegraf/typings/core/network/client";
 import AbortController from "abort-controller";
 import storage from "node-persist";
