@@ -668,7 +668,8 @@ bot.action(/.+/, async (context) => {
     logger.info("Duration:", audioDuration);
 
     logger.info("Requesting video page to get title...");
-    let resourceTitle = await getWebsiteTitle(link);
+    // let resourceTitle = await getWebsiteTitle(link);
+    let resourceTitle = videoInfo.videoDetails.title;
     if (resourceTitle) {
       try {
         const translateResponse = await translate(resourceTitle, {
