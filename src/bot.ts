@@ -34,13 +34,16 @@ import {
   CONTACT_USERNAME,
   DEBUG_USER_CHAT_ID,
   IMAGE_TRANSLATE_URL,
+  IS_PRODUCTION,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
 } from "./constants";
 import {
   telegramLoggerIncomingMiddleware,
   telegramLoggerCallApiMiddleware,
+  telegramLoggerContext,
 } from "./telegramlogger";
+import { escapeHtml } from "./utils";
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
 
@@ -265,18 +268,23 @@ const handleError = async (error: unknown, context: Context) => {
   }
 
   logger.error(error);
-  Sentry.captureException(error);
+  if (IS_PRODUCTION) {
+    Sentry.captureException(error);
+  }
 
   await Promise.allSettled([
     context.reply(
       `⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже (✉️ информация об ошибке уже передана).`
     ),
 
-    sendAdminNotification(
-      `${(error as Error)?.stack || error}\nMessage: ${inspect(context, {
-        depth: 10,
-      })}`
-    ),
+    telegramLoggerContext.reply(`<code>${escapeHtml(inspect(error))}</code>`, {
+      parse_mode: "HTML",
+    }),
+    // sendAdminNotification(
+    //   `${(error as Error)?.stack || error}\nMessage: ${inspect(context, {
+    //     depth: 10,
+    //   })}`
+    // ),
   ]);
 };
 
