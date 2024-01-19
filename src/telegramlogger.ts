@@ -1,11 +1,13 @@
-import { bot } from "./botinstance";
-
-import { Context, type Middleware, Telegram } from "telegraf";
+import { Context, type Middleware, Telegraf, Telegram } from "telegraf";
 import type { Deunionize, PropOr } from "telegraf/typings/deunionize";
 import type { Update, UserFromGetMe, Message } from "telegraf/types";
 import type { GetUpdateContent } from "telegraf/typings/context";
-import { LOGGING_CHANNEL_CHAT_ID } from "./constants";
+import { BOT_TOKEN, LOGGING_CHANNEL_CHAT_ID } from "./constants";
 import { logger } from "./logger";
+import { botThrottler } from "./throttler";
+
+const bot = new Telegraf(BOT_TOKEN);
+bot.use(botThrottler);
 
 // https://github.com/telegraf/telegraf/blob/2847aec91d1fc088809ceb921ed25e513b07430e/src/context.ts#L1409
 type Getter<U extends Deunionize<Update>, P extends string> = PropOr<
@@ -64,7 +66,7 @@ export const telegramLoggerIncomingMiddleware: Middleware<Context> = async (
   return await next();
 };
 
-export const telegramLoggerCallApiMiddleware: Middleware<Context> = async (
+export const telegramLoggerOutcomingMiddleware: Middleware<Context> = async (
   ctx,
   next
 ) => {

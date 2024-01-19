@@ -2,11 +2,6 @@ import { bot } from "./botinstance";
 
 import { Composer, Context, Markup, TelegramError } from "telegraf";
 import { message } from "telegraf/filters";
-import {
-  TranslateException,
-  TranslateInProgressException,
-  getVoiceTranslate,
-} from "./translate";
 import axios, { AxiosError } from "axios";
 import { load } from "cheerio";
 import { getAudioDurationInSeconds } from "get-audio-duration";
@@ -16,19 +11,23 @@ import ytdl from "ytdl-core";
 import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import http from "http";
 import https from "https";
-import { sendAdminNotification } from "./notification";
-import { getClient } from "./telegramClient";
 import { Api } from "telegram";
-import { telegrafThrottler } from "telegraf-throttler";
-import Bottleneck from "bottleneck";
 import translate from "@iamtraction/google-translate";
 import * as Sentry from "@sentry/node";
 import moment from "moment";
-import _ from "lodash";
-const { capitalize } = _;
-import { logger } from "./logger";
 import { inspect } from "util";
 import { TimeoutError } from "p-timeout";
+import _ from "lodash";
+const { capitalize } = _;
+
+import {
+  TranslateException,
+  TranslateInProgressException,
+  getVoiceTranslate,
+} from "./translate";
+import { sendAdminNotification } from "./notification";
+import { getClient } from "./telegramClient";
+import { logger } from "./logger";
 
 import {
   CONTACT_USERNAME,
@@ -39,10 +38,11 @@ import {
   STORAGE_CHANNEL_CHAT_ID,
 } from "./constants";
 import {
-  telegramLoggerIncomingMiddleware,
-  telegramLoggerCallApiMiddleware,
   telegramLoggerContext,
+  telegramLoggerIncomingMiddleware,
+  telegramLoggerOutcomingMiddleware,
 } from "./telegramlogger";
+import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml } from "./utils";
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
@@ -205,51 +205,6 @@ bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
 // bot.use(Telegraf.log());
 
-const inThrottleConfig = {
-  highWater: 8, // max queue size (per chat)
-  strategy: Bottleneck.strategy.LEAK, // forget about updates > queue
-  maxConcurrent: 8, // max updates processed at the same time (per all chats)
-  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
-};
-const inTranslateThrottleConfig = {
-  highWater: 4, // max translate 4 videos in the queue (per chat)
-  strategy: Bottleneck.strategy.LEAK,
-  maxConcurrent: 1, // max 1 video at the same time because of low server (per all chats)
-  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
-};
-
-// https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
-const outPrivateChatThrottleConfig = {
-  maxConcurrent: 1,
-  minTime: moment.duration(0.025, "seconds").asMilliseconds(),
-  reservoir: 30,
-  reservoirRefreshAmount: 30,
-  reservoirRefreshInterval: moment.duration(1, "seconds").asMilliseconds(),
-};
-const outGroupChatThrottleConfig = {
-  maxConcurrent: 1,
-  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
-  reservoir: 20,
-  reservoirRefreshAmount: 20,
-  reservoirRefreshInterval: moment.duration(60, "seconds").asMilliseconds(),
-};
-
-const throttler = telegrafThrottler({
-  in: inThrottleConfig,
-  out: outPrivateChatThrottleConfig,
-  group: outGroupChatThrottleConfig,
-  inThrottlerError: async (context) =>
-    logger.info("Dropping updates due to throttling queue"),
-});
-
-const translateThrottler = telegrafThrottler({
-  in: inTranslateThrottleConfig,
-  out: outPrivateChatThrottleConfig,
-  group: outGroupChatThrottleConfig,
-  inThrottlerError: async (context) =>
-    logger.info("Dropping updates due to throttling queue"),
-});
-
 const handleError = async (error: unknown, context: Context) => {
   if (typeof error === "object" && error !== null) {
     if (
@@ -310,11 +265,11 @@ const handleTranslateInProgress = async (
   }
 };
 
-bot.use(throttler);
+bot.use(botThrottler);
 
-bot.use(
-  Composer.optional((context) => !!context.callbackQuery, translateThrottler)
-);
+// bot.use(
+//   Composer.optional((context) => !!context.callbackQuery, translateThrottler)
+// );
 
 bot.use(async (context, next) => {
   let typingInterval: NodeJS.Timer | undefined;
@@ -344,7 +299,7 @@ bot.use(async (context, next) => {
 
 bot.use(telegramLoggerIncomingMiddleware);
 
-bot.use(telegramLoggerCallApiMiddleware);
+bot.use(telegramLoggerOutcomingMiddleware);
 
 bot.catch(async (error, context) => {
   await handleError(error, context);
@@ -545,6 +500,7 @@ bot.on(message("text"), async (context) => {
   );
 });
 
+let videoTranslateProgressCount = 0;
 bot.action(/.+/, async (context) => {
   const actionData = context.match[0];
   const actionType = actionData[0] as TranslateType;
@@ -580,13 +536,12 @@ bot.action(/.+/, async (context) => {
   const videoInfo = await ytdl.getInfo(link);
   const originalVideoDuration = +videoInfo.videoDetails.lengthSeconds;
 
-  let isTooLongVideoError = false;
+  let isValidationError = true;
   if (originalVideoDuration > moment.duration({ hours: 4 }).asSeconds()) {
     await context.reply(
       "⚠️ Видео для перевода слишком длинное, попробуйте перевести другое видео",
       { disable_notification: true }
     );
-    isTooLongVideoError = true;
   } else if (
     translateAction.translateType === TranslateType.Video &&
     originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
@@ -595,7 +550,6 @@ bot.action(/.+/, async (context) => {
       "⚠️ Видео перевод слишком долго обрабатывать, попробуйте выбрать обычный аудио перевод",
       { disable_notification: true }
     );
-    isTooLongVideoError = true;
   } else if (
     translateAction.quality === YoutubeVideoStreamFormatCode.Mp4_720p &&
     originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
@@ -604,9 +558,14 @@ bot.action(/.+/, async (context) => {
       "⚠️ Видео в выбранном качестве слишком долго обрабатывать, попробуй уменьшить качество или выбрать аудио",
       { disable_notification: true }
     );
-    isTooLongVideoError = true;
+  } else if (videoTranslateProgressCount >= 1) {
+    await context.reply(
+      "⚠️ Максимальное количество видео в процессе 🏗 перевода в данный момент, 🔁 пожалуйста, повторите позже..."
+    );
+  } else {
+    isValidationError = false;
   }
-  if (isTooLongVideoError) {
+  if (isValidationError) {
     try {
       await context.deleteMessage();
     } catch (error) {}
@@ -620,6 +579,7 @@ bot.action(/.+/, async (context) => {
 
   let progressInterval: NodeJS.Timer | undefined;
   let ffmpegProgress = 0;
+  videoTranslateProgressCount += 1;
   try {
     await handleTranslateInProgress(context, ffmpegProgress);
 
@@ -680,9 +640,7 @@ bot.action(/.+/, async (context) => {
     let resourceTitle = videoInfo.videoDetails.title;
     if (resourceTitle) {
       try {
-        const translateResponse = await translate(resourceTitle, {
-          to: "ru",
-        });
+        const translateResponse = await translate(resourceTitle, { to: "ru" });
         resourceTitle = translateResponse.text;
       } catch (error) {}
     }
@@ -929,6 +887,7 @@ bot.action(/.+/, async (context) => {
   } catch (error) {
     throw error;
   } finally {
+    videoTranslateProgressCount -= 1;
     clearInterval(progressInterval);
     try {
       await context.deleteMessage();
