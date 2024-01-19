@@ -26,7 +26,7 @@ import {
   getVoiceTranslate,
 } from "./translate";
 import { sendAdminNotification } from "./notification";
-import { getClient } from "./telegramClient";
+import { getClient } from "./telegramclient";
 import { logger } from "./logger";
 
 import {
