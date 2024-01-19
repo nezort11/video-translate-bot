@@ -2,7 +2,7 @@ import { fileURLToPath } from "url";
 import storage from "node-persist";
 import { bot } from "./bot";
 import { logger } from "./logger";
-import { setIsPublic, NODE_ENV, DEBUG, BOT_PUBLIC_USERNAME } from "./constants";
+import { setIsPublic, NODE_ENV, DEBUG, BOT_PUBLIC_USERNAME } from "./env";
 import { telegramLoggerContext } from "./telegramlogger";
 
 const main = async () => {

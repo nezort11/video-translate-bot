@@ -2,7 +2,7 @@ import { Context, type Middleware, Telegraf, Telegram } from "telegraf";
 import type { Deunionize, PropOr } from "telegraf/typings/deunionize";
 import type { Update, UserFromGetMe, Message } from "telegraf/types";
 import type { GetUpdateContent } from "telegraf/typings/context";
-import { BOT_TOKEN, LOGGING_CHANNEL_CHAT_ID } from "./constants";
+import { BOT_TOKEN, LOGGING_CHANNEL_CHAT_ID } from "./env";
 import { logger } from "./logger";
 import { botThrottler } from "./throttler";
 

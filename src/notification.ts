@@ -1,5 +1,5 @@
 import { Telegraf } from "telegraf";
-import { NOTIFICATION_BOT_TOKEN, NOTIFICATION_USER_ID } from "./constants";
+import { NOTIFICATION_BOT_TOKEN, NOTIFICATION_USER_ID } from "./env";
 import { logger } from "./logger";
 import { escapeHtml } from "./utils";
 

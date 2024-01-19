@@ -36,7 +36,7 @@ import {
   IS_PRODUCTION,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
-} from "./constants";
+} from "./env";
 import {
   telegramLoggerContext,
   telegramLoggerIncomingMiddleware,

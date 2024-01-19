@@ -2,7 +2,7 @@ import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 // @ts-expect-error no types
 import input from "input";
-import { API_ID, APP_HASH, SESSION } from "./constants";
+import { API_ID, APP_HASH, SESSION } from "./env";
 
 const session = new StringSession(SESSION);
 export const telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
