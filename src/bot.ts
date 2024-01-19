@@ -153,6 +153,7 @@ function toArrayBuffer(buffer: Buffer) {
 }
 
 enum TranslateType {
+  Voice = "o",
   Audio = "a",
   Video = "v",
   ChooseVideoQuality = "q",
@@ -481,6 +482,16 @@ bot.on(message("text"), async (context) => {
       reply_markup: Markup.inlineKeyboard([
         [
           Markup.button.callback(
+            "🎙️ Голос (mp3) (быстрее ⚡️)",
+            encodeTranslateAction(
+              TranslateType.Voice,
+              shortLink,
+              YoutubeVideoStreamFormatCode.Mp4_360p
+            )
+          ),
+        ],
+        [
+          Markup.button.callback(
             "🎧 Аудио (mp3)",
             encodeTranslateAction(
               TranslateType.Audio,
@@ -531,9 +542,9 @@ bot.action(/.+/, async (context) => {
   }
 
   const translateAction = decodeTranslateAction(actionData);
-  let link = translateAction.url;
+  const videoLink = translateAction.url;
 
-  const videoInfo = await ytdl.getInfo(link);
+  const videoInfo = await ytdl.getInfo(videoLink);
   const originalVideoDuration = +videoInfo.videoDetails.lengthSeconds;
 
   let isValidationError = true;
@@ -595,7 +606,7 @@ bot.action(/.+/, async (context) => {
     let translationUrl: string | undefined;
     try {
       logger.info("Request translation...");
-      translationUrl = await getVoiceTranslateFinal(link);
+      translationUrl = await getVoiceTranslateFinal(videoLink);
     } catch (error) {
       if (error instanceof TranslateException) {
         if (error.message) {
@@ -629,13 +640,7 @@ bot.action(/.+/, async (context) => {
     const audioBuffer = Buffer.from(audioResponse.data);
     logger.info(`Downloaded translation: ${audioBuffer.length}`);
 
-    const tempAudioFilePath = "./temp.mp3";
-    await fs.writeFile(tempAudioFilePath, audioBuffer);
-    const audioDuration = await getAudioDurationInSeconds(tempAudioFilePath); // ffprobe-based
-    await fs.rm(tempAudioFilePath);
-    logger.info("Duration:", audioDuration);
-
-    logger.info("Requesting video page to get title...");
+    // logger.info("Requesting video page to get title...");
     // let resourceTitle = await getWebsiteTitle(link);
     let resourceTitle = videoInfo.videoDetails.title;
     if (resourceTitle) {
@@ -645,12 +650,9 @@ bot.action(/.+/, async (context) => {
       } catch (error) {}
     }
 
-    // let outputBuffer = audioBuffer;
-
-    // if (videoId) {
-    const videoId = getYoutubeVideoId(link);
+    const videoId = getYoutubeVideoId(videoLink);
     const resourceThumbnailUrl = getYoutubeThumbnailLink(videoId);
-    logger.info("Youtube thumbnail:", resourceThumbnailUrl);
+    logger.info(`Youtube thumbnail: ${resourceThumbnailUrl}`);
     let thumbnailData: ArrayBuffer;
     try {
       const thumbnailResponse = await axiosInstance.post<ArrayBuffer>(
@@ -682,33 +684,58 @@ bot.action(/.+/, async (context) => {
     // @ts-expect-error telegraf uses non-standard Buffer.`name` property
     thumbnailBuffer.name = "mqdefault.jpg";
 
-    link = `https://youtu.be/${videoId}`;
-    logger.info(`Youtube link: ${resourceThumbnailUrl}`);
-
-    // logger.info("Requesting video page to get author/channel name...");
-    // const youtubeResponse = await axiosInstance.get(link);
-    // const $ = load(youtubeResponse.data);
-    // const authorName = $('span[itemprop="author"] [itemprop="name"]')
-    //   .attr("content")
-    //   ?.toString();
-    // let artist = authorName;
     const originalArtist = videoInfo.videoDetails.author.name;
-
     let artist = originalArtist;
     try {
       const translateResponse = await translate(artist, { to: "ru" });
       artist = translateResponse.text;
     } catch (error) {}
-
     artist = artist.split(" ").map(capitalize).join(" ");
-
     logger.info(`Author name: ${artist}`);
 
-    // const videoInfo = await ytdl.getInfo(videoId);
-    // logger.info(`videoInfo: ${videoInfo}`);
+    const videoDuration = +videoInfo.videoDetails.lengthSeconds;
+
+    if (translateAction.translateType === TranslateType.Voice) {
+      const outputBuffer = audioBuffer;
+      // @ts-expect-error telegraf uses non-standard Buffer.`name` property
+      outputBuffer.name = "audio.mp3";
+
+      const telegramClient = await getClient();
+      const fileMessage = await telegramClient.sendFile(
+        STORAGE_CHANNEL_CHAT_ID,
+        {
+          file: outputBuffer,
+          caption: `${videoLink}`,
+          thumb: thumbnailBuffer,
+
+          attributes: [
+            new Api.DocumentAttributeAudio({
+              duration: Math.floor(videoDuration),
+              title: resourceTitle,
+              performer: `${artist} (${originalArtist})`,
+            }),
+            // new Api.DocumentAttributeFilename({
+            //   fileName: "mqdefault.jpg",
+            // }),
+          ],
+        }
+      );
+      await context.telegram.copyMessage(
+        context.chat?.id ?? 0,
+        STORAGE_CHANNEL_CHAT_ID,
+        fileMessage.id
+      );
+      return;
+    }
+
+    const tempAudioFilePath = "./temp.mp3";
+    await fs.writeFile(tempAudioFilePath, audioBuffer);
+    const audioDuration = await getAudioDurationInSeconds(tempAudioFilePath); // ffprobe-based
+    await fs.rm(tempAudioFilePath);
+    logger.info(`Duration: ${audioDuration}`);
 
     const youtubeReadableStream = ytdl(
-      link,
+      videoLink,
       {
         // https://github.com/fent/node-ytdl-core#ytdlchooseformatformats-options
         // https://gist.github.com/kurumigi/e3bad17420afdb81496d37792813aa09
@@ -741,15 +768,17 @@ bot.action(/.+/, async (context) => {
 
     let fileMessageId = 0;
     await {
+      [TranslateType.Voice]: async () => {},
       [TranslateType.Audio]: async () => {
         // prettier-ignore
         await ffmpeg.run(
           "-i", "source.mp4",
           "-i", "source2.mp3",
 
-          "-filter_complex", '[0:a]volume=0.1[a];' + // 20% (25%/30%/35%/40%) original playback
-                              '[1:a]volume=1[b];' + //  voice over
-                              '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
+          "-filter_complex",
+            '[0:a]volume=0.1[a];' + // 10% original playback
+            '[1:a]volume=1[b];' + // voice over
+            '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
           // "-qscale:a", "9", // "4",
           // "-codec:a", "libmp3lame", // "aac",
@@ -760,9 +789,8 @@ bot.action(/.+/, async (context) => {
           "output.mp3"
         );
         // ffmpeg -i input.mp4 -f null /dev/null
-        // ffmpeg -i ./input.mp4 -i input2.mp3 -filter_complex "[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:duration=longest" -c:a libmp3lame -q:a 4 -y output_audio.mp3
-        logger.info("Getting ffmpeg output in node environment");
 
+        logger.info("Getting ffmpeg output in node environment");
         const outputFile = ffmpeg.FS("readFile", "output.mp3");
         const outputBuffer = Buffer.from(outputFile);
         // @ts-expect-error telegraf uses non-standard Buffer.`name` property
@@ -793,7 +821,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `${link}`,
+            caption: `${videoLink}`,
             thumb: thumbnailBuffer,
 
             attributes: [
@@ -802,9 +830,9 @@ bot.action(/.+/, async (context) => {
                 title: resourceTitle,
                 performer: `${artist} (${originalArtist})`,
               }),
-              new Api.DocumentAttributeFilename({
-                fileName: "mqdefault.jpg",
-              }),
+              // new Api.DocumentAttributeFilename({
+              //   fileName: "mqdefault.jpg",
+              // }),
             ],
           }
         );
@@ -828,15 +856,15 @@ bot.action(/.+/, async (context) => {
         // );
       },
       [TranslateType.Video]: async () => {
-        // ffmpeg -i video.mp4 -i audio.mp3 -filter_complex '[0:a]volume=0.25[a];[1:a]volume=1[b];[a][b]amix=inputs=2:dropout_transition=0' -b:a 64k output.mp4
         // prettier-ignore
         await ffmpeg.run(
           "-i", "source.mp4",
           "-i", "source2.mp3",
 
-          "-filter_complex", '[0:a]volume=0.1[a];' + // 25% (30%/35%/40%) original playback
-                              '[1:a]volume=1[b];' + //  voice over
-                              '[a][b]amix=inputs=2:dropout_transition=0',  // :duration=longest',
+          "-filter_complex",
+            '[0:a]volume=0.1[a];' + // 10% original playback
+            '[1:a]volume=1[b];' + // voice over
+            '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
           // "-qscale:a", "9", // "4",
           // "-codec:a", "libmp3lame", // "aac",
@@ -856,7 +884,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `📺 <b>${resourceTitle}</b>\n— ${artist} (${originalArtist})\n${link}`,
+            caption: `📺 <b>${resourceTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
             parseMode: "html",
             thumb: thumbnailBuffer,
             attributes: [
