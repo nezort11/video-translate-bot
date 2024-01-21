@@ -16,7 +16,11 @@ const main = async () => {
   const botInfo = await bot.telegram.getMe();
   setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
   logger.info(`Started bot server on https://t.me/${botInfo.username}`);
-  telegramLoggerContext.reply(`🚀 Started bot server`);
+  try {
+    await telegramLoggerContext.reply(`🚀 Started bot server`);
+  } catch (error) {
+    console.warn(error);
+  }
 };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

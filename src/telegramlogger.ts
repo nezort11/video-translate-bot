@@ -59,7 +59,9 @@ export const telegramLoggerIncomingMiddleware: Middleware<Context> = async (
     (async () => {
       try {
         await ctx.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
-      } catch {}
+      } catch (error) {
+        logger.warn(error);
+      }
     })();
   }
 

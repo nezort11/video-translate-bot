@@ -1,7 +1,7 @@
 import { Telegraf, TelegramError } from "telegraf";
 import ApiClient from "telegraf/typings/core/network/client";
-import { type Update } from "telegraf/types";
-import { type UpdateType } from "telegraf/typings/telegram-types";
+import type { Update } from "telegraf/types";
+import type { UpdateType } from "telegraf/typings/telegram-types";
 import AbortController from "abort-controller";
 import storage from "node-persist";
 import d from "debug";
@@ -9,6 +9,7 @@ import { promisify } from "util";
 import { ServerResponse } from "http";
 
 import { telegramLoggerContext } from "./telegramlogger";
+import { IS_PRODUCTION } from "./env";
 
 const debug = d("telegraf:polling");
 const wait = promisify(setTimeout);
@@ -36,6 +37,13 @@ const getEndOffset = async () => {
 
 const setEndOffset = async (newEndOffset: number) => {
   return await storage.setItem("endOffset", newEndOffset);
+};
+
+const getUpdateHandleInfo = async (updateId: number) => {
+  const updateHandleInfo = (await storage.get(`${updateId}`)) as
+    | UpdateHandleInfo
+    | undefined;
+  return updateHandleInfo;
 };
 
 export class BotPolling {
@@ -163,29 +171,23 @@ const deleteUpdateHandleInfo = async (updateId: number) => {
 export class BotTelegraf extends Telegraf {
   private polling?: BotPolling;
 
-  protected async getUpdateHandleInfo(updateId: number) {
-    const updateHandleInfo = (await storage.get(`${updateId}`)) as
-      | UpdateHandleInfo
-      | undefined;
-    return updateHandleInfo;
-  }
-
   // https://github.com/telegraf/telegraf/blob/v4/src/telegraf.ts
   async handleUpdate(update: Update, webhookResponse?: ServerResponse) {
-    const updateHandleInfo = (await this.getUpdateHandleInfo(
-      update.update_id
-    )) ?? {
+    const updateHandleInfo = (await getUpdateHandleInfo(update.update_id)) ?? {
       handleCount: 0,
       update,
     };
     updateHandleInfo.handleCount += 1;
     await setUpdateHandleInfo(update.update_id, updateHandleInfo);
 
-    // Ignore messages from channels
-    if (!("channel_post" in update)) {
-      await telegramLoggerContext.reply(
-        `⏳ Started processing update ${update.update_id}`
-      );
+    // Debug update processing
+    if (!IS_PRODUCTION) {
+      // Ignore messages from channels
+      if (!("channel_post" in update)) {
+        await telegramLoggerContext.reply(
+          `⏳ Started processing update ${update.update_id}`
+        );
+      }
     }
     try {
       return await super.handleUpdate(update, webhookResponse);
@@ -193,11 +195,12 @@ export class BotTelegraf extends Telegraf {
       // handled update = deleted update
       await deleteUpdateHandleInfo(update.update_id);
 
-      // Ignore messages from channels
-      if (!("channel_post" in update)) {
-        await telegramLoggerContext.reply(
-          `🏁 Finished processing update ${update.update_id}`
-        );
+      if (!IS_PRODUCTION) {
+        if (!("channel_post" in update)) {
+          await telegramLoggerContext.reply(
+            `🏁 Finished processing update ${update.update_id}`
+          );
+        }
       }
     }
   }
@@ -211,7 +214,7 @@ export class BotTelegraf extends Telegraf {
     const endOffset = await getEndOffset();
     let newsStartOffset: number | undefined = undefined;
     for (let updateId = startOffset; updateId <= endOffset; updateId += 1) {
-      const updateHandleInfo = await this.getUpdateHandleInfo(updateId);
+      const updateHandleInfo = await getUpdateHandleInfo(updateId);
       if (updateHandleInfo === undefined) {
         continue;
       } else if (updateHandleInfo.handleCount >= 3) {
