@@ -1,6 +1,7 @@
 import { getChatId } from "./utils";
 
 export const NODE_ENV = process.env.NODE_ENV;
+console.log("NODE_ENV", NODE_ENV);
 export const IS_PRODUCTION = process.env.NODE_ENV !== "development";
 
 export let IS_PUBLIC = true;
@@ -17,6 +18,9 @@ export const DEBUG = process.env.DEBUG!;
 export const BOT_PUBLIC_USERNAME = process.env.BOT_PUBLIC_USERNAME!;
 export const NOTIFICATION_BOT_TOKEN = process.env.NOTIFICATION_BOT_TOKEN!;
 export const NOTIFICATION_USER_ID = process.env.NOTIFICATION_USER_ID!;
+
+export const YANDEX_TRANSLATE_HMAC_SHA254_SECRET =
+  process.env.YANDEX_TRANSLATE_HMAC_SHA254_SECRET!;
 
 export const STORAGE_CHANNEL_ID = process.env.STORAGE_CHANNEL_ID!;
 export const STORAGE_CHANNEL_CHAT_ID = getChatId(STORAGE_CHANNEL_ID);

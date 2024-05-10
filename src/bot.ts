@@ -23,7 +23,7 @@ const { capitalize } = _;
 import {
   TranslateException,
   TranslateInProgressException,
-  getVoiceTranslate,
+  translateVideo,
 } from "./translate";
 import { sendAdminNotification } from "./notification";
 import { getClient } from "./telegramclient";
@@ -77,8 +77,14 @@ const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
   /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/g;
 
-const ERROR_MESSAGE_MESSAGE_IS_NOT_MODIFIED =
+const ERROR_MESSAGE_IS_NOT_MODIFIED =
   "Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message";
+
+const ERROR_MESSAGE_CANT_BE_EDITED =
+  "400: Bad Request: message can't be edited";
+
+const ERROR_MESSAGE_TO_EDIT_NOT_FOUND =
+  "400: Bad Request: message to edit not found";
 
 const ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER =
   "403: Forbidden: bot was blocked by the user";
@@ -113,7 +119,7 @@ const TRANSLATE_PULLING_INTERVAL = moment
 
 const getVoiceTranslateFinal = async (url: string): Promise<string> => {
   try {
-    return await getVoiceTranslate(url);
+    return await translateVideo(url);
   } catch (error) {
     if (error instanceof TranslateInProgressException) {
       await delay(TRANSLATE_PULLING_INTERVAL);
@@ -228,6 +234,7 @@ const handleError = async (error: unknown, context: Context) => {
     Sentry.captureException(error);
   }
 
+  console.error(error);
   await Promise.allSettled([
     context.reply(
       `⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже (✉️ информация об ошибке уже передана).`
@@ -255,11 +262,14 @@ const handleTranslateInProgress = async (
       )}%)`
     );
   } catch (error) {
-    if (
-      error instanceof TelegramError &&
-      error.response.description === ERROR_MESSAGE_MESSAGE_IS_NOT_MODIFIED
-    ) {
-      // pass
+    if (error instanceof TelegramError) {
+      if (
+        error.response.description === ERROR_MESSAGE_IS_NOT_MODIFIED || // pass
+        error.response.description === ERROR_MESSAGE_CANT_BE_EDITED || // skip until message is editable
+        error.response.description === ERROR_MESSAGE_TO_EDIT_NOT_FOUND // after message is deleted and promise is not completed
+      ) {
+        // pass
+      }
     } else {
       throw error;
     }

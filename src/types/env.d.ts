@@ -8,6 +8,7 @@ declare global {
       BOT_TOKEN_DEV: string;
       BOT_TOKEN_PROD: string;
       BOT_PUBLIC_USERNAME: string;
+      YANDEX_TRANSLATE_HMAC_SHA254_SECRET: string;
       CONTACT_USERNAME: string;
       STORAGE_CHANNEL_ID: string;
       APP_ID: string;

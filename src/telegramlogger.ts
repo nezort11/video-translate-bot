@@ -74,7 +74,7 @@ export const telegramLoggerOutcomingMiddleware: Middleware<Context> = async (
 ) => {
   const oldCallApi = ctx.telegram.callApi.bind(ctx.telegram);
   const newCallApi: typeof ctx.telegram.callApi = async function newCallApi(
-    this: typeof ctx.telegram,
+    this: typeof ctx.telegram, // fake this parameter for typization
     method,
     payload,
     { signal } = {}

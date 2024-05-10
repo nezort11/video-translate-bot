@@ -8,7 +8,6 @@ import { telegramLoggerContext } from "./telegramlogger";
 const main = async () => {
   logger.info(`VERSION: ${process.version}`);
   logger.info(`DEBUG: ${DEBUG}`);
-  logger.info(`NODE_ENV: ${NODE_ENV}`);
 
   await storage.init({ dir: "./session/storage" });
 

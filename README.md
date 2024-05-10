@@ -14,3 +14,9 @@ chmod +x ./run.sh
 ./run.sh docker:build
 ./run.sh docker:up
 ```
+
+## cli
+
+```sh
+url='https://youtu.be/x8J3a5ty3zw' pnpm cli
+```

@@ -1,16 +1,17 @@
 /*
-  Credit: https://github.com/ilyhalight/voice-over-translation/tree/master/vot-cli
+  Credit: https://github.com/FOSWLY/vot-cli
+  Requirements: Node.js 18+ (crypto), protobufjs, axios
  */
 
 import protobuf, { Message } from "protobufjs";
 import crypto from "crypto";
 import axios from "axios";
+import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "../env";
 
 const YANDEX_VIDEO_TRANSLATE_URL =
   "https://api.browser.yandex.ru/video-translation/translate";
-const YANDEX_TRANSLATE_HMAC_SHA254_SECRET = "gnnde87s24kcuMH8rbWhLyfeuEKDkGGm";
 const YANDEX_BROWSER_USER_AGENT =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 15_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 CriOS/104.0.5112.114 YaBrowser/22.9.4.633.10 SA/3 Mobile/15E148 Safari/604.1";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 YaBrowser/24.1.0.0 Safari/537.36";
 
 type VideoTranslateResponse = {
   url: string;
@@ -20,7 +21,7 @@ type VideoTranslateResponse = {
   message?: string;
 };
 
-const protoRequest = new protobuf.Type("VideoTranslateRequest")
+const videoTranslateRequestProto = new protobuf.Type("VideoTranslateRequest")
   .add(new protobuf.Field("url", 3, "string"))
   .add(new protobuf.Field("deviceId", 4, "string"))
   .add(new protobuf.Field("unknown0", 5, "int32"))
@@ -30,17 +31,20 @@ const protoRequest = new protobuf.Type("VideoTranslateRequest")
   .add(new protobuf.Field("unknown3", 9, "int32"))
   .add(new protobuf.Field("unknown4", 10, "int32"));
 
-const protoResponse = new protobuf.Type("VideoTranslateResponse")
+const videoTranslateResponseProto = new protobuf.Type("VideoTranslateResponse")
   .add(new protobuf.Field("url", 1, "string"))
   .add(new protobuf.Field("duration", 2, "double"))
   .add(new protobuf.Field("status", 4, "int32"))
   .add(new protobuf.Field("code", 7, "string"))
   .add(new protobuf.Field("message", 9, "string"));
 
-new protobuf.Root().define("yandex").add(protoRequest).add(protoResponse);
+new protobuf.Root()
+  .define("yandex")
+  .add(videoTranslateRequestProto)
+  .add(videoTranslateResponseProto);
 
-const getEncodedRequest = (url: string, deviceId: string) => {
-  return protoRequest
+const getEncodedVideoTranslateRequest = (url: string, deviceId: string) => {
+  return videoTranslateRequestProto
     .encode({
       url: url,
       deviceId: deviceId,
@@ -54,11 +58,11 @@ const getEncodedRequest = (url: string, deviceId: string) => {
     .finish();
 };
 
-const getDecodedResponse = (
+const getDecodedVideoTranslateResponse = (
   response: Uint8Array
   // Iterable<number>
 ) => {
-  return protoResponse.decode(
+  return videoTranslateResponseProto.decode(
     response
     // new Uint8Array(response)
   ) as Message & VideoTranslateResponse;
@@ -71,36 +75,36 @@ const getDecodedResponse = (
 //   return array;
 // };
 
-const getUuid = (isLower: boolean) => {
+const getUuid = () => {
   const uuid = `${1e7}${1e3}${4e3}${8e3}${1e11}`.replace(/[018]/g, (c) =>
     (
       +c ^
       (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))
     ).toString(16)
   );
-  return isLower ? uuid : uuid.toUpperCase();
+  return uuid;
 };
 
-const getVoiceTranslateResponse = async (url: string) => {
-  const deviceId = getUuid(true);
+const getVideoTranslateResponse = async (url: string) => {
+  const deviceId = getUuid();
 
   // console.log("url", url);
 
-  const body = getEncodedRequest(url, deviceId);
+  const body = getEncodedVideoTranslateRequest(url, deviceId);
 
   // console.log("body", body);
 
   // const decoder = new TextDecoder();
   const utf8Encoder = new TextEncoder();
 
-  const key = await crypto.subtle.importKey(
+  const hmacKey = await crypto.subtle.importKey(
     "raw",
     utf8Encoder.encode(YANDEX_TRANSLATE_HMAC_SHA254_SECRET),
     { name: "HMAC", hash: { name: "SHA-256" } },
     false,
     ["sign", "verify"]
   );
-  const signature = await crypto.subtle.sign("HMAC", key, body);
+  const signature = await crypto.subtle.sign("HMAC", hmacKey, body);
 
   // const signature = CryptoJS.HmacSHA256(
   //   decoder.decode(body),
@@ -124,8 +128,7 @@ const getVoiceTranslateResponse = async (url: string) => {
 
   // console.log("vtransSignature", vtransSignature);
 
-  const vtransToken = getUuid(false);
-  // // const vtransToken = "0067E41EC8844C068DE0F3BEBF682F9E";
+  const vtransToken = getUuid().toUpperCase();
 
   // console.log("vtransToken", vtransToken);
 
@@ -153,39 +156,9 @@ const getVoiceTranslateResponse = async (url: string) => {
     withCredentials: true,
     responseType: "arraybuffer",
     data,
-    // env: {
-    //   FormData,
-    // },
   });
 
   return response.data;
-
-  // const response = await fetch(
-  //   "https://api.browser.yandex.ru/video-translation/translate",
-  //   {
-  //     method: "post",
-  //     headers: {
-  //       Accept: "application/x-protobuf",
-  //       "Accept-Language": "en",
-  //       "Content-Type": "application/x-protobuf",
-  //       "User-Agent": YANDEX_BROWSER_USER_AGENT,
-  //       Pragma: "no-cache",
-  //       "Cache-Control": "no-cache",
-  //       "Sec-Fetch-Mode": "no-cors",
-  //       "sec-ch-ua": null as any as string,
-  //       "sec-ch-ua-mobile": null as any as string,
-  //       "sec-ch-ua-platform": null as any as string,
-  //       "Vtrans-Signature": vtransSignature,
-  //       "Sec-Vtrans-Token": vtransToken,
-  //     },
-  //     credentials: "include",
-  //     // credentials: "include",
-  //     body: data,
-  //   }
-  // );
-
-  // // response.
-  // return utf8Encoder.encode(await response.text());
 };
 
 export class TranslateException extends Error {
@@ -197,19 +170,22 @@ export class TranslateException extends Error {
 
 export class TranslateInProgressException {}
 
-export const getVoiceTranslate = async (url: string) => {
-  const response = await getVoiceTranslateResponse(url);
-  const translateResponse = getDecodedResponse(response);
+export const translateVideo = async (url: string) => {
+  const videoTranslateResponse = await getVideoTranslateResponse(url);
+  const videoTranslateResponseData = getDecodedVideoTranslateResponse(
+    videoTranslateResponse
+  );
   // console.log("translateResponse", translateResponse);
 
-  switch (translateResponse.status) {
+  switch (videoTranslateResponseData.status) {
     case 0:
-      throw new TranslateException(translateResponse.message);
+      throw new TranslateException(videoTranslateResponseData.message);
     case 1:
       const hasUrl =
-        void 0 !== translateResponse.url && null !== translateResponse.url;
+        videoTranslateResponseData.url !== undefined &&
+        videoTranslateResponseData.url !== null;
       if (hasUrl) {
-        return translateResponse.url;
+        return videoTranslateResponseData.url;
       }
       // Audio link hasn't been received
       throw new TranslateException();
