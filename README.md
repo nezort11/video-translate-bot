@@ -1,4 +1,9 @@
-# yandex-voice-translate-bot
+# video translate bot
+
+<img height="512px" src="https://github.com/nezort11/video-translate-bot/assets/59317431/5a8eb1f1-a2ab-4359-a5f4-433dfc9f4f8b" />
+<img height="512px" src="https://github.com/nezort11/video-translate-bot/assets/59317431/dc45aafd-152a-4631-a3fa-4170aae0c1d2" />
+
+## Start
 
 ```sh
 git pull
