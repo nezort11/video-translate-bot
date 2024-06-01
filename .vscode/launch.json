@@ -8,17 +8,16 @@
       "name": "Bot dev",
       "type": "node",
       "request": "launch",
-      "runtimeExecutable": "/Users/egorzorin/.nvm/versions/node/v18.12.1/bin/node",
+      // TODO: SUBSTITUTE WITH THE OUTPUT OF `which node`
+      "runtimeExecutable": "/Users/nezort11/.volta/bin/node",
       "runtimeArgs": [
         "--inspect",
         "--experimental-specifier-resolution=node",
         "--no-warnings",
         "--loader",
-        "ts-node/esm",
+        "ts-node/esm"
       ],
-      "args": [
-        "./src/index.ts"
-      ],
+      "args": ["./src/index.ts"],
       "cwd": "${workspaceRoot}",
       "env": {
         "NODE_ENV": "development"
@@ -28,17 +27,16 @@
       "name": "Bot prod",
       "type": "node",
       "request": "launch",
-      "runtimeExecutable": "/Users/egorzorin/.nvm/versions/node/v18.12.1/bin/node",
+      // TODO: SUBSTITUTE WITH THE OUTPUT OF `which node`
+      "runtimeExecutable": "/Users/nezort11/.volta/bin/node",
       "runtimeArgs": [
         "--inspect",
         "--experimental-specifier-resolution=node",
         "--no-warnings",
         "--loader",
-        "ts-node/esm",
+        "ts-node/esm"
       ],
-      "args": [
-        "./src/index.ts"
-      ],
+      "args": ["./src/index.ts"],
       "cwd": "${workspaceRoot}",
       "env": {
         "NODE_ENV": "production"
@@ -49,18 +47,13 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceRoot}/image-translate",
-      "runtimeExecutable": "/Users/egorzorin/.nvm/versions/node/v18.12.1/bin/node",
-      "runtimeArgs": [
-        "-r",
-        "ts-node/register/transpile-only",
-        "--inspect",
-      ],
-      "args": [
-        "./src/server.ts"
-      ],
+      // TODO: SUBSTITUTE WITH THE OUTPUT OF `which node`
+      "runtimeExecutable": "/Users/nezort11/.volta/bin/node",
+      "runtimeArgs": ["-r", "ts-node/register/transpile-only", "--inspect"],
+      "args": ["./src/server.ts"],
       "env": {
         "DEBUG": "*"
       }
-    },
+    }
   ]
 }
