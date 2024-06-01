@@ -144,10 +144,7 @@ const getVideoInfo = async (link: string) => {
     };
   }
 
-  const linkPreview = await getLinkPreview(
-    "https://www.bilibili.com/video/BV1Pt42157Th",
-    { followRedirects: "follow" }
-  );
+  const linkPreview = await getLinkPreview(link, { followRedirects: "follow" });
   const images = "images" in linkPreview ? linkPreview.images : [];
   return {
     title: "title" in linkPreview ? linkPreview.title : undefined,
