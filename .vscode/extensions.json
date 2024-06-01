@@ -1,5 +1,19 @@
 {
   "recommendations": [
-    "arcanis.vscode-zipfs"
+    "GitHub.github-vscode-theme",
+    "PKief.material-icon-theme",
+    "WakaTime.vscode-wakatime",
+
+    "artdiniz.quitcontrol-vscode",
+    "eamodio.gitlens",
+    "streetsidesoftware.code-spell-checker",
+    "TabNine.tabnine-vscode",
+
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "YoavBls.pretty-ts-errors",
+    "ambooth.git-rename",
+    "IBM.output-colorizer",
+    "redhat.vscode-yaml"
   ]
 }
