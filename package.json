@@ -78,6 +78,7 @@
     "get-audio-duration": "3.1.1",
     "get-video-duration": "4.1.0",
     "input": "1.0.1",
+    "link-preview-js": "3.0.5",
     "lodash": "4.17.21",
     "moment": "2.29.4",
     "node-persist": "3.1.3",

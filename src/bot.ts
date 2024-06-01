@@ -18,6 +18,7 @@ import moment from "moment";
 import { inspect } from "util";
 import { TimeoutError } from "p-timeout";
 import _ from "lodash";
+import { getLinkPreview } from "link-preview-js";
 const { capitalize } = _;
 
 import {
@@ -44,6 +45,12 @@ import {
 } from "./telegramlogger";
 import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml } from "./utils";
+
+enum VideoPlatform {
+  YouTube = "YOUTUBE",
+  Bilibili = "BILIBILI",
+  Other = "OTHER",
+}
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
 
@@ -77,6 +84,9 @@ const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
   /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/g;
 
+const BILIBILI_LINK_REGEX =
+  /(?:https?:\/\/)?(?:www\.)?bilibili\.com\/video\/(\S{13})/g;
+
 const ERROR_MESSAGE_IS_NOT_MODIFIED =
   "Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message";
 
@@ -88,6 +98,62 @@ const ERROR_MESSAGE_TO_EDIT_NOT_FOUND =
 
 const ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER =
   "403: Forbidden: bot was blocked by the user";
+
+const getVideoPlatform = (link: string) => {
+  // https://stackoverflow.com/a/10940138/13774599
+  // but https://stackoverflow.com/a/34034823/13774599
+  if (link.match(YOUTUBE_LINK_REGEX)) {
+    return VideoPlatform.YouTube;
+  }
+  // if (!link.match(BILIBILI_LINK_REGEX)) {
+  //   return VideoPlatform.Bilibili;
+  // }
+
+  return VideoPlatform.Other;
+};
+
+const getLinkTitle = async (link: string) => {
+  try {
+    const resourceResponse = await axiosInstance.get(link);
+    const $ = load(resourceResponse.data);
+    let title = $("title").text();
+
+    // if (title.endsWith("YouTube")) {
+    //   title = title.split(" - YouTube")[0];
+    // }
+
+    // logger.info(`Title is: ${title}`);
+    return title;
+  } catch (error) {
+    logger.warn("Unable to get website title:", error);
+    Sentry.captureException(error);
+    return;
+  }
+};
+
+const getVideoInfo = async (link: string) => {
+  const videoPlatform = getVideoPlatform(link);
+
+  if (videoPlatform === VideoPlatform.YouTube) {
+    const videoInfo = await ytdl.getInfo(link);
+    return {
+      title: videoInfo.videoDetails.title,
+      artist: videoInfo.videoDetails.author.name,
+      duration: +videoInfo.videoDetails.lengthSeconds,
+      thumbnail: getYoutubeThumbnailLink(link),
+    };
+  }
+
+  const linkPreview = await getLinkPreview(
+    "https://www.bilibili.com/video/BV1Pt42157Th",
+    { followRedirects: "follow" }
+  );
+  const images = "images" in linkPreview ? linkPreview.images : [];
+  return {
+    title: "title" in linkPreview ? linkPreview.title : undefined,
+    thumbnail: images[0],
+  };
+};
 
 const getLinkMatch = (text: string) => {
   // Youtube link is higher priority than regular link
@@ -107,8 +173,10 @@ const getYoutubeVideoId = (youtubeLink: string) =>
 const getShortYoutubeLink = (youtubeVideoId: string) =>
   `https://youtu.be/${youtubeVideoId}`;
 
-const getYoutubeThumbnailLink = (youtubeVideoId: string) =>
-  `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
+const getYoutubeThumbnailLink = (youtubeLink: string) => {
+  const youtubeVideoId = getYoutubeVideoId(youtubeLink);
+  return `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
+};
 
 const delay = (milliseconds: number) =>
   new Promise((resolve) => setTimeout((_) => resolve(undefined), milliseconds));
@@ -117,35 +185,16 @@ const TRANSLATE_PULLING_INTERVAL = moment
   .duration(15, "seconds")
   .asMilliseconds();
 
-const getVoiceTranslateFinal = async (url: string): Promise<string> => {
+const translateVideoFinal = async (url: string): Promise<string> => {
   try {
     return await translateVideo(url);
   } catch (error) {
     if (error instanceof TranslateInProgressException) {
       await delay(TRANSLATE_PULLING_INTERVAL);
-      logger.info("Rerequesting translation");
-      return await getVoiceTranslateFinal(url);
+      logger.info("Rerequesting translation...");
+      return await translateVideoFinal(url);
     }
     throw error;
-  }
-};
-
-const getWebsiteTitle = async (url: string) => {
-  try {
-    const resourceResponse = await axiosInstance.get(url);
-    const $ = load(resourceResponse.data);
-    let title = $("title").text();
-
-    if (title.endsWith("YouTube")) {
-      title = title.split(" - YouTube")[0];
-    }
-
-    logger.info(`Title is: ${title}`);
-    return title;
-  } catch (error) {
-    logger.error("Unable to get website title:", error);
-    Sentry.captureException(error);
-    return;
   }
 };
 
@@ -316,21 +365,25 @@ bot.catch(async (error, context) => {
   await handleError(error, context);
 });
 
+const START_MESSAGE = `
+👋 Привет, пришли мне 🔗 ссылку на видео и я попробую 🚧 перевести его.
+
+Поддерживаю полноценный перевод 📺 видео с видео-платформ 🌐 youtube.com
+
+а также перевод 🎤 голоса для
+🌐 instagram.com, tiktok.com, x.com
+🇨🇳 bilibili.com, youku.com, v.qq.com, iqiyi.com
+🇷🇺 vk.com, ok.ru
+и других
+`;
+
 bot.start(async (context) => {
   await context.reply(
-    "👋 Привет, пришли мне 🔗 ссылку на YouTube видео на 🇬🇧 английском и я попробую 🚧 перевести его",
+    START_MESSAGE,
     //  Я поддерживаю много различных платформ / соцсетей / сайтов, а также простые ссылки для видео / аудио.
     // Перевожу не только с английского, но и с многих других языков"
     { disable_notification: true }
   );
-
-  // await context.reply("⁣", {
-  //   reply_markup: {
-  //     inline_keyboard: [
-  //       [{ text: "Open", web_app: { url: "https://youtube.com" } }],
-  //     ],
-  //   },
-  // });
 });
 
 bot.command("test", async (context) => {
@@ -471,21 +524,51 @@ bot.on(message("text"), async (context) => {
 
   const link = context.message.text;
 
-  // https://stackoverflow.com/a/10940138/13774599
-  // but https://stackoverflow.com/a/34034823/13774599
-  if (!link.match(YOUTUBE_LINK_REGEX)) {
-    await context.reply(
-      "⚠️ На данный момент поддерживается только YouTube, пришлите 🔗 ссылку на видео для перевода",
-      { disable_notification: true }
+  const videoPlatform = getVideoPlatform(link);
+  logger.log("Video platform:", videoPlatform);
+  if (videoPlatform === VideoPlatform.YouTube) {
+    const videoId = getYoutubeVideoId(link);
+    const shortLink = getShortYoutubeLink(videoId);
+    await context.replyWithMarkdownV2(
+      `⚙️ Каким образом перевести [это](${shortLink}) видео?`,
+      {
+        disable_notification: true,
+        reply_to_message_id: context.message.message_id,
+        reply_markup: Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "🎙️ Голос (mp3) (быстрее ⚡️)",
+              encodeTranslateAction(
+                TranslateType.Voice,
+                shortLink,
+                YoutubeVideoStreamFormatCode.Mp4_360p
+              )
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "🎧 Аудио (mp3)",
+              encodeTranslateAction(
+                TranslateType.Audio,
+                shortLink,
+                YoutubeVideoStreamFormatCode.Mp4_360p
+              )
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "📺 Видео (mp4) (дольше ⏳)",
+              encodeChooseVideoQualityAction(shortLink)
+            ),
+          ],
+        ]).reply_markup,
+      }
     );
     return;
   }
 
-  const videoId = getYoutubeVideoId(link);
-  const shortLink = getShortYoutubeLink(videoId);
-
   await context.replyWithMarkdownV2(
-    `⚙️ Каким образом перевести [это](${shortLink}) видео?`,
+    `⚙️ Каким образом перевести [это](${link}) видео?`,
     {
       disable_notification: true,
       reply_to_message_id: context.message.message_id,
@@ -495,25 +578,9 @@ bot.on(message("text"), async (context) => {
             "🎙️ Голос (mp3) (быстрее ⚡️)",
             encodeTranslateAction(
               TranslateType.Voice,
-              shortLink,
+              link,
               YoutubeVideoStreamFormatCode.Mp4_360p
             )
-          ),
-        ],
-        [
-          Markup.button.callback(
-            "🎧 Аудио (mp3)",
-            encodeTranslateAction(
-              TranslateType.Audio,
-              shortLink,
-              YoutubeVideoStreamFormatCode.Mp4_360p
-            )
-          ),
-        ],
-        [
-          Markup.button.callback(
-            "📺 Видео (mp4) (дольше ⏳)",
-            encodeChooseVideoQualityAction(shortLink)
           ),
         ],
       ]).reply_markup,
@@ -554,17 +621,21 @@ bot.action(/.+/, async (context) => {
   const translateAction = decodeTranslateAction(actionData);
   const videoLink = translateAction.url;
 
-  const videoInfo = await ytdl.getInfo(videoLink);
-  const originalVideoDuration = +videoInfo.videoDetails.lengthSeconds;
+  const videoInfo = await getVideoInfo(videoLink);
+  const originalVideoDuration = videoInfo.duration;
 
   let isValidationError = true;
-  if (originalVideoDuration > moment.duration({ hours: 4 }).asSeconds()) {
+  if (
+    originalVideoDuration &&
+    originalVideoDuration > moment.duration({ hours: 4 }).asSeconds()
+  ) {
     await context.reply(
       "⚠️ Видео для перевода слишком длинное, попробуйте перевести другое видео",
       { disable_notification: true }
     );
   } else if (
     translateAction.translateType === TranslateType.Video &&
+    originalVideoDuration &&
     originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
   ) {
     await context.reply(
@@ -573,6 +644,7 @@ bot.action(/.+/, async (context) => {
     );
   } else if (
     translateAction.quality === YoutubeVideoStreamFormatCode.Mp4_720p &&
+    originalVideoDuration &&
     originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
   ) {
     await context.reply(
@@ -603,7 +675,6 @@ bot.action(/.+/, async (context) => {
   videoTranslateProgressCount += 1;
   try {
     await handleTranslateInProgress(context, ffmpegProgress);
-
     progressInterval = setInterval(async () => {
       try {
         await handleTranslateInProgress(context, ffmpegProgress);
@@ -613,10 +684,10 @@ bot.action(/.+/, async (context) => {
       }
     }, moment.duration({ minutes: 5 }).asMilliseconds());
 
+    logger.info("Request translation...");
     let translationUrl: string | undefined;
     try {
-      logger.info("Request translation...");
-      translationUrl = await getVoiceTranslateFinal(videoLink);
+      translationUrl = await translateVideoFinal(videoLink);
     } catch (error) {
       if (error instanceof TranslateException) {
         if (error.message) {
@@ -650,64 +721,81 @@ bot.action(/.+/, async (context) => {
     const audioBuffer = Buffer.from(audioResponse.data);
     logger.info(`Downloaded translation: ${audioBuffer.length}`);
 
-    // logger.info("Requesting video page to get title...");
-    // let resourceTitle = await getWebsiteTitle(link);
-    let resourceTitle = videoInfo.videoDetails.title;
-    if (resourceTitle) {
+    let videoTitle = videoInfo.title;
+    if (videoTitle) {
       try {
-        const translateResponse = await translate(resourceTitle, { to: "ru" });
-        resourceTitle = translateResponse.text;
-      } catch (error) {}
+        const translateResponse = await translate(videoTitle, { to: "ru" });
+        videoTitle = translateResponse.text;
+      } catch (error) {
+        logger.warn("Unable to translate video title:", error);
+      }
     }
 
-    const videoId = getYoutubeVideoId(videoLink);
-    const resourceThumbnailUrl = getYoutubeThumbnailLink(videoId);
-    logger.info(`Youtube thumbnail: ${resourceThumbnailUrl}`);
-    let thumbnailData: ArrayBuffer;
-    try {
-      const thumbnailResponse = await axiosInstance.post<ArrayBuffer>(
-        IMAGE_TRANSLATE_URL,
-        {
-          imageLink: resourceThumbnailUrl,
-        },
-        {
-          responseType: "arraybuffer",
-        }
-      );
-      thumbnailData = thumbnailResponse.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        // Use original thumbnail
-        const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
-          resourceThumbnailUrl,
+    const videoThumbnail = videoInfo.thumbnail;
+    let thumbnailBuffer: Buffer | undefined;
+    if (videoThumbnail) {
+      let thumbnailData: ArrayBuffer;
+      try {
+        const thumbnailResponse = await axiosInstance.post<ArrayBuffer>(
+          IMAGE_TRANSLATE_URL,
+          {
+            imageLink: videoThumbnail,
+          },
           {
             responseType: "arraybuffer",
           }
         );
         thumbnailData = thumbnailResponse.data;
-      } else {
-        throw error;
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          // Use original thumbnail
+          const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
+            videoThumbnail,
+            {
+              responseType: "arraybuffer",
+            }
+          );
+          thumbnailData = thumbnailResponse.data;
+        } else {
+          throw error;
+        }
+      }
+      thumbnailBuffer = Buffer.from(thumbnailData);
+      logger.info(`Thumbnail downloaded: ${thumbnailBuffer.length}`);
+      thumbnailBuffer.name = "mqdefault.jpg";
+    }
+
+    const originalArtist = videoInfo.artist;
+    let artist = originalArtist;
+    if (artist) {
+      try {
+        const translateResponse = await translate(artist, {
+          to: "ru",
+        });
+        artist = translateResponse.text;
+        artist = artist.split(" ").map(capitalize).join(" ");
+      } catch (error) {
+        logger.warn("Unable to translate video artist:", error);
       }
     }
-    const thumbnailBuffer = Buffer.from(thumbnailData);
-    logger.info(`Youtube thumbnail downloaded: ${thumbnailBuffer.length}`);
-    // @ts-expect-error telegraf uses non-standard Buffer.`name` property
-    thumbnailBuffer.name = "mqdefault.jpg";
 
-    const originalArtist = videoInfo.videoDetails.author.name;
-    let artist = originalArtist;
-    try {
-      const translateResponse = await translate(artist, { to: "ru" });
-      artist = translateResponse.text;
-    } catch (error) {}
-    artist = artist.split(" ").map(capitalize).join(" ");
     logger.info(`Author name: ${artist}`);
 
-    const videoDuration = +videoInfo.videoDetails.lengthSeconds;
+    let videoDuration = videoInfo.duration;
+    // polyfill if duration is not known initially
+    if (!videoDuration) {
+      const temporaryAudioFilePath = "./temp.mp3";
+      await fs.writeFile(temporaryAudioFilePath, audioBuffer);
+      const audioDuration = await getAudioDurationInSeconds(
+        temporaryAudioFilePath
+      ); // ffprobe-based
+      await fs.rm(temporaryAudioFilePath);
+      logger.info(`Duration: ${audioDuration}`);
+      videoDuration = audioDuration;
+    }
 
     if (translateAction.translateType === TranslateType.Voice) {
       const outputBuffer = audioBuffer;
-      // @ts-expect-error telegraf uses non-standard Buffer.`name` property
       outputBuffer.name = "audio.mp3";
 
       const telegramClient = await getClient();
@@ -721,8 +809,10 @@ bot.action(/.+/, async (context) => {
           attributes: [
             new Api.DocumentAttributeAudio({
               duration: Math.floor(videoDuration),
-              title: resourceTitle,
-              performer: `${artist} (${originalArtist})`,
+              title: videoTitle,
+              performer: artist
+                ? `${artist} (${originalArtist})`
+                : "Unknown artist",
             }),
             // new Api.DocumentAttributeFilename({
             //   fileName: "mqdefault.jpg",
@@ -737,12 +827,6 @@ bot.action(/.+/, async (context) => {
       );
       return;
     }
-
-    const tempAudioFilePath = "./temp.mp3";
-    await fs.writeFile(tempAudioFilePath, audioBuffer);
-    const audioDuration = await getAudioDurationInSeconds(tempAudioFilePath); // ffprobe-based
-    await fs.rm(tempAudioFilePath);
-    logger.info(`Duration: ${audioDuration}`);
 
     const youtubeReadableStream = ytdl(
       videoLink,
@@ -803,7 +887,6 @@ bot.action(/.+/, async (context) => {
         logger.info("Getting ffmpeg output in node environment");
         const outputFile = ffmpeg.FS("readFile", "output.mp3");
         const outputBuffer = Buffer.from(outputFile);
-        // @ts-expect-error telegraf uses non-standard Buffer.`name` property
         outputBuffer.name = "audio.mp3";
 
         // await context.sendAudio(
@@ -836,8 +919,8 @@ bot.action(/.+/, async (context) => {
 
             attributes: [
               new Api.DocumentAttributeAudio({
-                duration: Math.floor(audioDuration),
-                title: resourceTitle,
+                duration: Math.floor(videoDuration),
+                title: videoTitle,
                 performer: `${artist} (${originalArtist})`,
               }),
               // new Api.DocumentAttributeFilename({
@@ -886,7 +969,6 @@ bot.action(/.+/, async (context) => {
 
         const outputFile = ffmpeg.FS("readFile", "output.mp4");
         const outputBuffer: Buffer | null = Buffer.from(outputFile);
-        // @ts-expect-error non-standard attribute
         outputBuffer.name = "video.mp4";
 
         const telegramClient = await getClient();
@@ -894,7 +976,7 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `📺 <b>${resourceTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+            caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
             parseMode: "html",
             thumb: thumbnailBuffer,
             attributes: [
@@ -905,7 +987,7 @@ bot.action(/.+/, async (context) => {
                 // h: 9,
                 w: 640,
                 h: 360,
-                duration: Math.floor(audioDuration),
+                duration: Math.floor(videoDuration),
                 supportsStreaming: true,
               }),
             ],
