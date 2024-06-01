@@ -27,7 +27,7 @@ if [ -f "$PACKAGE_FILE" ]; then
   script_command=$(jq -r ".scripts.\"$SCRIPT\"" "$PACKAGE_FILE")
 
   if [ ! -z "$script_command" ] && [ "$script_command" != "null" ]; then
-    eval "$(echo $script_command | sed -e "s/${PACKAGE_RUN_COMMAND}/${RUN_COMMAND}/g") ${@:2}"
+    eval "$(echo $script_command | sed -e "s@${PACKAGE_RUN_COMMAND}@${RUN_COMMAND}@g") ${@:2}"
   else
     echo "Script '$SCRIPT' not found in $PACKAGE_FILE"
   fi
