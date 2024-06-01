@@ -1,5 +1,8 @@
 {
   "name": "yandex-video-translate-bot",
+  "volta": {
+    "node": "18.20.2"
+  },
   "packageManager": "pnpm@8.3.1",
   "type": "module",
   "engines": {
@@ -12,8 +15,9 @@
     "_dev": "NODE_ENV='development' pnpm _dev:command",
     "_dev:prod": "NODE_ENV='production' pnpm _dev:command",
     "command": "node --experimental-specifier-resolution=node --no-warnings",
-    "cli": "NODE_ENV='development' script='node --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm ./src/cli.ts $url' pnpm _pre:nvm",
-    "dev": "script='NODE_ENV=development pnpm _dev' pnpm _pre:nvm",
+    "_cli": "NODE_ENV=development node --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm ./src/cli.ts $url",
+    "cli": "pnpm _cli",
+    "dev": "pnpm _dev",
     "dev:prod": "script='NODE_ENV=production pnpm _dev' pnpm _pre:nvm",
     "start": "NODE_ENV=production pnpm _command ./build/index.js",
     "start:dev": "NODE_ENV=development pnpm _command ./build/index.js",
