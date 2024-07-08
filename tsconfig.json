@@ -4,11 +4,8 @@
     "outDir": "./build",
     "target": "ESNext", // emit version
     "module": "ESNext", // emit module
-    "lib": [
-      "ESNext",
-      "DOM"
-    ], // build version
-    "moduleResolution": "Node", // build module (CommonJS)
+    "lib": ["ESNext", "DOM"], // transpile version
+    "moduleResolution": "Node" /* (CommonJS) */, // transpile module
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
@@ -22,9 +19,9 @@
     "skipLibCheck": true
   },
   "ts-node": {
+    "experimentalSpecifierResolution": "node",
+    "transpileOnly": true,
     "esm": true
   },
-  "include": [
-    "./src"
-  ]
+  "include": ["./src"]
 }

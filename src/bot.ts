@@ -16,6 +16,7 @@ import translate from "@iamtraction/google-translate";
 import * as Sentry from "@sentry/node";
 import moment from "moment";
 import { inspect } from "util";
+import { Readable } from "stream";
 import { TimeoutError } from "p-timeout";
 import _ from "lodash";
 import { getLinkPreview } from "link-preview-js";
@@ -141,6 +142,7 @@ const getVideoInfo = async (link: string) => {
       artist: videoInfo.videoDetails.author.name,
       duration: +videoInfo.videoDetails.lengthSeconds,
       thumbnail: getYoutubeThumbnailLink(link),
+      formats: videoInfo.formats,
     };
   }
 
@@ -204,6 +206,18 @@ function toArrayBuffer(buffer: Buffer) {
   return arrayBuffer;
 }
 
+const streamToBuffer = async (stream: Readable) => {
+  const streamChunks: Uint8Array[] = [];
+  for await (const streamChunk of stream) {
+    streamChunks.push(streamChunk);
+  }
+
+  const streamBuffer = Buffer.concat(streamChunks);
+  return streamBuffer;
+};
+
+const percent = (percent: number) => percent / 100;
+
 enum TranslateType {
   Voice = "o",
   Audio = "a",
@@ -211,15 +225,57 @@ enum TranslateType {
   ChooseVideoQuality = "q",
 }
 
-enum YoutubeVideoStreamFormatCode {
-  Mp4_360p = 18,
-  Mp4_720p = 22,
+enum TranslateQuality {
+  Mp4_360p = "MP4_360P",
+  Mp4_720p = "MP4_720P",
 }
+
+// https://github.com/fent/node-ytdl-core#ytdlchooseformatformats-options
+// https://gist.github.com/kurumigi/e3bad17420afdb81496d37792813aa09
+//
+// 18 - mp4 audio/video 360p
+// 22 - mp4 audio/video 720p
+// 37 - mp4 audio/video 1080p
+//
+// 133 - mp4_dash video 240p
+// 134 - mp4_dash video 360p
+// 135 - mp4_dash video 480p
+// 136 - mp4_dash video 720p
+// 137 - mp4_dash video 1080p
+//
+// 139 - mp4_dash audio 48k
+// 140 - mp4_dash audio 128k
+// 141 - mp4_dash audio 256k
+//
+// 395 - mp4_dash video 240p
+// 396 - mp4_dash video 360p
+// 397 - mp4_dash video 480p
+// 398 - mp4_dash video 720p
+// 399 - mp4_dash video 1080p
+enum YoutubeVideoFormatItag {
+  Mp4DashVideo360p = 134,
+  Mp4DashVideo720p = 136,
+
+  Mp4DashAudio48k = 139,
+  Mp4DashAudio128k = 140,
+  Mp4DashAudio256k = 141,
+}
+
+const translateQualityToYoutubeVideoFormatItag = {
+  [TranslateQuality.Mp4_360p]: {
+    video: YoutubeVideoFormatItag.Mp4DashVideo360p,
+    audio: YoutubeVideoFormatItag.Mp4DashAudio256k,
+  },
+  [TranslateQuality.Mp4_720p]: {
+    video: YoutubeVideoFormatItag.Mp4DashVideo720p,
+    audio: YoutubeVideoFormatItag.Mp4DashAudio256k,
+  },
+} as const;
 
 type TranslateAction = {
   translateType: TranslateType;
   url: string;
-  quality: YoutubeVideoStreamFormatCode;
+  quality: TranslateQuality;
 };
 
 const encodeTranslateAction = (
@@ -239,7 +295,7 @@ const decodeTranslateAction = (actionData: string) => {
   return {
     translateType: actionDataDecoded[0],
     url: actionDataDecoded[1],
-    quality: +actionDataDecoded[2],
+    quality: actionDataDecoded[2],
   } as TranslateAction;
 };
 
@@ -538,7 +594,7 @@ bot.on(message("text"), async (context) => {
               encodeTranslateAction(
                 TranslateType.Voice,
                 shortLink,
-                YoutubeVideoStreamFormatCode.Mp4_360p
+                TranslateQuality.Mp4_360p
               )
             ),
           ],
@@ -548,7 +604,7 @@ bot.on(message("text"), async (context) => {
               encodeTranslateAction(
                 TranslateType.Audio,
                 shortLink,
-                YoutubeVideoStreamFormatCode.Mp4_360p
+                TranslateQuality.Mp4_360p
               )
             ),
           ],
@@ -576,7 +632,7 @@ bot.on(message("text"), async (context) => {
             encodeTranslateAction(
               TranslateType.Voice,
               link,
-              YoutubeVideoStreamFormatCode.Mp4_360p
+              TranslateQuality.Mp4_360p
             )
           ),
         ],
@@ -599,7 +655,7 @@ bot.action(/.+/, async (context) => {
           encodeTranslateAction(
             TranslateType.Video,
             link,
-            YoutubeVideoStreamFormatCode.Mp4_360p
+            TranslateQuality.Mp4_360p
           )
         ),
         Markup.button.callback(
@@ -607,7 +663,7 @@ bot.action(/.+/, async (context) => {
           encodeTranslateAction(
             TranslateType.Video,
             link,
-            YoutubeVideoStreamFormatCode.Mp4_720p
+            TranslateQuality.Mp4_720p
           )
         ),
       ])
@@ -640,7 +696,7 @@ bot.action(/.+/, async (context) => {
       { disable_notification: true }
     );
   } else if (
-    translateAction.quality === YoutubeVideoStreamFormatCode.Mp4_720p &&
+    translateAction.quality === TranslateQuality.Mp4_720p &&
     originalVideoDuration &&
     originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
   ) {
@@ -711,12 +767,15 @@ bot.action(/.+/, async (context) => {
     logger.info(`Translated: ${translationUrl}`);
 
     logger.info("Downloading translation...");
-    const audioResponse = await axiosInstance.get<ArrayBuffer>(translationUrl, {
-      responseType: "arraybuffer",
-      // responseType: "stream",
-    });
-    const audioBuffer = Buffer.from(audioResponse.data);
-    logger.info(`Downloaded translation: ${audioBuffer.length}`);
+    const translateAudioResponse = await axiosInstance.get<ArrayBuffer>(
+      translationUrl,
+      {
+        responseType: "arraybuffer",
+        // responseType: "stream",
+      }
+    );
+    const translateAudioBuffer = Buffer.from(translateAudioResponse.data);
+    logger.info(`Downloaded translation: ${translateAudioBuffer.length}`);
 
     let videoTitle = videoInfo.title;
     if (videoTitle) {
@@ -782,7 +841,7 @@ bot.action(/.+/, async (context) => {
     // polyfill if duration is not known initially
     if (!videoDuration) {
       const temporaryAudioFilePath = "./temp.mp3";
-      await fs.writeFile(temporaryAudioFilePath, audioBuffer);
+      await fs.writeFile(temporaryAudioFilePath, translateAudioBuffer);
       const audioDuration = await getAudioDurationInSeconds(
         temporaryAudioFilePath
       ); // ffprobe-based
@@ -792,8 +851,8 @@ bot.action(/.+/, async (context) => {
     }
 
     if (translateAction.translateType === TranslateType.Voice) {
-      const outputBuffer = audioBuffer;
-      outputBuffer.name = "audio.mp3";
+      const outputBuffer = translateAudioBuffer;
+      outputBuffer.name = `${videoTitle}.mp3`;
 
       const telegramClient = await getClient();
       const fileMessage = await telegramClient.sendFile(
@@ -825,24 +884,42 @@ bot.action(/.+/, async (context) => {
       return;
     }
 
-    const youtubeReadableStream = ytdl(
-      videoLink,
-      {
-        // https://github.com/fent/node-ytdl-core#ytdlchooseformatformats-options
-        // https://gist.github.com/kurumigi/e3bad17420afdb81496d37792813aa09
-        // quality: 18, // mp4, audio/video, 360p, 24fps
-        quality: translateAction.quality, // mp4, audio/video, 720p, 24fps
-      }
-      // { filter: "audio" }
-      // { filter: "audioonly" }
-    );
-    const streamChunks: Uint8Array[] = [];
-    logger.info("Downloading youtube video stream...");
-    for await (const data of youtubeReadableStream) {
-      streamChunks.push(data);
+    const youtubeVideoFormatItag =
+      translateQualityToYoutubeVideoFormatItag[translateAction.quality];
+
+    if (
+      videoInfo.formats?.findIndex(
+        (videoFormat) => videoFormat.itag === youtubeVideoFormatItag.video
+      ) === -1
+    ) {
+      await context.reply(
+        "⚠️ Выбран формат видео для перевода не найден, попробуйте другой."
+      );
+      return;
     }
-    const youtubeBuffer = Buffer.concat(streamChunks);
-    logger.info(`Youtube video downloaded: ${youtubeBuffer.length}`);
+    if (
+      videoInfo.formats?.findIndex(
+        (videoFormat) => videoFormat.itag === youtubeVideoFormatItag.audio
+      ) === -1
+    ) {
+      await context.reply(
+        "⚠️ Выбран формат аудио для перевода не найден, попробуйте другой."
+      );
+      return;
+    }
+
+    const videoStream = ytdl(videoLink, {
+      quality: youtubeVideoFormatItag.video,
+    });
+    const audioStream = ytdl(videoLink, {
+      quality: youtubeVideoFormatItag.audio,
+    });
+    logger.info("Downloading youtube video stream...");
+    const videoBuffer = await streamToBuffer(videoStream);
+    const audioBuffer = await streamToBuffer(audioStream);
+    logger.info(
+      `Youtube video downloaded: ${videoBuffer.length}, ${audioBuffer.length}`
+    );
 
     if (!ffmpeg.isLoaded()) {
       logger.info("Loading ffmpeg...");
@@ -854,21 +931,28 @@ bot.action(/.+/, async (context) => {
       ffmpegProgress = ratio;
     });
 
-    ffmpeg.FS("writeFile", "source.mp4", youtubeBuffer);
-    ffmpeg.FS("writeFile", "source2.mp3", audioBuffer);
+    const videoFilePath = "source.mp4";
+    const audioFilePath = "source2.mp3";
+    const translateAudioFilePath = "source3.mp3";
+
+    ffmpeg.FS("writeFile", videoFilePath, videoBuffer);
+    ffmpeg.FS("writeFile", audioFilePath, audioBuffer);
+    ffmpeg.FS("writeFile", translateAudioFilePath, translateAudioBuffer);
 
     let fileMessageId = 0;
     await {
       [TranslateType.Voice]: async () => {},
       [TranslateType.Audio]: async () => {
+        const resultFilePath = "audio.mp3";
+
         // prettier-ignore
         await ffmpeg.run(
-          "-i", "source.mp4",
-          "-i", "source2.mp3",
+          "-i", videoFilePath,
+          "-i", translateAudioFilePath,
 
           "-filter_complex",
-            '[0:a]volume=0.1[a];' + // 10% original playback
-            '[1:a]volume=1[b];' + // voice over
+            `[0:a]volume=${percent(10)}[a];` + // 10% original playback
+            `[1:a]volume=${percent(100)}[b];` + // voice over
             '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
           // "-qscale:a", "9", // "4",
@@ -877,14 +961,14 @@ bot.action(/.+/, async (context) => {
           "-ac", "1", // decrease audio channel stereo to mono
           // " -pre", "ultrafast",
 
-          "output.mp3"
+          resultFilePath,
         );
         // ffmpeg -i input.mp4 -f null /dev/null
 
         logger.info("Getting ffmpeg output in node environment");
-        const outputFile = ffmpeg.FS("readFile", "output.mp3");
+        const outputFile = ffmpeg.FS("readFile", resultFilePath);
         const outputBuffer = Buffer.from(outputFile);
-        outputBuffer.name = "audio.mp3";
+        outputBuffer.name = `${videoTitle}.mp3`;
 
         // await context.sendAudio(
         //   {
@@ -946,27 +1030,30 @@ bot.action(/.+/, async (context) => {
         // );
       },
       [TranslateType.Video]: async () => {
+        const resultFilePath = "video.mp4";
+
         // prettier-ignore
         await ffmpeg.run(
-          "-i", "source.mp4",
-          "-i", "source2.mp3",
+          "-i", videoFilePath,
+          "-i", audioFilePath,
+          "-i", translateAudioFilePath,
 
           "-filter_complex",
-            '[0:a]volume=0.1[a];' + // 10% original playback
-            '[1:a]volume=1[b];' + // voice over
+            `[1:a]volume=${percent(10)}[a];` + // 10% original playback
+            `[2:a]volume=${percent(100)}[b];` + // voice over
             '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
           // "-qscale:a", "9", // "4",
           // "-codec:a", "libmp3lame", // "aac",
-          "-b:a", "64k", // decrease output size (MB) - default 128kb
+          // "-b:a", "64k", // decrease output size (MB) - default 128kb
           // " -pre", "ultrafast",
 
-          "output.mp4"
+          resultFilePath,
         );
 
-        const outputFile = ffmpeg.FS("readFile", "output.mp4");
+        const outputFile = ffmpeg.FS("readFile", resultFilePath);
         const outputBuffer: Buffer | null = Buffer.from(outputFile);
-        outputBuffer.name = "video.mp4";
+        outputBuffer.name = `${videoTitle}.mp4`;
 
         const telegramClient = await getClient();
         const fileMessage = await telegramClient.sendFile(
