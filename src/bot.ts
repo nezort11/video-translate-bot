@@ -7,7 +7,7 @@ import { load } from "cheerio";
 import { getAudioDurationInSeconds } from "get-audio-duration";
 import { getVideoDurationInSeconds } from "get-video-duration";
 import fs from "fs/promises";
-import ytdl from "ytdl-core";
+import ytdl from "@distube/ytdl-core";
 import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import http from "http";
 import https from "https";
@@ -253,22 +253,22 @@ enum TranslateQuality {
 // 398 - mp4_dash video 720p
 // 399 - mp4_dash video 1080p
 enum YoutubeVideoFormatItag {
-  Mp4DashVideo360p = 134,
-  Mp4DashVideo720p = 136,
+  Mp4AvcVideo360p = 134,
+  Mp4AvcVideo720p = 136,
 
-  Mp4DashAudio48k = 139,
-  Mp4DashAudio128k = 140,
-  Mp4DashAudio256k = 141,
+  Mp4aAudio48kb = 139,
+  Mp4aAudio128kb = 140,
+  Mp4aAudio256kb = 141, // not always present in video formats list
 }
 
 const translateQualityToYoutubeVideoFormatItag = {
   [TranslateQuality.Mp4_360p]: {
-    video: YoutubeVideoFormatItag.Mp4DashVideo360p,
-    audio: YoutubeVideoFormatItag.Mp4DashAudio256k,
+    video: YoutubeVideoFormatItag.Mp4AvcVideo360p,
+    audio: YoutubeVideoFormatItag.Mp4aAudio128kb,
   },
   [TranslateQuality.Mp4_720p]: {
-    video: YoutubeVideoFormatItag.Mp4DashVideo720p,
-    audio: YoutubeVideoFormatItag.Mp4DashAudio256k,
+    video: YoutubeVideoFormatItag.Mp4AvcVideo720p,
+    audio: YoutubeVideoFormatItag.Mp4aAudio128kb,
   },
 } as const;
 
@@ -651,7 +651,7 @@ bot.action(/.+/, async (context) => {
       "Выбери качество видео:",
       Markup.inlineKeyboard([
         Markup.button.callback(
-          "360p",
+          "Низкое",
           encodeTranslateAction(
             TranslateType.Video,
             link,
@@ -659,7 +659,7 @@ bot.action(/.+/, async (context) => {
           )
         ),
         Markup.button.callback(
-          "720p (дольше ⏳)",
+          "Среднее (дольше ⏳)",
           encodeTranslateAction(
             TranslateType.Video,
             link,
@@ -893,7 +893,7 @@ bot.action(/.+/, async (context) => {
       ) === -1
     ) {
       await context.reply(
-        "⚠️ Выбран формат видео для перевода не найден, попробуйте другой."
+        "⚠️ Выбранный формат видео для перевода не найден, попробуйте другой."
       );
       return;
     }
@@ -903,7 +903,7 @@ bot.action(/.+/, async (context) => {
       ) === -1
     ) {
       await context.reply(
-        "⚠️ Выбран формат аудио для перевода не найден, попробуйте другой."
+        "⚠️ Выбранный формат аудио для перевода не найден, попробуйте другой."
       );
       return;
     }
