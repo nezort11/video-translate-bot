@@ -8,7 +8,7 @@
 1. Request video translation audio (yandex browser video translate)
 2. Download original audio/video stream (youtube-dl)
 3. Mix translated audio with original video/audio (ffmpeg)
-4. Upload final video/audio to telegram (gramjs)
+4. Upload (large) final video/audio to telegram (gramjs)
 
 ## Setup
 
