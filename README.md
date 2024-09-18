@@ -5,7 +5,7 @@
 
 ## ⚙️ Architecture
 
-1. Request video translate (yandex browser video translate)
+1. Request video translate (yandex browser video translate api) (protobuf)
 2. Download original audio/video stream (youtube-dl)
 3. Translate video thumbnail ([translate.yandex.com/ocr](https://translate.yandex.com/ocr)) (puppeteer)
 4. Mix translated audio with original video/audio (ffmpeg) (10%:100% ratio)
