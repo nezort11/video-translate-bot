@@ -7,7 +7,7 @@
 
 1. Request video translate (yandex browser video translate)
 2. Download original audio/video stream (youtube-dl)
-3. Translate video thumbnail (yandex ocr translate) (puppeteer)
+3. Translate video thumbnail (translate.yandex.com/ocr) (puppeteer)
 4. Mix translated audio with original video/audio (ffmpeg) (10%:100% ratio)
 5. Upload (large) final video/audio to telegram (gramjs)
 
