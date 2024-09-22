@@ -7,9 +7,12 @@
 
 1. Translate video audio (yandex browser video translate) (protobuf)
 2. Download original audio/video stream (youtube-dl)
-3. Translate video thumbnail ([translate.yandex.com/ocr](https://translate.yandex.com/ocr)) (puppeteer)
-4. Mix translated audio with original video/audio (ffmpeg) (10%:100% ratio)
-5. Upload (large) final video/audio to telegram (gramjs)
+3. Mix translated audio with original video/audio (ffmpeg) (10%:100% ratio)
+4. Get video metadata, download thumbnail (opengraph)
+5. Translate video thumbnail ([translate.yandex.com/ocr](https://translate.yandex.com/ocr)) (puppeteer)
+6. Upload final [large] video/audio (telegram) (gramjs)
+
+> 1-3 steps can theoretically be moved to the client (in case WASM is supported) in order to reduce server computational resources
 
 ## Setup
 
