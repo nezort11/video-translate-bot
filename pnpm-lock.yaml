@@ -7,8 +7,8 @@ patchedDependencies:
 
 dependencies:
   '@distube/ytdl-core':
-    specifier: 4.13.5
-    version: 4.13.5
+    specifier: 4.14.4
+    version: 4.14.4
   '@ffmpeg/core':
     specifier: 0.11.0
     version: 0.11.0(patch_hash=q22pzaw47o4bvhdj4k2z7ny7za)
@@ -133,16 +133,16 @@ packages:
       '@jridgewell/trace-mapping': 0.3.9
     dev: true
 
-  /@distube/ytdl-core@4.13.5:
-    resolution: {integrity: sha512-g+4UJIR/auAJbia7iB0aWvaJDbs22P53NySWa47b1NT4xMTDJYguxHFArPrvRkcJrb/AgKjv/XoSZGghpL0CJA==}
-    engines: {node: '>=16'}
+  /@distube/ytdl-core@4.14.4:
+    resolution: {integrity: sha512-dHb4GW3qATIjRsS6VIhm3Pop7FdUcDFhsnyQlsPeXW7UhTPuNS0BmraKiTpFbpp0Ky+rxBQjJBfPRFsM+dT1fg==}
+    engines: {node: '>=14.0'}
     dependencies:
-      http-cookie-agent: 6.0.5(tough-cookie@4.1.4)(undici@6.19.2)
+      http-cookie-agent: 6.0.5(tough-cookie@4.1.4)(undici@5.28.4)
       m3u8stream: 0.8.6
       miniget: 4.2.3
       sax: 1.4.1
       tough-cookie: 4.1.4
-      undici: 6.19.2
+      undici: 5.28.4
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -1347,7 +1347,7 @@ packages:
       entities: 4.5.0
     dev: false
 
-  /http-cookie-agent@6.0.5(tough-cookie@4.1.4)(undici@6.19.2):
+  /http-cookie-agent@6.0.5(tough-cookie@4.1.4)(undici@5.28.4):
     resolution: {integrity: sha512-sfZ8fDgDP3B1YB+teqSnAK1aPgBu8reUUGxSsndP2XnYN6cM29EURXWXZqQQiaRdor3B4QjpkUNfv21syaO4DA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
@@ -1359,7 +1359,7 @@ packages:
     dependencies:
       agent-base: 7.1.1
       tough-cookie: 4.1.4
-      undici: 6.19.2
+      undici: 5.28.4
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -2439,9 +2439,11 @@ packages:
       '@fastify/busboy': 2.1.0
     dev: false
 
-  /undici@6.19.2:
-    resolution: {integrity: sha512-JfjKqIauur3Q6biAtHJ564e3bWa8VvT+7cSiOJHFbX4Erv6CLGDpg8z+Fmg/1OI/47RA+GI2QZaF48SSaLvyBA==}
-    engines: {node: '>=18.17'}
+  /undici@5.28.4:
+    resolution: {integrity: sha512-72RFADWFqKmUb2hmmvNODKL3p9hcB6Gt2DOQMis1SEBaV6a4MH8soBvzg+95CYhCKPFedut2JY9bMfrDl9D23g==}
+    engines: {node: '>=14.0'}
+    dependencies:
+      '@fastify/busboy': 2.1.0
     dev: false
 
   /universalify@0.2.0:
