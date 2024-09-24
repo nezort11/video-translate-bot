@@ -29,7 +29,7 @@ export const BOT_TOKEN = (
   IS_PRODUCTION ? process.env.BOT_TOKEN_PROD : process.env.BOT_TOKEN_DEV
 )!;
 
-export const CONTACT_USERNAME = process.env.CONTACT_USERNAME!;
+export const OWNER_USERNAME = process.env.OWNER_USERNAME!;
 
 export const SENTRY_DSN = process.env.SENTRY_DSN!;
 

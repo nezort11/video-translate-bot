@@ -32,7 +32,7 @@ import { getClient } from "./telegramclient";
 import { logger } from "./logger";
 
 import {
-  CONTACT_USERNAME,
+  OWNER_USERNAME,
   DEBUG_USER_CHAT_ID,
   IMAGE_TRANSLATE_URL,
   IS_PRODUCTION,
@@ -643,6 +643,7 @@ bot.on(message("text"), async (context) => {
 
 let videoTranslateProgressCount = 0;
 bot.action(/.+/, async (context) => {
+  const isFromOwner = context.from?.username === OWNER_USERNAME;
   const actionData = context.match[0];
   const actionType = actionData[0] as TranslateType;
   if (actionType === TranslateType.ChooseVideoQuality) {
@@ -658,14 +659,18 @@ bot.action(/.+/, async (context) => {
             TranslateQuality.Mp4_360p
           )
         ),
-        Markup.button.callback(
-          "Среднее (дольше ⏳)",
-          encodeTranslateAction(
-            TranslateType.Video,
-            link,
-            TranslateQuality.Mp4_720p
-          )
-        ),
+        ...(isFromOwner
+          ? [
+              Markup.button.callback(
+                "Среднее (дольше ⏳)",
+                encodeTranslateAction(
+                  TranslateType.Video,
+                  link,
+                  TranslateQuality.Mp4_720p
+                )
+              ),
+            ]
+          : []),
       ])
     );
     return;
