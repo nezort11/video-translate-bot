@@ -76,8 +76,8 @@ dependencies:
     specifier: 10.0.0
     version: 10.0.0
   protobufjs:
-    specifier: 7.2.2
-    version: 7.2.2
+    specifier: 7.4.0
+    version: 7.4.0
   telegraf:
     specifier: 4.11.2
     version: 4.11.2
@@ -1892,8 +1892,8 @@ packages:
     engines: {node: '>= 0.6.0'}
     dev: false
 
-  /protobufjs@7.2.2:
-    resolution: {integrity: sha512-++PrQIjrom+bFDPpfmqXfAGSQs40116JRrqqyf53dymUMvvb5d/LMRyicRoF1AUKoXVS1/IgJXlEgcpr4gTF3Q==}
+  /protobufjs@7.4.0:
+    resolution: {integrity: sha512-mRUWCc3KUU4w1jU8sGxICXH/gNS94DvI1gxqDvBzhj1JpcsimQkYiOJfwsPUykUI5ZaspFbSgmBLER8IrQ3tqw==}
     engines: {node: '>=12.0.0'}
     requiresBuild: true
     dependencies:
