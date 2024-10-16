@@ -85,7 +85,7 @@
     "p-timeout": "^6.1.2",
     "pino": "8.14.1",
     "pino-pretty": "10.0.0",
-    "protobufjs": "7.2.2",
+    "protobufjs": "7.4.0",
     "telegraf": "4.11.2",
     "telegraf-throttler": "0.6.0",
     "telegram": "2.15.15",
