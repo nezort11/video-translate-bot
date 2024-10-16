@@ -97,7 +97,7 @@
     "@types/lodash": "^4",
     "@types/node": "18.15.3",
     "@types/node-persist": "^3",
-    "husky": "8.0.3",
+    "husky": "9.1.6",
     "nodemon": "2.0.20",
     "ts-node": "10.9.1",
     "typescript": "5.4.5",
