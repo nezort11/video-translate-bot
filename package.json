@@ -88,7 +88,7 @@
     "protobufjs": "7.2.2",
     "telegraf": "4.11.2",
     "telegraf-throttler": "0.6.0",
-    "telegram": "2.15.15",
+    "telegram": "2.26.8",
     "@distube/ytdl-core": "4.14.4"
   },
   "devDependencies": {

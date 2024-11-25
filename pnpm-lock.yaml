@@ -85,8 +85,8 @@ dependencies:
     specifier: 0.6.0
     version: 0.6.0(telegraf@4.11.2)
   telegram:
-    specifier: 2.15.15
-    version: 2.15.15
+    specifier: 2.26.8
+    version: 2.26.8
 
 devDependencies:
   '@types/debug':
@@ -2285,8 +2285,8 @@ packages:
       - supports-color
     dev: false
 
-  /telegram@2.15.15:
-    resolution: {integrity: sha512-U4L82jMREsEY9gStvfbIj6a/kndyN9jZ3hdA7TfAfMwJunYW61lIk0bOg37ulnQbk1DSLvVdoH4q8Gwv3TXQcw==}
+  /telegram@2.26.8:
+    resolution: {integrity: sha512-5sIb43Fd7HxjXQZqKWMhNTmdMOlG3QkuhR2xPleUA5B8BxOZl9IwrDwFdiC7aezGVTcD6oJ1d4cloUySjmCX/A==}
     dependencies:
       '@cryptography/aes': 0.1.1
       async-mutex: 0.3.2
