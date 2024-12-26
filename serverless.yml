@@ -1,0 +1,54 @@
+service: ${file(./package.json):name}
+frameworkVersion: "3"
+
+plugins:
+  - "@yandex-cloud/serverless-plugin"
+
+provider:
+  name: yandex-cloud
+  runtime: nodejs18
+  # environment:
+  #   NODE_OPTIONS: "--experimental-specifier-resolution=node"
+  httpApi:
+    payload: "1.0"
+
+package:
+  patterns:
+    - "!**"
+    - .env
+    - package.json
+    # - package-lock.json
+    - build/**/*.js
+
+functions:
+  main:
+    handler: build/index.handler
+    memorySize: 128
+    timeout: 30 # seconds
+    account: function-sa
+    events:
+      - http:
+          path: /webhook
+          method: post
+
+  # timer:
+  #   handler: build/index.hello
+  #   memorySize: 128
+  #   timeout: '5'
+  #   events:
+  #     - cron:
+  #         expression: "* * * * ? *"
+  #         account: trigger-sa
+  #         retry:
+  #           attempts: 1
+  #           interval: 10
+
+resources:
+  # trigger-sa:
+  #   type: yc::ServiceAccount
+  #   roles:
+  #     - serverless.functions.invoker
+  function-sa:
+    type: yc::ServiceAccount
+    roles:
+      - editor

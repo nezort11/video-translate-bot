@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import { getChatId } from "./utils";
 
 export const NODE_ENV = process.env.NODE_ENV;
@@ -8,8 +9,7 @@ export let IS_PUBLIC = true;
 export const setIsPublic = (isPublic: boolean) => (IS_PUBLIC = isPublic);
 
 // otherwise loaded automatically by docker
-if (!IS_PRODUCTION) {
-  const dotenv = await import("dotenv");
+if (process.env.ENV_FILE_LOADED !== "true") {
   dotenv.config({ path: "./.env" }); // mutates process.env from .env
 }
 

@@ -3,7 +3,7 @@
     "rootDir": "./src",
     "outDir": "./build",
     "target": "ESNext", // emit version
-    "module": "ESNext", // emit module
+    "module": "CommonJS", // emit module (CJS)
     "lib": ["ESNext", "DOM"], // transpile version
     "moduleResolution": "Node" /* (CommonJS) */, // transpile module
     "esModuleInterop": true,
@@ -12,7 +12,7 @@
     "noFallthroughCasesInSwitch": true,
     "isolatedModules": false,
     "strict": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "useUnknownInCatchVariables": false,
     "inlineSourceMap": true,
     "skipDefaultLibCheck": true,

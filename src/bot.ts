@@ -4,11 +4,11 @@ import { Composer, Context, Markup, TelegramError } from "telegraf";
 import { message } from "telegraf/filters";
 import axios, { AxiosError } from "axios";
 import { load } from "cheerio";
-import { getAudioDurationInSeconds } from "get-audio-duration";
-import { getVideoDurationInSeconds } from "get-video-duration";
+// import { getAudioDurationInSeconds } from "get-audio-duration";
+// import { getVideoDurationInSeconds } from "get-video-duration";
 import fs from "fs/promises";
-import ytdl from "@distube/ytdl-core";
-import { createFFmpeg } from "@ffmpeg/ffmpeg";
+// import ytdl from "@distube/ytdl-core";
+// import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import http from "http";
 import https from "https";
 import { Api } from "telegram";
@@ -17,7 +17,7 @@ import * as Sentry from "@sentry/node";
 import moment from "moment";
 import { inspect } from "util";
 import { Readable } from "stream";
-import { TimeoutError } from "p-timeout";
+// import { TimeoutError } from "p-timeout";
 import _ from "lodash";
 import { getLinkPreview } from "link-preview-js";
 const { capitalize } = _;
@@ -46,6 +46,17 @@ import {
 } from "./telegramlogger";
 import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml } from "./utils";
+
+const getAudioDurationInSeconds: any = {};
+const getVideoDurationInSeconds: any = {};
+const ytdl: any = {};
+
+// https://github.com/TypeStrong/ts-node/discussions/1290
+const dynamicImport = new Function("specifier", "return import(specifier)") as <
+  T
+>(
+  module: string
+) => Promise<T>;
 
 enum VideoPlatform {
   YouTube = "YOUTUBE",
@@ -302,13 +313,14 @@ const decodeTranslateAction = (actionData: string) => {
 // https://github.com/ffmpegwasm/ffmpeg.wasm/tree/0.11.x
 // https://ffmpegwasm.netlify.app/docs/migration
 // https://ffmpegwasm.netlify.app/docs/faq#why-ffmpegwasm-doesnt-support-nodejs
-const ffmpeg = createFFmpeg({
-  log: true,
-  logger: ({ message }) => logger.info(message),
-  // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
-  // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
-  // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
-});
+// const ffmpeg = createFFmpeg({
+//   log: true,
+//   logger: ({ message }) => logger.info(message),
+//   // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
+//   // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
+//   // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
+// });
+const ffmpeg: any = {};
 
 bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
@@ -323,6 +335,9 @@ const handleError = async (error: unknown, context: Context) => {
       logger.warn(error);
       return;
     }
+    const { TimeoutError } = await dynamicImport<typeof import("p-timeout")>(
+      "p-timeout"
+    );
     if ("name" in error && error.name === TimeoutError.name) {
       await context.reply(
         `⚠️ Не получилось перевести видео, так как это занимает слишком ⏳ много времени.`
@@ -852,7 +867,7 @@ bot.action(/.+/, async (context) => {
       ); // ffprobe-based
       await fs.rm(temporaryAudioFilePath);
       logger.info(`Duration: ${audioDuration}`);
-      videoDuration = audioDuration;
+      videoDuration = audioDuration as number;
     }
 
     if (translateAction.translateType === TranslateType.Voice) {
