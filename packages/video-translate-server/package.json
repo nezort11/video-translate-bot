@@ -1,0 +1,45 @@
+{
+  "name": "video-translate-server",
+  "license": "MIT",
+  "version": "1.0.0",
+  "volta": {
+    "node": "18.20.4"
+  },
+  "main": "./src/index.ts",
+  "scripts": {
+    "command:js": "DEBUG='*' node",
+    "command:ts": "DEBUG='*' pnpm tsx",
+    "run:js": "pnpm command:js ./build/index.js",
+    "run:ts": "pnpm command:ts .",
+    "run:deamon": "pnpm nodemon --exec \"pnpm command:ts\" --watch \"./.env\" --watch \"./src\" .",
+    "dev": "NODE_ENV=development pnpm run:deamon",
+    "dev:prod": "NODE_ENV=production pnpm run:deamon",
+    "start": "NODE_ENV=production pnpm run:js",
+    "start:dev": "NODE_ENV=development pnpm run:js",
+    "build": "pnpm tsc --build",
+    "serverless:deploy": "pnpm serverless deploy --stage=prod",
+    "serverless:info": "pnpm serverless info --stage=prod",
+    "serverless:purge": "pnpm serverless remove",
+    "app:deploy": "pnpm build && pnpm serverless:deploy && pnpm serverless:info",
+    "app:purge": "pnpm serverless:purge"
+  },
+  "dependencies": {
+    "@types/node": "^22.9.0",
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "16.4.4",
+    "express": "^4.21.1",
+    "protobufjs": "^7.4.0",
+    "serialize-error": "^11.0.3",
+    "serverless": "3.16.0",
+    "serverless-http": "3.2.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@yandex-cloud/serverless-plugin": "1.7.25",
+    "nodemon": "2.0.20",
+    "tsx": "^4.19.2",
+    "typescript": "5.6.3"
+  }
+}
