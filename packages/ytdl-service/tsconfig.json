@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./build",
+    "target": "ES2019", // emit version (Nodejs 14+)
+    "module": "CommonJS", // emit module (CommonJS)
+    "lib": ["ESNext", "DOM"], // transpile version
+    "moduleResolution": "Node", // transpile module (CommonJS)
+    "esModuleInterop": true,
+    "allowJs": true,
+    "declaration": false,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["./src/**/*"],
+  "exclude": ["node_modules"]
+}

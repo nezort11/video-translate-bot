@@ -1,0 +1,18 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: nezort11
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: ${file(./package.json):name}
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: ${file(./package.json):name}
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: eu-central-1
+
+# https://eu-central-1.console.aws.amazon.com/lambda/home?region=eu-central-1#/functions/ytdl-service-prod-api?tab=code
+functions:
+  api:
+    handler: build/index.handler
+    events:
+      - httpApi: "*"
