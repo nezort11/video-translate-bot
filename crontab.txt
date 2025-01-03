@@ -1,0 +1,8 @@
+# crontab -e
+
+0 9 * * * cd /home/pi/slovoistiny-bot && sudo bash run.sh docker:restart
+0 9 * * * cd /home/pi/yandex-video-translate-bot && bash run.sh docker:restart
+0 9 * * * cd /home/pi/yandex-video-translate-bot2 && sudo bash run.sh docker:restart
+
+0 9 * * * cd /home/pi/ogg-to-mp3-bot && sudo bash run.sh docker:restart -d
+0 9 * * * cd /home/pi/nezort11-bot && sudo bash run.sh docker:restart

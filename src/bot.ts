@@ -7,8 +7,8 @@ import { load } from "cheerio";
 // import { getAudioDurationInSeconds } from "get-audio-duration";
 // import { getVideoDurationInSeconds } from "get-video-duration";
 import fs from "fs/promises";
-// import ytdl from "@distube/ytdl-core";
-// import { createFFmpeg } from "@ffmpeg/ffmpeg";
+import ytdl from "@distube/ytdl-core";
+import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import http from "http";
 import https from "https";
 import { Api } from "telegram";
@@ -147,7 +147,14 @@ const getVideoInfo = async (link: string) => {
   const videoPlatform = getVideoPlatform(link);
 
   if (videoPlatform === VideoPlatform.YouTube) {
-    const videoInfo = await ytdl.getInfo(link);
+    // bypass error in production: UnrecoverableError: Sign in to confirm you’re not a bot
+    // const videoInfo = await ytdl.getBasicInfo(link, { agent: ytdlAgent });
+
+    const videoInfoResponse = await axios.get<ytdl.videoInfo>("/info", {
+      baseURL: YTDL_API_URL,
+      params: { url: link },
+    });
+    const videoInfo = videoInfoResponse.data;
     return {
       title: videoInfo.videoDetails.title,
       artist: videoInfo.videoDetails.author.name,
