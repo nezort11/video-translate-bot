@@ -127,7 +127,7 @@
     "telegraf": "4.16.3",
     "telegraf-session-s33": "1.0.2",
     "telegraf-throttler": "0.6.0",
-    "telegram": "2.15.15"
+    "telegram": "2.26.16"
   },
   "devDependencies": {
     "@types/debug": "^4.1.12",
