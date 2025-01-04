@@ -12,7 +12,7 @@ export const setIsPublic = (isPublic: boolean) => (IS_PUBLIC = isPublic);
 
 // otherwise loaded automatically by docker
 if (process.env.ENV_FILE_LOADED !== "true") {
-  dotenv.config({ path: "./.env" }); // mutates process.env from .env
+  dotenv.config({ path: "./env/.env" }); // mutates process.env from .env
 }
 
 // Dynamically loaded env variables

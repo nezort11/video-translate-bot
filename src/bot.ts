@@ -61,7 +61,7 @@ const getVideoDurationInSeconds: any = {};
 // const ytdl: any = {};
 
 const COOKIES_FILENAME = "cookies.json";
-const COOKIES_FILE_PATH = path.join(__dirname, "..", COOKIES_FILENAME);
+const COOKIES_FILE_PATH = path.join(__dirname, "..", "env", COOKIES_FILENAME);
 
 console.log("cookiesFilePath", COOKIES_FILE_PATH);
 

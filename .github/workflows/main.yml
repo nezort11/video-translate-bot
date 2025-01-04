@@ -28,7 +28,9 @@ jobs:
 
       - name: Deploy Serverless Container
         id: deploy-sls-container
+        # https://yandex.cloud/en/docs/cli/cli-ref/serverless/cli-ref/container/revision/deploy
         uses: yc-actions/yc-sls-container-deploy@v2
+        # https://github.com/yc-actions/yc-sls-container-deploy/blob/main/action.yml
         with:
           yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
           revision-service-account-id: ${{ vars.SERVICE_ACCOUNT_ID }}
@@ -36,10 +38,11 @@ jobs:
           container-name: ${{ vars.CONTAINER_NAME }}
           folder-id: ${{ vars.FOLDER_ID }}
           revision-cores: 1
-          revision-memory: 2048Mb
+          revision-memory: 2048Mb # Mb/Gb
           # revision-core-fraction: 100
           revision-concurrency: 3
-          revision-execution-timeout: 60
+          revision-execution-timeout: 180 # seconds
+          revision-storage-mounts: "${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only"
 
     # steps:
     #   - name: Connect to remote server via SSH

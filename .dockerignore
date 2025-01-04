@@ -1,7 +1,9 @@
 .git
-.env
-.env.example
 .github
 node_modules
 Dockerfile
 compose.yml
+
+# Environment variables/secrets
+# (storing environment files inside a Docker image is generally not recommended)
+./env
