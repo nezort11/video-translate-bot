@@ -41,7 +41,7 @@ jobs:
           revision-memory: 2048Mb # Mb/Gb
           # revision-core-fraction: 100
           revision-concurrency: 3
-          revision-execution-timeout: 180 # seconds
+          revision-execution-timeout: 300 # seconds
           revision-storage-mounts: "${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only"
 
     # steps:
