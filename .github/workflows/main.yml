@@ -1,4 +1,4 @@
-name: Deploy to remote server
+name: Build and Deploy to Yandex Cloud Serverless Containers
 
 on:
   push:
@@ -8,30 +8,62 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: cr.yandex/${{ vars.REGISTRY_ID }}/${{ vars.CONTAINER_NAME }}:${{ vars.IMAGE_TAG }}
 
     steps:
-      - name: Connect to remote server via SSH
-        uses: appleboy/ssh-action@v0.1.1
+      - name: Login to Yandex Cloud Container Registry
+        id: login-cr
+        uses: yc-actions/yc-cr-login@v1
         with:
-          # IN CASE THIS ERROR:
-          # 2020/08/29 01:19:13 ssh: handshake failed: ssh: unable to authenticate, attempted methods [none publickey], no supported methods remain
-          # DO THIS: https://github.com/appleboy/ssh-action/issues/80#issuecomment-1519113584 and https://github.com/appleboy/ssh-action/issues/80#issuecomment-1716795876
-          # 2024/01/15 15:17:19 dial tcp ***:22: i/o timeout
-          # DO THIS: check server is ssh-able
-          host: ${{ secrets.REMOTE_SERVER_IP }}
-          username: ${{ secrets.REMOTE_SERVER_USER }}
-          key: ${{ secrets.REMOTE_SERVER_PRIVATE_KEY }} # content of ssh private key. ex raw content of ~/.ssh/id_rsa, remember include the BEGIN and END lines
-          command_timeout: 20m
-          # Build, recreate, clean
-          script: |
-            # cd ~/${{ secrets.REMOTE_SERVER_DIR }} && \
-            # sudo git pull https://${{ secrets.REPO_USERNAME }}:${{ secrets.REPO_TOKEN }}@github.com/${{ secrets.REPO_USERNAME }}/${{ secrets.REPO_NAME }}.git && \
-            # sudo chown -R ${{ secrets.REMOTE_SERVER_USER }}:${{ secrets.REMOTE_SERVER_USER }} . && \
-            # sudo bash run.sh _docker:build && \
-            # sudo bash run.sh docker:down && \
-            # sudo bash run.sh docker:up && \
-            cd ~/${{ secrets.REMOTE_SERVER_DIR }}2 && \
-            sudo git pull https://${{ secrets.REPO_USERNAME }}:${{ secrets.REPO_TOKEN }}@github.com/${{ secrets.REPO_USERNAME }}/${{ secrets.REPO_NAME }}.git && \
-            sudo chown -R ${{ secrets.REMOTE_SERVER_USER }}:${{ secrets.REMOTE_SERVER_USER }} . && \
-            sudo bash run.sh docker:build && \
-            sudo bash run.sh docker:up
+          yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
+
+      - name: Check out the code
+        uses: actions/checkout@v3
+
+      - name: Build, tag, and push image to Yandex Cloud Container Registry
+        run: |
+          docker build -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
+
+      - name: Deploy Serverless Container
+        id: deploy-sls-container
+        uses: yc-actions/yc-sls-container-deploy@v2
+        with:
+          yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
+          revision-service-account-id: ${{ vars.SERVICE_ACCOUNT_ID }}
+          revision-image-url: ${{ env.IMAGE_NAME }}
+          container-name: ${{ vars.CONTAINER_NAME }}
+          folder-id: ${{ vars.FOLDER_ID }}
+          revision-cores: 1
+          revision-memory: 2048Mb
+          # revision-core-fraction: 100
+          revision-concurrency: 3
+          revision-execution-timeout: 60
+
+    # steps:
+    #   - name: Connect to remote server via SSH
+    #     uses: appleboy/ssh-action@v0.1.1
+    #     with:
+    #       # IN CASE THIS ERROR:
+    #       # 2020/08/29 01:19:13 ssh: handshake failed: ssh: unable to authenticate, attempted methods [none publickey], no supported methods remain
+    #       # DO THIS: https://github.com/appleboy/ssh-action/issues/80#issuecomment-1519113584 and https://github.com/appleboy/ssh-action/issues/80#issuecomment-1716795876
+    #       # 2024/01/15 15:17:19 dial tcp ***:22: i/o timeout
+    #       # DO THIS: check server is ssh-able
+    #       host: ${{ secrets.REMOTE_SERVER_IP }}
+    #       username: ${{ secrets.REMOTE_SERVER_USER }}
+    #       key: ${{ secrets.REMOTE_SERVER_PRIVATE_KEY }} # content of ssh private key. ex raw content of ~/.ssh/id_rsa, remember include the BEGIN and END lines
+    #       command_timeout: 20m
+    #       # Build, recreate, clean
+    #       script: |
+    #         # cd ~/${{ secrets.REMOTE_SERVER_DIR }} && \
+    #         # sudo git pull https://${{ secrets.REPO_USERNAME }}:${{ secrets.REPO_TOKEN }}@github.com/${{ secrets.REPO_USERNAME }}/${{ secrets.REPO_NAME }}.git && \
+    #         # sudo chown -R ${{ secrets.REMOTE_SERVER_USER }}:${{ secrets.REMOTE_SERVER_USER }} . && \
+    #         # sudo bash run.sh _docker:build && \
+    #         # sudo bash run.sh docker:down && \
+    #         # sudo bash run.sh docker:up && \
+    #         cd ~/${{ secrets.REMOTE_SERVER_DIR }}2 && \
+    #         sudo git pull https://${{ secrets.REPO_USERNAME }}:${{ secrets.REPO_TOKEN }}@github.com/${{ secrets.REPO_USERNAME }}/${{ secrets.REPO_NAME }}.git && \
+    #         sudo chown -R ${{ secrets.REMOTE_SERVER_USER }}:${{ secrets.REMOTE_SERVER_USER }} . && \
+    #         sudo bash run.sh docker:build && \
+    #         sudo bash run.sh docker:up

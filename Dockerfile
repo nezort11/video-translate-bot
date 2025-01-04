@@ -25,3 +25,6 @@ RUN pnpm build
 
 # For running image without docker compose
 # CMD pnpm handler
+
+# For running image beyond docker compose
+CMD ["pnpm", "start"]
