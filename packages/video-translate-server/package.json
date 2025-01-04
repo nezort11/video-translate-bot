@@ -23,6 +23,10 @@
     "app:deploy": "pnpm build && pnpm serverless:deploy && pnpm serverless:info",
     "app:purge": "pnpm serverless:purge"
   },
+  "comments": {
+    "fastify": "^5.1.0",
+    "koa": "^2.15.3"
+  },
   "dependencies": {
     "@types/node": "^22.9.0",
     "axios": "^1.7.7",

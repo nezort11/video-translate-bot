@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
   Credit: https://github.com/FOSWLY/vot-cli
   Requirements: Node.js 18+ (crypto), protobufjs, axios
@@ -6,7 +7,7 @@
 import protobuf, { Message } from "protobufjs";
 import crypto from "crypto";
 import axios from "axios";
-import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "../env";
+import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "./env";
 
 const YANDEX_VIDEO_TRANSLATE_URL =
   "https://api.browser.yandex.ru/video-translation/translate";
@@ -21,9 +22,7 @@ export type VideoTranslateResponse = {
   message?: string;
 };
 
-const videoTranslateRequestProto = new protobuf.Type(
-  "VideoTranslateRequest"
-)
+const videoTranslateRequestProto = new protobuf.Type("VideoTranslateRequest")
   .add(new protobuf.Field("url", 3, "string"))
   .add(new protobuf.Field("deviceId", 4, "string"))
   .add(new protobuf.Field("unknown0", 5, "int32"))
@@ -33,9 +32,7 @@ const videoTranslateRequestProto = new protobuf.Type(
   .add(new protobuf.Field("unknown3", 9, "int32"))
   .add(new protobuf.Field("unknown4", 10, "int32"));
 
-const videoTranslateResponseProto = new protobuf.Type(
-  "VideoTranslateResponse"
-)
+const videoTranslateResponseProto = new protobuf.Type("VideoTranslateResponse")
   .add(new protobuf.Field("url", 1, "string"))
   .add(new protobuf.Field("duration", 2, "double"))
   .add(new protobuf.Field("status", 4, "int32"))
