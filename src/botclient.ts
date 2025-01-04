@@ -8,7 +8,7 @@ import d from "debug";
 import { promisify } from "util";
 import { ServerResponse } from "http";
 
-import { telegramLoggerContext } from "./telegramlogger";
+// import { telegramLoggerContext } from "./telegramlogger";
 import { IS_PRODUCTION } from "./env";
 
 const debug = d("telegraf:polling");
@@ -184,9 +184,9 @@ export class BotTelegraf extends Telegraf {
     if (!IS_PRODUCTION) {
       // Ignore messages from channels
       if (!("channel_post" in update)) {
-        await telegramLoggerContext.reply(
-          `⏳ Started processing update ${update.update_id}`
-        );
+        // await telegramLoggerContext.reply(
+        //   `⏳ Started processing update ${update.update_id}`
+        // );
       }
     }
     try {
@@ -197,9 +197,9 @@ export class BotTelegraf extends Telegraf {
 
       if (!IS_PRODUCTION) {
         if (!("channel_post" in update)) {
-          await telegramLoggerContext.reply(
-            `🏁 Finished processing update ${update.update_id}`
-          );
+          // await telegramLoggerContext.reply(
+          //   `🏁 Finished processing update ${update.update_id}`
+          // );
         }
       }
     }

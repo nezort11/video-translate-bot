@@ -1,12 +1,15 @@
 import { bot } from "./botinstance";
 
+import { S3Session } from "telegraf-session-s33";
 import { Composer, Context, Markup, TelegramError } from "telegraf";
 import { message } from "telegraf/filters";
 import axios, { AxiosError } from "axios";
 import { load } from "cheerio";
 // import { getAudioDurationInSeconds } from "get-audio-duration";
 // import { getVideoDurationInSeconds } from "get-video-duration";
+import path from "path";
 import fs from "fs/promises";
+import fss from "fs";
 import ytdl from "@distube/ytdl-core";
 import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import http from "http";
@@ -21,12 +24,14 @@ import { Readable } from "stream";
 import _ from "lodash";
 import { getLinkPreview } from "link-preview-js";
 const { capitalize } = _;
+// @ts-ignore
+import { VideoTranslateResponse } from "../packages/video-translate-server/src/services/vtrans";
 
-import {
-  TranslateException,
-  TranslateInProgressException,
-  translateVideo,
-} from "./translate";
+// import {
+//   TranslateException,
+//   TranslateInProgressException,
+//   // translateVideo,
+// } from "./translate";
 import { sendAdminNotification } from "./notification";
 import { getClient } from "./telegramclient";
 import { logger } from "./logger";
@@ -38,6 +43,9 @@ import {
   IS_PRODUCTION,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
+  STORAGE_BUCKET,
+  VIDEO_TRANSLATE_API_URL,
+  YTDL_API_URL,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -46,10 +54,20 @@ import {
 } from "./telegramlogger";
 import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml } from "./utils";
+import { Update } from "telegraf/types";
 
 const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
-const ytdl: any = {};
+// const ytdl: any = {};
+
+const COOKIES_FILENAME = "cookies.json";
+const COOKIES_FILE_PATH = path.join(__dirname, "..", COOKIES_FILENAME);
+
+console.log("cookiesFilePath", COOKIES_FILE_PATH);
+
+const ytdlAgent = ytdl.createAgent(
+  JSON.parse(fss.readFileSync(COOKIES_FILE_PATH, "utf-8"))
+);
 
 // https://github.com/TypeStrong/ts-node/discussions/1290
 const dynamicImport = new Function("specifier", "return import(specifier)") as <
@@ -57,6 +75,9 @@ const dynamicImport = new Function("specifier", "return import(specifier)") as <
 >(
   module: string
 ) => Promise<T>;
+
+const importPTimeout = async () =>
+  await dynamicImport<typeof import("p-timeout")>("p-timeout");
 
 enum VideoPlatform {
   YouTube = "YOUTUBE",
@@ -202,16 +223,39 @@ const TRANSLATE_PULLING_INTERVAL = moment
   .duration(15, "seconds")
   .asMilliseconds();
 
-const translateVideoFinal = async (url: string): Promise<string> => {
+const translateVideo = async (url: string) => {
+  return await axios.post<VideoTranslateResponse>(
+    VIDEO_TRANSLATE_API_URL,
+    null,
+    { params: { url } }
+  );
+};
+
+const translateVideoFinal = async (
+  url: string
+): Promise<VideoTranslateResponse> => {
   try {
-    return await translateVideo(url);
+    const videoTranslateResponse = await translateVideo(url);
+    return videoTranslateResponse.data;
   } catch (error) {
-    if (error instanceof TranslateInProgressException) {
-      await delay(TRANSLATE_PULLING_INTERVAL);
-      logger.info("Rerequesting translation...");
-      return await translateVideoFinal(url);
+    if (axios.isAxiosError(error)) {
+      const errorData = error.response?.data;
+      if (errorData.name === "TranslateInProgressException") {
+        await delay(TRANSLATE_PULLING_INTERVAL);
+        logger.info("Rerequesting translation...");
+        return await translateVideoFinal(url);
+      }
+      if (errorData.name === "Error") {
+        throw new Error(errorData.message, { cause: error });
+      }
     }
     throw error;
+    // if (error instanceof TranslateInProgressException) {
+    //   await delay(TRANSLATE_PULLING_INTERVAL);
+    //   logger.info("Rerequesting translation...");
+    //   return await translateVideoFinal(url);
+    // }
+    // throw error;
   }
 };
 
@@ -320,17 +364,20 @@ const decodeTranslateAction = (actionData: string) => {
 // https://github.com/ffmpegwasm/ffmpeg.wasm/tree/0.11.x
 // https://ffmpegwasm.netlify.app/docs/migration
 // https://ffmpegwasm.netlify.app/docs/faq#why-ffmpegwasm-doesnt-support-nodejs
-// const ffmpeg = createFFmpeg({
-//   log: true,
-//   logger: ({ message }) => logger.info(message),
-//   // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
-//   // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
-//   // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
-// });
-const ffmpeg: any = {};
+const ffmpeg = createFFmpeg({
+  log: true,
+  logger: ({ message }) => logger.info(message),
+  // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
+  // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
+  // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
+});
+// const ffmpeg: any = {};
 
 bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
+const s3Session = new S3Session(STORAGE_BUCKET);
+
+bot.use(s3Session);
 // bot.use(Telegraf.log());
 
 const handleError = async (error: unknown, context: Context) => {
@@ -342,9 +389,7 @@ const handleError = async (error: unknown, context: Context) => {
       logger.warn(error);
       return;
     }
-    const { TimeoutError } = await dynamicImport<typeof import("p-timeout")>(
-      "p-timeout"
-    );
+    const { TimeoutError } = await importPTimeout();
     if ("name" in error && error.name === TimeoutError.name) {
       await context.reply(
         `⚠️ Не получилось перевести видео, так как это занимает слишком ⏳ много времени.`
@@ -407,29 +452,40 @@ bot.use(botThrottler);
 // );
 
 bot.use(async (context, next) => {
-  let typingInterval: NodeJS.Timer | undefined;
-  try {
-    await context.sendChatAction("typing");
-    typingInterval = setInterval(async () => {
-      try {
-        await Promise.allSettled([
-          context.sendChatAction("typing"),
-          ...(context.chat && context.chat.id !== +DEBUG_USER_CHAT_ID
-            ? [context.telegram.sendChatAction(DEBUG_USER_CHAT_ID, "typing")]
-            : []),
-        ]);
-      } catch (error) {
-        clearInterval(typingInterval);
+  await context.persistentChatAction("typing", async () => {
+    await next();
+  });
 
-        await handleError(error, context);
-      }
-    }, moment.duration(5, "seconds").asMilliseconds());
+  // let typingInterval: NodeJS.Timer | undefined;
+  // try {
 
-    return await next();
-  } finally {
-    clearInterval(typingInterval);
-    // no way to clear chat action, wait 5s
-  }
+  //   await context.persistentChatAction('typing')
+  //   await context.sendChatAction("typing");
+  //   typingInterval = setInterval(async () => {
+  //     try {
+  //       // await Promise.allSettled([
+  //       //   context.sendChatAction("typing"),
+  //       //   ...(context.chat && context.chat.id !== +DEBUG_USER_CHAT_ID
+  //       //     ? [context.telegram.sendChatAction(DEBUG_USER_CHAT_ID, "typing")]
+  //       //     : []),
+  //       // ]);
+  //       console.log("sending chat action...");
+  //       await context.sendChatAction("typing");
+  //     } catch (error) {
+  //       console.log("error while sending chat action...:", error);
+  //       clearInterval(typingInterval);
+
+  //       await handleError(error, context);
+  //     }
+  //   }, moment.duration(5, "seconds").asMilliseconds());
+
+  //   console.log("awaiting next...");
+  //   await next();
+  //   console.log("ended awaiting next");
+  // } finally {
+  //   clearInterval(typingInterval);
+  //   // no way to clear chat action, wait 5s
+  // }
 });
 
 bot.use(telegramLoggerIncomingMiddleware);
@@ -592,6 +648,40 @@ bot.command("test", async (context) => {
   // outputBuffer = null;
 });
 
+const mockVideoLink = "https://www.youtube.com/watch?v=CcnwFJqEnxU";
+
+bot.command("debug_vtrans", async (context) => {
+  logger.info("Request translation...");
+  let translationUrl: string; //| undefined;
+  try {
+    const videoTranslateData = await translateVideoFinal(mockVideoLink);
+    translationUrl = videoTranslateData.url;
+  } catch (error: unknown) {
+    await context.reply(`Error while translating: ${error?.toString()}`);
+    return;
+  }
+  await context.reply(`Translated video: ${translationUrl}`);
+});
+
+bot.command("debug_ytdl_info", async (context) => {
+  const videoInfo = await ytdl.getBasicInfo(mockVideoLink, {
+    agent: ytdlAgent,
+  });
+  await context.reply(`Got basic ytdl info: ${Object.keys(videoInfo)}`);
+});
+
+bot.command("debug_ytdl_download", async (context) => {
+  const commandArgs = context.message.text.split(" ").slice(1);
+  const quality = parseInt(commandArgs[0]);
+  const videoStream = ytdl(mockVideoLink, {
+    agent: ytdlAgent,
+    quality,
+  });
+  const videoBuffer = await streamToBuffer(videoStream);
+
+  await context.reply(`Downloaded video buffer: ${videoBuffer.byteLength}`);
+});
+
 bot.on(message("text"), async (context) => {
   logger.info(
     `Incoming translate request: ${inspect(context.update, { depth: null })}`
@@ -608,7 +698,7 @@ bot.on(message("text"), async (context) => {
       `⚙️ Каким образом перевести [это](${shortLink}) видео?`,
       {
         disable_notification: true,
-        reply_to_message_id: context.message.message_id,
+        // reply_to_message_id: context.message.message_id,
         reply_markup: Markup.inlineKeyboard([
           [
             Markup.button.callback(
@@ -646,7 +736,7 @@ bot.on(message("text"), async (context) => {
     `⚙️ Каким образом перевести [это](${link}) видео?`,
     {
       disable_notification: true,
-      reply_to_message_id: context.message.message_id,
+      // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
         [
           Markup.button.callback(
@@ -765,11 +855,12 @@ bot.action(/.+/, async (context) => {
     }, moment.duration({ minutes: 5 }).asMilliseconds());
 
     logger.info("Request translation...");
-    let translationUrl: string | undefined;
+    let translationUrl: string; //| undefined;
     try {
-      translationUrl = await translateVideoFinal(videoLink);
+      const videoTranslateData = await translateVideoFinal(videoLink);
+      translationUrl = videoTranslateData.url;
     } catch (error) {
-      if (error instanceof TranslateException) {
+      if (error instanceof Error) {
         if (error.message) {
           const YANDEX_TRANSLATE_ERROR_MESSAGE =
             "Возникла ошибка, попробуйте позже";
@@ -805,20 +896,29 @@ bot.action(/.+/, async (context) => {
     logger.info(`Downloaded translation: ${translateAudioBuffer.length}`);
 
     let videoTitle = videoInfo.title;
-    if (videoTitle) {
-      try {
-        const translateResponse = await translate(videoTitle, { to: "ru" });
-        videoTitle = translateResponse.text;
-      } catch (error) {
-        logger.warn("Unable to translate video title:", error);
-      }
-    }
+    // if (videoTitle) {
+    //   try {
+    //     logger.info("Translating video title to russian...");
+    //     const { default: pTimeout } = await importPTimeout();
+    //     const translateResponse = await pTimeout(
+    //       translate(videoTitle, {
+    //         to: "ru",
+    //       }),
+    //       { milliseconds: 10 * 1000 }
+    //     );
+    //     videoTitle = translateResponse.text;
+    //     logger.info(`Translated video title to russian: ${videoTitle}`);
+    //   } catch (error) {
+    //     logger.warn("Unable to translate video title:", error);
+    //   }
+    // }
 
     const videoThumbnail = videoInfo.thumbnail;
     let thumbnailBuffer: Buffer | undefined;
     if (videoThumbnail) {
       let thumbnailData: ArrayBuffer;
       try {
+        logger.info("Requesting to translate video thumbnail...");
         const thumbnailResponse = await axiosInstance.post<ArrayBuffer>(
           IMAGE_TRANSLATE_URL,
           {
@@ -829,9 +929,10 @@ bot.action(/.+/, async (context) => {
           }
         );
         thumbnailData = thumbnailResponse.data;
+        logger.info(`Translated video thumbnail: ${thumbnailData.byteLength}`);
       } catch (error) {
         if (error instanceof AxiosError) {
-          // Use original thumbnail
+          logger.info("Downloading original video thumbnail...");
           const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
             videoThumbnail,
             {
@@ -850,17 +951,17 @@ bot.action(/.+/, async (context) => {
 
     const originalArtist = videoInfo.artist;
     let artist = originalArtist;
-    if (artist) {
-      try {
-        const translateResponse = await translate(artist, {
-          to: "ru",
-        });
-        artist = translateResponse.text;
-        artist = artist.split(" ").map(capitalize).join(" ");
-      } catch (error) {
-        logger.warn("Unable to translate video artist:", error);
-      }
-    }
+    // if (artist) {
+    //   try {
+    //     const translateResponse = await translate(artist, {
+    //       to: "ru",
+    //     });
+    //     artist = translateResponse.text;
+    //     artist = artist.split(" ").map(capitalize).join(" ");
+    //   } catch (error) {
+    //     logger.warn("Unable to translate video artist:", error);
+    //   }
+    // }
 
     logger.info(`Author name: ${artist}`);
 
@@ -935,18 +1036,25 @@ bot.action(/.+/, async (context) => {
       return;
     }
 
+    // logger.log(
+    //   `Requesting download stream for quality ${youtubeVideoFormatItag.video} ...`
+    // );
     const videoStream = ytdl(videoLink, {
-      quality: youtubeVideoFormatItag.video,
+      // quality: youtubeVideoFormatItag.video,
+      quality: 18,
+      agent: ytdlAgent,
     });
-    const audioStream = ytdl(videoLink, {
-      quality: youtubeVideoFormatItag.audio,
-    });
+    // logger.log(
+    //   `Requesting download stream for quality ${youtubeVideoFormatItag.audio} ...`
+    // );
+    // const audioStream = ytdl(videoLink, {
+    //   quality: youtubeVideoFormatItag.audio,
+    //   agent: ytdlAgent,
+    // });
     logger.info("Downloading youtube video stream...");
     const videoBuffer = await streamToBuffer(videoStream);
-    const audioBuffer = await streamToBuffer(audioStream);
-    logger.info(
-      `Youtube video downloaded: ${videoBuffer.length}, ${audioBuffer.length}`
-    );
+    // const audioBuffer = await streamToBuffer(audioStream);
+    logger.info(`Youtube video downloaded: ${videoBuffer.length}`);
 
     if (!ffmpeg.isLoaded()) {
       logger.info("Loading ffmpeg...");
@@ -963,7 +1071,7 @@ bot.action(/.+/, async (context) => {
     const translateAudioFilePath = "source3.mp3";
 
     ffmpeg.FS("writeFile", videoFilePath, videoBuffer);
-    ffmpeg.FS("writeFile", audioFilePath, audioBuffer);
+    // ffmpeg.FS("writeFile", audioFilePath, audioBuffer);
     ffmpeg.FS("writeFile", translateAudioFilePath, translateAudioBuffer);
 
     let fileMessageId = 0;
@@ -1062,12 +1170,12 @@ bot.action(/.+/, async (context) => {
         // prettier-ignore
         await ffmpeg.run(
           "-i", videoFilePath,
-          "-i", audioFilePath,
+          // "-i", audioFilePath,
           "-i", translateAudioFilePath,
 
           "-filter_complex",
-            `[1:a]volume=${percent(10)}[a];` + // 10% original playback
-            `[2:a]volume=${percent(100)}[b];` + // voice over
+            `[0:a]volume=${percent(10)}[a];` + // 10% original playback
+            `[1:a]volume=${percent(100)}[b];` + // voice over
             '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
           // "-qscale:a", "9", // "4",

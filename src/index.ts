@@ -1,12 +1,17 @@
-import http from "serverless-http";
+// import http from "http";
+// import http2 from "serverless-http";
+import express from "express";
 // import { fileURLToPath } from "url";
 // import storage from "node-persist";
 import { bot } from "./bot";
+// import { app } from "./app";
 import { logger } from "./logger";
-import { setIsPublic, NODE_ENV, DEBUG, BOT_PUBLIC_USERNAME } from "./env";
-import { telegramLoggerContext } from "./telegramlogger";
+import { setIsPublic, NODE_ENV, DEBUG, BOT_PUBLIC_USERNAME, PORT } from "./env";
+// import { telegramLoggerContext } from "./telegramlogger";
 
-export const handler = http(bot.webhookCallback("/webhook"));
+// export const handler = http2(bot.webhookCallback("/webhook"));
+
+// export const appHandler = http(app);
 
 const main = async () => {
   logger.info(`VERSION: ${process.version}`);
@@ -19,13 +24,22 @@ const main = async () => {
   setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
   logger.info(`🚀 Started bot server on https://t.me/${botInfo.username}`);
   try {
-    await telegramLoggerContext.reply(`🚀 Started bot server`);
+    // await telegramLoggerContext.reply(`🚀 Started bot server`);
   } catch (error) {
     console.warn(error);
   }
 };
 
+// const server = http.createServer(handler);
+
+const app = express();
+
+app.use(bot.webhookCallback("/webhook"));
+
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
-  main();
+  // main();
+  app.listen(PORT, () => {
+    console.log(`🚀 Server is listening on port ${PORT}`);
+  });
 }

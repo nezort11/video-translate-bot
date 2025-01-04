@@ -5,6 +5,12 @@ declare global {
     interface ProcessEnv {
       NODE_ENV: "development" | "production";
       DEBUG: string;
+
+      STORAGE_BUCKET: string;
+
+      VIDEO_TRANSLATE_API_URL: string;
+      YTDL_API_URL: string;
+
       BOT_TOKEN_DEV: string;
       BOT_TOKEN_PROD: string;
       BOT_PUBLIC_USERNAME: string;

@@ -5,6 +5,7 @@ node_modules*
 .DS_Store
 
 .env
+cookies.json
 
 *.log
 

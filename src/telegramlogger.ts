@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Context, type Middleware, Telegraf, Telegram } from "telegraf";
 import type { Deunionize, PropOr } from "telegraf/typings/deunionize";
 import type { Update, UserFromGetMe, Message } from "telegraf/types";

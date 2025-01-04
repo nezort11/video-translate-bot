@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
   Credit: https://github.com/FOSWLY/vot-cli
   Requirements: Node.js 18+ (crypto), protobufjs, axios
