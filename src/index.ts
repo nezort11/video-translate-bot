@@ -13,6 +13,21 @@ import { setIsPublic, NODE_ENV, DEBUG, BOT_PUBLIC_USERNAME, PORT } from "./env";
 
 // export const appHandler = http(app);
 
+// Global error handlers
+//
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("warning", (warning) => {
+  console.warn("Warning:", warning.name, warning.message, warning.stack);
+});
+
 const main = async () => {
   logger.info(`VERSION: ${process.version}`);
   logger.info(`DEBUG: ${DEBUG}`);
