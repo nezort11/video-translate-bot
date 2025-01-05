@@ -5,6 +5,7 @@ declare global {
     interface ProcessEnv {
       NODE_ENV: "development" | "production";
       DEBUG: string;
+      EXECUTION_TIMEOUT: string;
 
       STORAGE_BUCKET: string;
 

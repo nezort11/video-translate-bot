@@ -41,8 +41,11 @@ jobs:
           revision-memory: 2048Mb # Mb/Gb
           # revision-core-fraction: 100
           revision-concurrency: 3
-          revision-execution-timeout: 300 # seconds
-          revision-storage-mounts: "${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only"
+          revision-execution-timeout: ${{ vars.EXECUTION_TIMEOUT }} # seconds
+          revision-env: |
+            EXECUTION_TIMEOUT=${{ vars.EXECUTION_TIMEOUT }}
+          revision-storage-mounts: |
+            "${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only"
 
     # steps:
     #   - name: Connect to remote server via SSH

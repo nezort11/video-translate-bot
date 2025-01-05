@@ -15,6 +15,8 @@ if (process.env.ENV_FILE_LOADED !== "true") {
   dotenv.config({ path: "./env/.env" }); // mutates process.env from .env
 }
 
+export const EXECUTION_TIMEOUT = +process.env.EXECUTION_TIMEOUT;
+
 // Dynamically loaded env variables
 export const DEBUG = process.env.DEBUG!;
 export const BOT_PUBLIC_USERNAME = process.env.BOT_PUBLIC_USERNAME!;

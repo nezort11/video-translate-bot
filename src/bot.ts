@@ -390,6 +390,7 @@ const handleError = async (error: unknown, context: Context) => {
       return;
     }
     const { TimeoutError } = await importPTimeout();
+    // p-timeout error thrown by telegraf based on `handlerTimeout`
     if ("name" in error && error.name === TimeoutError.name) {
       await context.reply(
         `⚠️ Не получилось перевести видео, так как это занимает слишком ⏳ много времени.`
