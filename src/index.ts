@@ -49,6 +49,12 @@ const main = async () => {
 
 const app = express();
 
+app.post("/debug/timeout", async (req, res) => {
+  setInterval(() => {
+    logger.info(`Debug timeout ${new Date().toLocaleString()}`);
+  }, 5000);
+});
+
 app.use(bot.webhookCallback("/webhook"));
 
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
