@@ -52,7 +52,7 @@ import {
   telegramLoggerIncomingMiddleware,
   telegramLoggerOutcomingMiddleware,
 } from "./telegramlogger";
-import { botThrottler, translateThrottler } from "./throttler";
+// import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml } from "./utils";
 import { Update } from "telegraf/types";
 
@@ -446,7 +446,7 @@ const handleTranslateInProgress = async (
   }
 };
 
-bot.use(botThrottler);
+// bot.use(botThrottler);
 
 // bot.use(
 //   Composer.optional((context) => !!context.callbackQuery, translateThrottler)
