@@ -683,6 +683,12 @@ bot.command("debug_ytdl_download", async (context) => {
   await context.reply(`Downloaded video buffer: ${videoBuffer.byteLength}`);
 });
 
+bot.command("debug_timeout", async (context) => {
+  setInterval(() => {
+    logger.info(`Debug timeout ${new Date().toLocaleString()}`);
+  }, 5000);
+});
+
 bot.on(message("text"), async (context) => {
   logger.info(
     `Incoming translate request: ${inspect(context.update, { depth: null })}`
