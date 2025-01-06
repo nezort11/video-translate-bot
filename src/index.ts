@@ -81,8 +81,8 @@ debugBot.command("debug_timeout", async (context) => {
   });
 });
 
-// app.use(bot.webhookCallback("/webhook"));
-app.use(debugBot.webhookCallback("/webhook"));
+app.use(bot.webhookCallback("/webhook"));
+// app.use(debugBot.webhookCallback("/webhook"));
 
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
