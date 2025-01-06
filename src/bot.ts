@@ -55,6 +55,11 @@ import {
 // import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml } from "./utils";
 import { Update } from "telegraf/types";
+import {
+  TranslateException,
+  TranslateInProgressException,
+  translateVideo,
+} from "./services/vtrans";
 
 const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
@@ -223,39 +228,40 @@ const TRANSLATE_PULLING_INTERVAL = moment
   .duration(15, "seconds")
   .asMilliseconds();
 
-const translateVideo = async (url: string) => {
-  return await axios.post<VideoTranslateResponse>(
-    VIDEO_TRANSLATE_API_URL,
-    null,
-    { params: { url } }
-  );
-};
+// const translateVideo = async (url: string) => {
+//   return await axios.post<VideoTranslateResponse>(
+//     VIDEO_TRANSLATE_API_URL,
+//     null,
+//     { params: { url } }
+//   );
+// };
 
 const translateVideoFinal = async (
   url: string
 ): Promise<VideoTranslateResponse> => {
   try {
-    const videoTranslateResponse = await translateVideo(url);
-    return videoTranslateResponse.data;
+    return await translateVideo(url);
+    // const videoTranslateResponse = await translateVideo(url);
+    // return videoTranslateResponse.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const errorData = error.response?.data;
-      if (errorData.name === "TranslateInProgressException") {
-        await delay(TRANSLATE_PULLING_INTERVAL);
-        logger.info("Rerequesting translation...");
-        return await translateVideoFinal(url);
-      }
-      if (errorData.name === "Error") {
-        throw new Error(errorData.message, { cause: error });
-      }
-    }
-    throw error;
-    // if (error instanceof TranslateInProgressException) {
-    //   await delay(TRANSLATE_PULLING_INTERVAL);
-    //   logger.info("Rerequesting translation...");
-    //   return await translateVideoFinal(url);
+    // if (axios.isAxiosError(error)) {
+    //   const errorData = error.response?.data;
+    //   if (errorData.name === "TranslateInProgressException") {
+    //     await delay(TRANSLATE_PULLING_INTERVAL);
+    //     logger.info("Rerequesting translation...");
+    //     return await translateVideoFinal(url);
+    //   }
+    //   if (errorData.name === "Error") {
+    //     throw new Error(errorData.message, { cause: error });
+    //   }
     // }
     // throw error;
+    if (error instanceof TranslateInProgressException) {
+      await delay(TRANSLATE_PULLING_INTERVAL);
+      logger.info("Rerequesting translation...");
+      return await translateVideoFinal(url);
+    }
+    throw error;
   }
 };
 
@@ -870,7 +876,8 @@ bot.action(/.+/, async (context) => {
       const videoTranslateData = await translateVideoFinal(videoLink);
       translationUrl = videoTranslateData.url;
     } catch (error) {
-      if (error instanceof Error) {
+      // if (error instanceof Error) {
+      if (error instanceof TranslateException) {
         if (error.message) {
           const YANDEX_TRANSLATE_ERROR_MESSAGE =
             "Возникла ошибка, попробуйте позже";
