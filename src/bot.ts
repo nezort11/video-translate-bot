@@ -685,7 +685,7 @@ bot.command("debug_ytdl_download", async (context) => {
 
 bot.command("debug_timeout", async (context) => {
   // pending promise
-  await new Promise((resovle, reject) => {
+  await new Promise((resolve, reject) => {
     setInterval(() => {
       logger.info(`Debug timeout ${new Date().toLocaleString()}`);
     }, 5000);

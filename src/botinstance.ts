@@ -13,5 +13,5 @@ const BOT_TIMEOUT = moment
 export const bot = new Telegraf(BOT_TOKEN, {
   // REQUIRED for `sendChatAction` to work in serverless/webhook environment https://github.com/telegraf/telegraf/issues/1047
   telegram: { webhookReply: false },
-  handlerTimeout: BOT_TIMEOUT,
+  // handlerTimeout: BOT_TIMEOUT,
 });
