@@ -2,10 +2,17 @@
   Video translate command-line utility
 */
 import { fileURLToPath } from "url";
-import { TranslateInProgressException, translateVideo } from "./translate";
+import { TranslateInProgressException, translateVideo } from "./services/vtrans";
+import { getLinkPreview } from "link-preview-js";
 
 const main = async () => {
   console.log("process.argv", process.argv);
+
+  // const linkPreview = await getLinkPreview(
+  //   "https://www.bilibili.com/video/BV1Pt42157Th",
+  //   { followRedirects: "follow" }
+  // );
+  // console.log("linkPreview", linkPreview);
   const translateUrl = process.argv[2];
   if (!translateUrl) {
     console.error("🔗 Please provide a URL to translate");
