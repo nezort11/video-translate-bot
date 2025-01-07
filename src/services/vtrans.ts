@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
   Credit: https://github.com/FOSWLY/vot-cli
   Requirements: Node.js 18+ (crypto), protobufjs, axios
@@ -7,7 +6,7 @@
 import protobuf, { Message } from "protobufjs";
 import crypto from "crypto";
 import axios from "axios";
-import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "./env";
+import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "../env";
 
 const YANDEX_VIDEO_TRANSLATE_URL =
   "https://api.browser.yandex.ru/video-translation/translate";

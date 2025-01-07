@@ -3,6 +3,9 @@ export {};
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
+      // where the app is running
+      APP_ENV: "local" | "remote";
+      // in which environment to run the app
       NODE_ENV: "development" | "production";
       DEBUG: string;
       EXECUTION_TIMEOUT: string;

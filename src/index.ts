@@ -1,3 +1,14 @@
+// Load variables from env file before start
+import {
+  setIsPublic,
+  NODE_ENV,
+  DEBUG,
+  BOT_PUBLIC_USERNAME,
+  PORT,
+  BOT_TOKEN,
+  APP_ENV,
+} from "./env";
+
 // import http from "http";
 // import http2 from "serverless-http";
 import express from "express";
@@ -6,14 +17,7 @@ import express from "express";
 import { bot } from "./bot";
 // import { app } from "./app";
 import { logger } from "./logger";
-import {
-  setIsPublic,
-  NODE_ENV,
-  DEBUG,
-  BOT_PUBLIC_USERNAME,
-  PORT,
-  BOT_TOKEN,
-} from "./env";
+
 import { Telegraf } from "telegraf";
 import moment from "moment";
 // import { telegramLoggerContext } from "./telegramlogger";
@@ -86,8 +90,11 @@ app.use(bot.webhookCallback("/webhook"));
 
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
-  // main();
-  app.listen(PORT, () => {
-    console.log(`🚀 Server is listening on port ${PORT}`);
-  });
+  if (APP_ENV === "local") {
+    main();
+  } else {
+    app.listen(PORT, () => {
+      console.log(`🚀 Started express server on port ${PORT}`);
+    });
+  }
 }

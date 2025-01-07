@@ -30,7 +30,10 @@
     "yc:container:create": "source ./scripts/pre-env.sh && yc serverless container create --name $CONTAINER_NAME",
     "yc:container:print": "source ./scripts/pre-container.sh && echo \"Your serverless container is available at https://$CONTAINER_ID.containers.yandexcloud.net/\"",
     "yc:container:deploy": "source ./scripts/pre-image.sh && yc serverless container revision deploy --container-name $CONTAINER_NAME --image $IMAGE_NAME --cores 1 --memory 2GB --concurrency 3 --execution-timeout 300s --service-account-id $SERVICE_ACCOUNT_ID",
-    "yc:deploy": "pnpm yc:image:build && pnpm yc:image:push && pnpm yc:container:deploy && pnpm yc:container:print"
+    "yc:deploy": "pnpm yc:image:build && pnpm yc:image:push && pnpm yc:container:deploy && pnpm yc:container:print",
+    "webhook:info": "./scripts/get-webhookinfo.sh",
+    "webhook:set": "./scripts/set-webhook.sh",
+    "webhook:delete": "./scripts/delete-webhook.sh"
   },
   "comments": {
     "server:serverless:info": "cd packages/video-translate-server && pnpm serverless:info",
@@ -46,9 +49,6 @@
     "serverless:deploy": "pnpm serverless deploy --stage=prod",
     "serverless:info": "pnpm serverless info --stage=prod",
     "serverless:purge": "pnpm serverless remove",
-    "webhook:info": "./scripts/get-webhookinfo.sh",
-    "webhook:set": "./scripts/set-webhook.sh",
-    "webhook:delete": "./scripts/delete-webhook.sh",
     "bot:deploy": "pnpm build && pnpm serverless:deploy && pnpm webhook:set",
     "bot:purge": "pnpm serverless:purge && pnpm webhook:delete",
     "npm:pre": "mv ./node_modules ./node_modules_dev && mv ./node_modules_prod ./node_modules 2>/dev/null ; npm install --omit=dev",
@@ -58,7 +58,6 @@
     "yc:function:deploy": "source ./.env && source ./scripts/projectname-env.sh && yc serverless function version create --package-bucket-name $STORAGE_BUCKET --package-object-name function --function-name=${PACKAGE_NAME}-prod-main --runtime nodejs18 --entrypoint build/index.handler --memory 2048m --execution-timeout 300s",
     "app:deploy": "pnpm build && pnpm npm:pre && pnpm build:package && pnpm npm:post && pnpm yc:storage:upload && pnpm yc:function:deploy",
     "app2:deploy": "pnpm build && pnpm serverless deploy ",
-    "": "",
     "": "",
     "-pre:env": "bash -c 'source ./.env && '\"$0\"",
     "-dev": "pnpm pre:nvm 'pnpm webhook:reset && pnpm nodemon --exec \"pnpm command --loader ts-node/esm\" ./src/main.ts'",
@@ -122,6 +121,7 @@
     "p-timeout": "^6.1.2",
     "pino": "8.14.1",
     "pino-pretty": "10.0.0",
+    "protobufjs": "7.4.0",
     "serialize-error": "11.0.3",
     "serverless-http": "3.2.0",
     "telegraf": "4.16.3",

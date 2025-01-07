@@ -1,8 +1,6 @@
 import dotenv from "dotenv";
 import { getChatId } from "./utils";
 
-export const PORT = process.env.PORT ?? 3000;
-
 export const NODE_ENV = process.env.NODE_ENV;
 console.log("NODE_ENV", NODE_ENV);
 export const IS_PRODUCTION = process.env.NODE_ENV !== "development";
@@ -10,12 +8,16 @@ export const IS_PRODUCTION = process.env.NODE_ENV !== "development";
 export let IS_PUBLIC = true;
 export const setIsPublic = (isPublic: boolean) => (IS_PUBLIC = isPublic);
 
-// otherwise loaded automatically by docker
-if (process.env.ENV_FILE_LOADED !== "true") {
-  dotenv.config({ path: "./env/.env" }); // mutates process.env from .env
-}
+// either load env file directly or
+// otherwise loaded automatically by docker (.evn will not exist, checkout .dockerignore)
+// if (process.env.ENV_FILE_LOADED !== "true") {
+dotenv.config({ path: "./env/.env" }); // mutates process.env from .env if exists
+// }
 
+export const PORT = process.env.PORT ?? 3000;
 export const EXECUTION_TIMEOUT = +process.env.EXECUTION_TIMEOUT;
+
+export const APP_ENV = process.env.APP_ENV;
 
 // Dynamically loaded env variables
 export const DEBUG = process.env.DEBUG!;
