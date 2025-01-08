@@ -60,19 +60,11 @@ import {
   TranslateInProgressException,
   translateVideo,
 } from "./services/vtrans";
+import { ytdlAgent } from "./services/ytdl";
 
 const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
 // const ytdl: any = {};
-
-const COOKIES_FILENAME = "cookies.json";
-const COOKIES_FILE_PATH = path.join(__dirname, "..", "env", COOKIES_FILENAME);
-
-console.log("cookiesFilePath", COOKIES_FILE_PATH);
-
-const ytdlAgent = ytdl.createAgent(
-  JSON.parse(fss.readFileSync(COOKIES_FILE_PATH, "utf-8"))
-);
 
 // https://github.com/TypeStrong/ts-node/discussions/1290
 const dynamicImport = new Function("specifier", "return import(specifier)") as <

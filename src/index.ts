@@ -15,11 +15,12 @@ import express from "express";
 // import { fileURLToPath } from "url";
 // import storage from "node-persist";
 import { bot } from "./bot";
-// import { app } from "./app";
+import { app } from "./app";
 import { logger } from "./logger";
 
 import { Telegraf } from "telegraf";
 import moment from "moment";
+
 // import { telegramLoggerContext } from "./telegramlogger";
 
 // export const handler = http2(bot.webhookCallback("/webhook"));
@@ -60,14 +61,6 @@ const main = async () => {
 
 // const server = http.createServer(handler);
 
-const app = express();
-
-app.post("/debug/timeout", async (req, res) => {
-  setInterval(() => {
-    logger.info(`Debug timeout ${new Date().toLocaleString()}`);
-  }, 5000);
-});
-
 const debugBot = new Telegraf(BOT_TOKEN, {
   // REQUIRED for `sendChatAction` to work in serverless/webhook environment https://github.com/telegraf/telegraf/issues/1047
   telegram: { webhookReply: false },
@@ -85,7 +78,6 @@ debugBot.command("debug_timeout", async (context) => {
   });
 });
 
-app.use(bot.webhookCallback("/webhook"));
 // app.use(debugBot.webhookCallback("/webhook"));
 
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -93,8 +85,10 @@ if (require.main === module) {
   if (APP_ENV === "local") {
     main();
   } else {
-    app.listen(PORT, () => {
-      console.log(`🚀 Started express server on port ${PORT}`);
-    });
+    app.use(bot.webhookCallback("/webhook"));
   }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Started express server on port ${PORT}`);
+  });
 }
