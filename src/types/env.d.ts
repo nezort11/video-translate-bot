@@ -11,6 +11,7 @@ declare global {
       EXECUTION_TIMEOUT: string;
 
       STORAGE_BUCKET: string;
+      YTDL_STORAGE_BUCKET: string;
 
       VIDEO_TRANSLATE_API_URL: string;
       YTDL_API_URL: string;
