@@ -728,12 +728,12 @@ bot.on(message("text"), async (context) => {
               )
             ),
           ],
-          [
-            Markup.button.callback(
-              "📺 Видео (mp4) (дольше ⏳)",
-              encodeChooseVideoQualityAction(shortLink)
-            ),
-          ],
+          // [
+          //   Markup.button.callback(
+          //     "📺 Видео (mp4) (дольше ⏳)",
+          //     encodeChooseVideoQualityAction(shortLink)
+          //   ),
+          // ],
         ]).reply_markup,
       }
     );
