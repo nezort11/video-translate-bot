@@ -1,7 +1,7 @@
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
-// // @ts-expect-error no types
-import input from "input";
+// // // @ts-expect-error no types
+// import input from "input";
 import { API_ID, APP_HASH, SESSION } from "./env";
 
 const session = new StringSession(SESSION);
