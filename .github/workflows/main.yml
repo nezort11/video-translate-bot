@@ -1,9 +1,16 @@
-name: Build and Deploy to Yandex Cloud Serverless Containers
+name: Build and deploy bot backend to Yandex Cloud Serverless Containers
 
 on:
   push:
     branches:
       - master
+    # Ignore video translate frontend app changes
+    paths-ignore:
+      - "packages/video-translate-app/**"
+
+  pull_request:
+    paths-ignore:
+      - "packages/video-translate-app/**"
 
 jobs:
   deploy:
