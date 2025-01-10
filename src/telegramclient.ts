@@ -13,7 +13,7 @@ export const getClient = async () => {
   if (!(await telegramClient.isUserAuthorized())) {
     await telegramClient.start({
       // Set mock credentials and etc. (will produce exception instead of halting) in case session is expired
-      phoneNumber: "",
+      phoneNumber: async () => "",
       password: async () => "",
       phoneCode: async () => "",
       // phoneNumber: async () => await input.text("Please enter your number: "),
