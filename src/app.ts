@@ -5,7 +5,11 @@ import ytdl, { videoInfo } from "@distube/ytdl-core";
 import { Readable } from "stream";
 import { ytdlAgent } from "./services/ytdl";
 import { logger } from "./logger";
-import { VideoTranslateResponse, translateVideo } from "./services/vtrans";
+import {
+  TranslateInProgressException,
+  VideoTranslateResponse,
+  translateVideo,
+} from "./services/vtrans";
 import S3Localstorage from "s3-localstorage";
 import { YTDL_STORAGE_BUCKET } from "./env";
 
@@ -22,7 +26,7 @@ const importSerializeError = async () =>
 const importNanoid = async () =>
   await dynamicImport<typeof import("nanoid")>("nanoid");
 
-const handleExpressError = async (
+const handleInternalErrorExpress = async (
   error: unknown,
   res: Response<ErrorObject>
 ) => {
@@ -30,6 +34,7 @@ const handleExpressError = async (
 
   const { serializeError } = await importSerializeError();
   const serializedError = serializeError(error);
+  console.log("serialized error", serializeError);
   // https://docs.pynt.io/documentation/api-security-testing/pynt-security-tests-coverage/stack-trace-in-response
   delete serializedError.stack;
   res.status(500).json(serializedError);
@@ -98,7 +103,11 @@ app.post(
       const translateResult = await translateVideo(videoUrl);
       res.json(translateResult);
     } catch (error) {
-      await handleExpressError(error, res);
+      if (error instanceof TranslateInProgressException) {
+        res.status(202).json({ message: "Translation in progress..." });
+      } else {
+        await handleInternalErrorExpress(error, res);
+      }
     }
   }
 );
@@ -120,7 +129,7 @@ app.get(
       const videoInfo = await ytdl.getBasicInfo(videoUrl, { agent: ytdlAgent });
       res.json(videoInfo);
     } catch (error) {
-      await handleExpressError(error, res);
+      await handleInternalErrorExpress(error, res);
     }
   }
 );
@@ -177,7 +186,7 @@ app.post(
 
       res.json({ url: videoObjectUrl, byteLength: videoBuffer.byteLength });
     } catch (error) {
-      await handleExpressError(error, res);
+      await handleInternalErrorExpress(error, res);
     }
   }
 );
