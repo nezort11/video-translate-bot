@@ -12,10 +12,14 @@ export const telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
 export const getClient = async () => {
   if (!(await telegramClient.isUserAuthorized())) {
     await telegramClient.start({
-      phoneNumber: async () => await input.text("Please enter your number: "),
-      password: async () => await input.text("Please enter your password: "),
-      phoneCode: async () =>
-        await input.text("Please enter the code you received: "),
+      // Set mock credentials and etc. (will produce exception instead of halting) in case session is expired
+      phoneNumber: "",
+      password: async () => "",
+      phoneCode: async () => "",
+      // phoneNumber: async () => await input.text("Please enter your number: "),
+      // password: async () => await input.text("Please enter your password: "),
+      // phoneCode: async () =>
+      //   await input.text("Please enter the code you received: "),
       onError: (error) => console.error(error),
     });
   }
