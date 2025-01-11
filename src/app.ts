@@ -190,3 +190,18 @@ app.post(
     }
   }
 );
+
+app.post("/upload", async (req, res) => {
+  try {
+    const { nanoid } = await importNanoid();
+    const videoId = nanoid();
+    const videoKey = `${videoId}.mp4`;
+    const presignedVideoObjectUrl = await s3Localstorage.getItemLink(videoKey, {
+      expiresIn: 60 * 60,
+    });
+
+    res.json({ url: presignedVideoObjectUrl });
+  } catch (error) {
+    await handleInternalErrorExpress(error, res);
+  }
+});
