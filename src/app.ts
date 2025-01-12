@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import { Api } from "telegram";
 import type { ErrorObject } from "serialize-error";
 import cors from "cors";
 import ytdl, { videoInfo } from "@distube/ytdl-core";
@@ -11,7 +12,10 @@ import {
   translateVideo,
 } from "./services/vtrans";
 import S3Localstorage from "s3-localstorage";
-import { YTDL_STORAGE_BUCKET } from "./env";
+import { STORAGE_CHANNEL_CHAT_ID, YTDL_STORAGE_BUCKET } from "./env";
+import { getClient } from "./telegramclient";
+import { getVideoInfo, getVideoThumbnail } from "./core";
+import { bot } from "./botinstance";
 
 // https://github.com/TypeStrong/ts-node/discussions/1290
 const dynamicImport = new Function("specifier", "return import(specifier)") as <
@@ -64,6 +68,7 @@ export const app = express();
 // );
 
 app.use(cors());
+app.use(express.json());
 
 app.post("/debug/timeout", async (req, res) => {
   setInterval(() => {
@@ -82,6 +87,13 @@ type GetInfoParams = {
 type YtdlDownloadParams = {
   url: string;
   format: string;
+};
+
+type SendVideoBody = {
+  key: string;
+  link: string;
+  duration: number;
+  chatId: number | string;
 };
 
 app.post(
@@ -196,6 +208,7 @@ app.post("/upload", async (req, res) => {
     const { nanoid } = await importNanoid();
     const videoId = nanoid();
     const videoKey = `${videoId}.mp4`;
+    // https://docs.aws.amazon.com/AmazonS3/latest/API/s3_example_s3_Scenario_PresignedUrl_section.html
     const presignedVideoObjectUrl = await s3Localstorage.getItemLink(videoKey, {
       expiresIn: 60 * 60,
     });
@@ -205,3 +218,55 @@ app.post("/upload", async (req, res) => {
     await handleInternalErrorExpress(error, res);
   }
 });
+
+app.post(
+  "/send",
+  async (req: Request<{}, any | ErrorObject, SendVideoBody, null>, res) => {
+    try {
+      const { key, link, duration, chatId } = req.body;
+      const videoLink = link;
+      const videoDuration = duration;
+      const videoInfo = await getVideoInfo(link);
+      const videoTitle = videoInfo.title;
+      const originalArtist = videoInfo.artist;
+      const artist = originalArtist;
+      const videoThumbnailUrl = videoInfo.thumbnail;
+
+      let thumbnailBuffer: Buffer | undefined;
+      if (videoThumbnailUrl) {
+        thumbnailBuffer = await getVideoThumbnail(videoThumbnailUrl);
+      }
+
+      const outputBuffer: Buffer = await s3Localstorage.getItem(key, null);
+      outputBuffer.name = `${videoTitle}.mp4`;
+
+      const telegramClient = await getClient();
+      const fileMessage = await telegramClient.sendFile(
+        STORAGE_CHANNEL_CHAT_ID,
+        {
+          file: outputBuffer,
+          caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+          parseMode: "html",
+          thumb: thumbnailBuffer,
+          attributes: [
+            new Api.DocumentAttributeVideo({
+              w: 640,
+              h: 360,
+              duration: Math.floor(videoDuration),
+              supportsStreaming: true,
+            }),
+          ],
+        }
+      );
+      const fileMessageId = fileMessage.id;
+
+      await bot.telegram.copyMessage(
+        chatId,
+        STORAGE_CHANNEL_CHAT_ID,
+        fileMessageId
+      );
+    } catch (error) {
+      await handleInternalErrorExpress(error, res);
+    }
+  }
+);

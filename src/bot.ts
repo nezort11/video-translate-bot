@@ -22,7 +22,6 @@ import { inspect } from "util";
 import { Readable } from "stream";
 // import { TimeoutError } from "p-timeout";
 import _ from "lodash";
-import { getLinkPreview } from "link-preview-js";
 const { capitalize } = _;
 // @ts-ignore
 import { VideoTranslateResponse } from "../packages/video-translate-server/src/services/vtrans";
@@ -60,6 +59,13 @@ import {
   TranslateInProgressException,
   translateVideo,
 } from "./services/vtrans";
+import {
+  VideoPlatform,
+  getVideoInfo,
+  getVideoPlatform,
+  getYoutubeVideoId,
+  getVideoThumbnail,
+} from "./core";
 import { ytdlAgent } from "./services/ytdl";
 
 const getAudioDurationInSeconds: any = {};
@@ -75,12 +81,6 @@ const dynamicImport = new Function("specifier", "return import(specifier)") as <
 
 const importPTimeout = async () =>
   await dynamicImport<typeof import("p-timeout")>("p-timeout");
-
-enum VideoPlatform {
-  YouTube = "YOUTUBE",
-  Bilibili = "BILIBILI",
-  Other = "OTHER",
-}
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
 
@@ -110,13 +110,6 @@ type UploadResponse = {
   message_id: number;
 };
 
-const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
-const YOUTUBE_LINK_REGEX =
-  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/g;
-
-const BILIBILI_LINK_REGEX =
-  /(?:https?:\/\/)?(?:www\.)?bilibili\.com\/video\/(\S{13})/g;
-
 const ERROR_MESSAGE_IS_NOT_MODIFIED =
   "Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message";
 
@@ -128,19 +121,6 @@ const ERROR_MESSAGE_TO_EDIT_NOT_FOUND =
 
 const ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER =
   "403: Forbidden: bot was blocked by the user";
-
-const getVideoPlatform = (link: string) => {
-  // https://stackoverflow.com/a/10940138/13774599
-  // but https://stackoverflow.com/a/34034823/13774599
-  if (link.match(YOUTUBE_LINK_REGEX)) {
-    return VideoPlatform.YouTube;
-  }
-  // if (!link.match(BILIBILI_LINK_REGEX)) {
-  //   return VideoPlatform.Bilibili;
-  // }
-
-  return VideoPlatform.Other;
-};
 
 const getLinkTitle = async (link: string) => {
   try {
@@ -161,57 +141,8 @@ const getLinkTitle = async (link: string) => {
   }
 };
 
-const getVideoInfo = async (link: string) => {
-  const videoPlatform = getVideoPlatform(link);
-
-  if (videoPlatform === VideoPlatform.YouTube) {
-    // bypass error in production: UnrecoverableError: Sign in to confirm you’re not a bot
-    // const videoInfo = await ytdl.getBasicInfo(link, { agent: ytdlAgent });
-
-    const videoInfoResponse = await axios.get<ytdl.videoInfo>("/info", {
-      baseURL: YTDL_API_URL,
-      params: { url: link },
-    });
-    const videoInfo = videoInfoResponse.data;
-    return {
-      title: videoInfo.videoDetails.title,
-      artist: videoInfo.videoDetails.author.name,
-      duration: +videoInfo.videoDetails.lengthSeconds,
-      thumbnail: getYoutubeThumbnailLink(link),
-      formats: videoInfo.formats,
-    };
-  }
-
-  const linkPreview = await getLinkPreview(link, { followRedirects: "follow" });
-  const images = "images" in linkPreview ? linkPreview.images : [];
-  return {
-    title: "title" in linkPreview ? linkPreview.title : undefined,
-    thumbnail: images[0],
-  };
-};
-
-const getLinkMatch = (text: string) => {
-  // Youtube link is higher priority than regular link
-  let linkMatch = text.match(YOUTUBE_LINK_REGEX)?.[0]; // || text.match(LINK_REGEX)?.[0];
-  if (!linkMatch) {
-    return;
-  }
-  if (!linkMatch.startsWith("http")) {
-    return `https://${linkMatch}`;
-  }
-  return linkMatch;
-};
-
-const getYoutubeVideoId = (youtubeLink: string) =>
-  Array.from(youtubeLink.matchAll(YOUTUBE_LINK_REGEX))[0][6];
-
 const getShortYoutubeLink = (youtubeVideoId: string) =>
   `https://youtu.be/${youtubeVideoId}`;
-
-const getYoutubeThumbnailLink = (youtubeLink: string) => {
-  const youtubeVideoId = getYoutubeVideoId(youtubeLink);
-  return `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
-};
 
 const delay = (milliseconds: number) =>
   new Promise((resolve) => setTimeout((_) => resolve(undefined), milliseconds));
@@ -649,6 +580,10 @@ bot.command("test", async (context) => {
 
 const mockVideoLink = "https://www.youtube.com/watch?v=CcnwFJqEnxU";
 
+bot.command("chatid", async (context) => {
+  await context.reply(`Your chat id: ${context.chat.id}`);
+});
+
 bot.command("debug_vtrans", async (context) => {
   logger.info("Request translation...");
   let translationUrl: string; //| undefined;
@@ -922,42 +857,11 @@ bot.action(/.+/, async (context) => {
     //   }
     // }
 
-    const videoThumbnail = videoInfo.thumbnail;
+    const videoThumbnailUrl = videoInfo.thumbnail;
     let thumbnailBuffer: Buffer | undefined;
-    if (videoThumbnail) {
-      let thumbnailData: ArrayBuffer;
-      try {
-        logger.info("Requesting to translate video thumbnail...");
-        const thumbnailResponse = await axiosInstance.post<ArrayBuffer>(
-          IMAGE_TRANSLATE_URL,
-          {
-            imageLink: videoThumbnail,
-          },
-          {
-            responseType: "arraybuffer",
-          }
-        );
-        thumbnailData = thumbnailResponse.data;
-        logger.info(`Translated video thumbnail: ${thumbnailData.byteLength}`);
-      } catch (error) {
-        if (error instanceof AxiosError) {
-          logger.info("Downloading original video thumbnail...");
-          const thumbnailResponse = await axiosInstance.get<ArrayBuffer>(
-            videoThumbnail,
-            {
-              responseType: "arraybuffer",
-            }
-          );
-          thumbnailData = thumbnailResponse.data;
-        } else {
-          throw error;
-        }
-      }
-      thumbnailBuffer = Buffer.from(thumbnailData);
-      logger.info(`Thumbnail downloaded: ${thumbnailBuffer.length}`);
-      thumbnailBuffer.name = "mqdefault.jpg";
+    if (videoThumbnailUrl) {
+      thumbnailBuffer = await getVideoThumbnail(videoThumbnailUrl);
     }
-
     const originalArtist = videoInfo.artist;
     let artist = originalArtist;
     // if (artist) {

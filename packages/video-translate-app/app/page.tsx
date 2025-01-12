@@ -16,13 +16,105 @@ import logoImg from "./images/logo.jpg";
 import axios from "axios";
 // import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
-// import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useCallback, useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import {
+  isTMA,
+  mockTelegramEnv,
+  retrieveLaunchParams,
+} from "@telegram-apps/bridge";
+import {
+  init,
+  backButton,
+  initData,
+  useLaunchParams,
+} from "@telegram-apps/sdk-react";
+import { requestWriteAccess } from "@telegram-apps/sdk";
+
+mockTelegramEnv({
+  themeParams: {
+    accentTextColor: "#6ab2f2",
+    bgColor: "#17212b",
+    buttonColor: "#5288c1",
+    buttonTextColor: "#ffffff",
+    destructiveTextColor: "#ec3942",
+    headerBgColor: "#17212b",
+    hintColor: "#708499",
+    linkColor: "#6ab3f3",
+    secondaryBgColor: "#232e3c",
+    sectionBgColor: "#17212b",
+    sectionHeaderTextColor: "#6ab3f3",
+    subtitleTextColor: "#708499",
+    textColor: "#f5f5f5",
+  },
+  initData: {
+    user: {
+      id: 99281932,
+      firstName: "Andrew",
+      lastName: "Rogue",
+      username: "rogue",
+      languageCode: "en",
+      isPremium: true,
+      // allowsWriteToPm: true,
+      allowsWriteToPm: false,
+    },
+    hash: "89d6079ad6762351f38c6dbbc41bb53048019256a9443988af7a48bcad16ba31",
+    authDate: new Date(1716922846000),
+    signature: "abc",
+    startParam: "debug",
+    chatType: "sender",
+    chatInstance: "8428209589180549439",
+  },
+  initDataRaw: new URLSearchParams([
+    [
+      "user",
+      JSON.stringify({
+        id: 99281932,
+        first_name: "Andrew",
+        last_name: "Rogue",
+        username: "rogue",
+        language_code: "en",
+        is_premium: true,
+        // allows_write_to_pm: true,
+        allows_write_to_pm: false,
+      }),
+    ],
+    [
+      "hash",
+      "89d6079ad6762351f38c6dbbc41bb53048019256a9443988af7a48bcad16ba31",
+    ],
+    ["auth_date", "1716922846"],
+    ["start_param", "debug"],
+    ["signature", "abc"],
+    ["chat_type", "sender"],
+    ["chat_instance", "8428209589180549439"],
+  ]).toString(),
+  version: "7.2",
+  platform: "tdesktop",
+});
+
+(async () => {
+  // Dynamically add eruda
+  // if (process.env.NODE_ENV === "development") {
+  await import("./eruda");
+  // }
+
+  const isTma = await isTMA();
+  if (isTma) {
+    init();
+
+    const launchParams = retrieveLaunchParams();
+    console.log("launch params", launchParams);
+
+    backButton.mount();
+  }
+})();
+
+// downloadFile;
 
 const formSchema = z.object({
   link: z.string().url().min(2, {
@@ -61,6 +153,16 @@ const DOWNLOAD_API_URL = new URL(
   process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!
 ).href;
 
+const UPLOAD_API_URL = new URL(
+  "/upload",
+  process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!
+).href;
+
+const SEND_API_URL = new URL(
+  "/send",
+  process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!
+).href;
+
 export type VideoTranslateResponseData = {
   url: string;
   duration: number;
@@ -74,13 +176,20 @@ export type VideoDownloadResponseData = {
   length: number;
 };
 
+export type VideoUploadResponseData = {
+  url: string;
+};
+
 const translateVideo = async (videoLink: string) => {
-  const translatedAudioResponse =
-    await axios.post<VideoTranslateResponseData>(TRANSLATE_API_URL, null, {
+  const translatedAudioResponse = await axios.post<VideoTranslateResponseData>(
+    TRANSLATE_API_URL,
+    null,
+    {
       params: {
         url: videoLink,
       },
-    });
+    }
+  );
 
   return translatedAudioResponse;
 };
@@ -88,9 +197,7 @@ const translateVideo = async (videoLink: string) => {
 const TRANSLATE_PULLING_INTERVAL = 15 * 1000; // seconds;
 
 const delay = (milliseconds: number) =>
-  new Promise((resolve) =>
-    setTimeout(() => resolve(undefined), milliseconds)
-  );
+  new Promise((resolve) => setTimeout(() => resolve(undefined), milliseconds));
 
 const translateVideoAwait = async (
   videoLink: string
@@ -113,6 +220,7 @@ const VIDEO_TRANSLATE_ERROR =
 export default function Home() {
   // 1. Define your form.
   const { toast } = useToast();
+  const launchParams = useLaunchParams();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -138,21 +246,19 @@ export default function Home() {
       }
     );
     const translatedAudioBuffer = translatedAudioBufferResponse.data;
-    const translatedAudioBufferIntArray = new Uint8Array(
-      translatedAudioBuffer
-    );
-    console.log(
-      "translated audio length",
-      translatedAudioBuffer.byteLength
-    );
+    const translatedAudioBufferIntArray = new Uint8Array(translatedAudioBuffer);
+    console.log("translated audio length", translatedAudioBuffer.byteLength);
 
-    const videoBufferResponse =
-      await axios.post<VideoDownloadResponseData>(DOWNLOAD_API_URL, null, {
+    const videoBufferResponse = await axios.post<VideoDownloadResponseData>(
+      DOWNLOAD_API_URL,
+      null,
+      {
         params: {
           url: values.link,
           format: 18,
         },
-      });
+      }
+    );
     console.log("videoBufferResponse", videoBufferResponse);
 
     const videoResponse = await axios.get<ArrayBuffer>(
@@ -246,9 +352,47 @@ export default function Home() {
     const resultBlob = new Blob([resultFile], { type: "video/mp4" });
 
     // outputBuffer.name = `${videoTitle}.mp3`;
+    const isTma = await isTMA();
+    if (isTma) {
+      try {
+        await requestWriteAccess();
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    if (isTma && requestWriteAccess.isAvailable()) {
+      const videoStorageResponse = await axios.post<VideoUploadResponseData>(
+        UPLOAD_API_URL
+      );
+      const videoStorageUrl = videoStorageResponse.data.url;
+      await axios.put(videoStorageUrl, resultBlob, {
+        headers: {
+          "Content-Type": "video/mp4",
+          "Content-Length": resultBlob.size,
+        },
+      });
+
+      const videoStorageKey = new URL(videoStorageUrl).pathname.slice(1);
+
+      const tmaChatId = launchParams.initData!.user!.id;
+      await axios.post<VideoUploadResponseData>(SEND_API_URL, {
+        key: videoStorageKey,
+        link: values.link,
+        duration: translatedAudioResponse.duration,
+        chatId: tmaChatId,
+      });
+
+      toast({
+        title: "Переведенное видео было отправлено в чате с ботом",
+      });
+
+      console.log("result video storage url", videoStorageUrl);
+    } else {
+      setResultFileUrl(URL.createObjectURL(resultBlob));
+    }
 
     setTranslateProgress(undefined);
-    setResultFileUrl(URL.createObjectURL(resultBlob));
   };
 
   // 2. Define a submit handler.
@@ -267,6 +411,7 @@ export default function Home() {
         // title: "Uh oh! Something went wrong.",
         // description: "There was a problem with your request.",
       });
+      console.error("translate error", error);
       throw error;
     }
   };
@@ -343,10 +488,7 @@ export default function Home() {
           </h1>
         </div>
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4"
-          >
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="link"
@@ -376,9 +518,7 @@ export default function Home() {
               {/* Submit */}
               Перевести
             </Button>
-            <FormMessage>
-              {form.formState.errors.root?.message}
-            </FormMessage>
+            <FormMessage>{form.formState.errors.root?.message}</FormMessage>
           </form>
         </Form>
 
@@ -387,8 +527,8 @@ export default function Home() {
             <Progress value={translateProgress} className="mt-4" />
             <p className="text-center">{translateProgress}%</p>
             <p className="text-sm text-muted-foreground mt-2">
-              *скорость перевода зависит от длины видео, а также от
-              мощности Вашего девайса
+              *скорость перевода зависит от длины видео, а также от мощности
+              Вашего девайса
             </p>
           </div>
         )}
