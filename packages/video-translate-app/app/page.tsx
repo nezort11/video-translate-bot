@@ -1,4 +1,4 @@
-"use client";
+"use client"; // only skip SSR, left with SSG
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,77 +27,72 @@ import {
   mockTelegramEnv,
   retrieveLaunchParams,
 } from "@telegram-apps/bridge";
-import {
-  init,
-  backButton,
-  initData,
-  useLaunchParams,
-} from "@telegram-apps/sdk-react";
+import { init, backButton } from "@telegram-apps/sdk-react";
 import { requestWriteAccess } from "@telegram-apps/sdk";
 
-mockTelegramEnv({
-  themeParams: {
-    accentTextColor: "#6ab2f2",
-    bgColor: "#17212b",
-    buttonColor: "#5288c1",
-    buttonTextColor: "#ffffff",
-    destructiveTextColor: "#ec3942",
-    headerBgColor: "#17212b",
-    hintColor: "#708499",
-    linkColor: "#6ab3f3",
-    secondaryBgColor: "#232e3c",
-    sectionBgColor: "#17212b",
-    sectionHeaderTextColor: "#6ab3f3",
-    subtitleTextColor: "#708499",
-    textColor: "#f5f5f5",
-  },
-  initData: {
-    user: {
-      id: 99281932,
-      firstName: "Andrew",
-      lastName: "Rogue",
-      username: "rogue",
-      languageCode: "en",
-      isPremium: true,
-      // allowsWriteToPm: true,
-      allowsWriteToPm: false,
+const initialize = async () => {
+  mockTelegramEnv({
+    themeParams: {
+      accentTextColor: "#6ab2f2",
+      bgColor: "#17212b",
+      buttonColor: "#5288c1",
+      buttonTextColor: "#ffffff",
+      destructiveTextColor: "#ec3942",
+      headerBgColor: "#17212b",
+      hintColor: "#708499",
+      linkColor: "#6ab3f3",
+      secondaryBgColor: "#232e3c",
+      sectionBgColor: "#17212b",
+      sectionHeaderTextColor: "#6ab3f3",
+      subtitleTextColor: "#708499",
+      textColor: "#f5f5f5",
     },
-    hash: "89d6079ad6762351f38c6dbbc41bb53048019256a9443988af7a48bcad16ba31",
-    authDate: new Date(1716922846000),
-    signature: "abc",
-    startParam: "debug",
-    chatType: "sender",
-    chatInstance: "8428209589180549439",
-  },
-  initDataRaw: new URLSearchParams([
-    [
-      "user",
-      JSON.stringify({
-        id: 99281932,
-        first_name: "Andrew",
-        last_name: "Rogue",
+    initData: {
+      user: {
+        id: 776696185,
+        firstName: "Andrew",
+        lastName: "Rogue",
         username: "rogue",
-        language_code: "en",
-        is_premium: true,
-        // allows_write_to_pm: true,
-        allows_write_to_pm: false,
-      }),
-    ],
-    [
-      "hash",
-      "89d6079ad6762351f38c6dbbc41bb53048019256a9443988af7a48bcad16ba31",
-    ],
-    ["auth_date", "1716922846"],
-    ["start_param", "debug"],
-    ["signature", "abc"],
-    ["chat_type", "sender"],
-    ["chat_instance", "8428209589180549439"],
-  ]).toString(),
-  version: "7.2",
-  platform: "tdesktop",
-});
+        languageCode: "en",
+        isPremium: true,
+        // allowsWriteToPm: true,
+        allowsWriteToPm: true,
+      },
+      hash: "89d6079ad6762351f38c6dbbc41bb53048019256a9443988af7a48bcad16ba31",
+      authDate: new Date(1716922846000),
+      signature: "abc",
+      startParam: "debug",
+      chatType: "sender",
+      chatInstance: "8428209589180549439",
+    },
+    initDataRaw: new URLSearchParams([
+      [
+        "user",
+        JSON.stringify({
+          id: 776696185,
+          first_name: "Andrew",
+          last_name: "Rogue",
+          username: "rogue",
+          language_code: "en",
+          is_premium: true,
+          // allows_write_to_pm: true,
+          allows_write_to_pm: true,
+        }),
+      ],
+      [
+        "hash",
+        "89d6079ad6762351f38c6dbbc41bb53048019256a9443988af7a48bcad16ba31",
+      ],
+      ["auth_date", "1716922846"],
+      ["start_param", "debug"],
+      ["signature", "abc"],
+      ["chat_type", "sender"],
+      ["chat_instance", "8428209589180549439"],
+    ]).toString(),
+    version: "7.2",
+    platform: "tdesktop",
+  });
 
-(async () => {
   // Dynamically add eruda
   // if (process.env.NODE_ENV === "development") {
   await import("./eruda");
@@ -112,7 +107,11 @@ mockTelegramEnv({
 
     backButton.mount();
   }
-})();
+};
+
+if (typeof window !== "undefined") {
+  initialize();
+}
 
 // downloadFile;
 
@@ -220,7 +219,6 @@ const VIDEO_TRANSLATE_ERROR =
 export default function Home() {
   // 1. Define your form.
   const { toast } = useToast();
-  const launchParams = useLaunchParams();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -360,12 +358,21 @@ export default function Home() {
         console.warn(error);
       }
     }
+    console.log("is inside telegram mini app!");
 
-    if (isTma && requestWriteAccess.isAvailable()) {
+    const writeAccessAvailable = requestWriteAccess.isAvailable();
+    console.log("write access available: ", writeAccessAvailable);
+
+    if (
+      isTma
+      // && writeAccessAvailable
+    ) {
+      console.log("requesting upload url...");
       const videoStorageResponse = await axios.post<VideoUploadResponseData>(
         UPLOAD_API_URL
       );
       const videoStorageUrl = videoStorageResponse.data.url;
+      console.log("uploading translate result to the bucket...");
       await axios.put(videoStorageUrl, resultBlob, {
         headers: {
           "Content-Type": "video/mp4",
@@ -374,14 +381,18 @@ export default function Home() {
       });
 
       const videoStorageKey = new URL(videoStorageUrl).pathname.slice(1);
+      console.log("uploaded to storage", videoStorageKey);
 
+      const launchParams = retrieveLaunchParams();
       const tmaChatId = launchParams.initData!.user!.id;
+      console.log(`sending uploaded video result to ${tmaChatId} chat...`);
       await axios.post<VideoUploadResponseData>(SEND_API_URL, {
         key: videoStorageKey,
         link: values.link,
         duration: translatedAudioResponse.duration,
         chatId: tmaChatId,
       });
+      console.log("sent translate result video to the user");
 
       toast({
         title: "Переведенное видео было отправлено в чате с ботом",
