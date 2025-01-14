@@ -15,7 +15,7 @@ import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import http from "http";
 import https from "https";
 import { Api } from "telegram";
-import translate from "@iamtraction/google-translate";
+// import translate from "@iamtraction/google-translate";
 import * as Sentry from "@sentry/node";
 import moment from "moment";
 import { inspect } from "util";
@@ -52,7 +52,7 @@ import {
   telegramLoggerOutcomingMiddleware,
 } from "./telegramlogger";
 // import { botThrottler, translateThrottler } from "./throttler";
-import { escapeHtml } from "./utils";
+import { escapeHtml, importPTimeout } from "./utils";
 import { Update } from "telegraf/types";
 import {
   TranslateException,
@@ -65,22 +65,13 @@ import {
   getVideoPlatform,
   getYoutubeVideoId,
   getVideoThumbnail,
+  translateText,
 } from "./core";
 import { ytdlAgent } from "./services/ytdl";
 
 const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
 // const ytdl: any = {};
-
-// https://github.com/TypeStrong/ts-node/discussions/1290
-const dynamicImport = new Function("specifier", "return import(specifier)") as <
-  T
->(
-  module: string
-) => Promise<T>;
-
-const importPTimeout = async () =>
-  await dynamicImport<typeof import("p-timeout")>("p-timeout");
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
 
@@ -840,22 +831,15 @@ bot.action(/.+/, async (context) => {
     logger.info(`Downloaded translation: ${translateAudioBuffer.length}`);
 
     let videoTitle = videoInfo.title;
-    // if (videoTitle) {
-    //   try {
-    //     logger.info("Translating video title to russian...");
-    //     const { default: pTimeout } = await importPTimeout();
-    //     const translateResponse = await pTimeout(
-    //       translate(videoTitle, {
-    //         to: "ru",
-    //       }),
-    //       { milliseconds: 10 * 1000 }
-    //     );
-    //     videoTitle = translateResponse.text;
-    //     logger.info(`Translated video title to russian: ${videoTitle}`);
-    //   } catch (error) {
-    //     logger.warn("Unable to translate video title:", error);
-    //   }
-    // }
+    if (videoTitle) {
+      try {
+        logger.info("Translating video title to russian...");
+        videoTitle = await translateText(videoTitle, "ru");
+        logger.info(`Translated video title to russian: ${videoTitle}`);
+      } catch (error) {
+        logger.warn("Unable to translate video title:", error);
+      }
+    }
 
     const videoThumbnailUrl = videoInfo.thumbnail;
     let thumbnailBuffer: Buffer | undefined;
@@ -864,17 +848,18 @@ bot.action(/.+/, async (context) => {
     }
     const originalArtist = videoInfo.artist;
     let artist = originalArtist;
-    // if (artist) {
-    //   try {
-    //     const translateResponse = await translate(artist, {
-    //       to: "ru",
-    //     });
-    //     artist = translateResponse.text;
-    //     artist = artist.split(" ").map(capitalize).join(" ");
-    //   } catch (error) {
-    //     logger.warn("Unable to translate video artist:", error);
-    //   }
-    // }
+    if (artist) {
+      try {
+        // const translateResponse = await translate(artist, {
+        //   to: "ru",
+        // });
+        // artist = translateResponse.text;
+        artist = await translateText(artist, "ru");
+        artist = artist.split(" ").map(capitalize).join(" ");
+      } catch (error) {
+        logger.warn("Unable to translate video artist:", error);
+      }
+    }
 
     logger.info(`Author name: ${artist}`);
 

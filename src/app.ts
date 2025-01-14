@@ -14,7 +14,7 @@ import {
 import S3Localstorage from "s3-localstorage";
 import { STORAGE_CHANNEL_CHAT_ID, YTDL_STORAGE_BUCKET } from "./env";
 import { getClient } from "./telegramclient";
-import { getVideoInfo, getVideoThumbnail } from "./core";
+import { getVideoInfo, getVideoThumbnail, translateText } from "./core";
 import { bot } from "./botinstance";
 
 // https://github.com/TypeStrong/ts-node/discussions/1290
@@ -227,9 +227,26 @@ app.post(
       const videoLink = link;
       const videoDuration = duration;
       const videoInfo = await getVideoInfo(link);
-      const videoTitle = videoInfo.title;
+      let videoTitle = videoInfo.title;
+      if (videoTitle) {
+        try {
+          console.log("Translating video title...");
+          videoTitle = await translateText(videoTitle, "ru");
+        } catch (error) {
+          console.warn("Error during title translation", error);
+        }
+      }
+
       const originalArtist = videoInfo.artist;
-      const artist = originalArtist;
+      let artist = originalArtist;
+      if (artist) {
+        try {
+          console.log("Translating video artist...");
+          artist = await translateText(artist, "ru");
+        } catch (error) {
+          console.warn("Error during artist translation", error);
+        }
+      }
       const videoThumbnailUrl = videoInfo.thumbnail;
 
       let thumbnailBuffer: Buffer | undefined;

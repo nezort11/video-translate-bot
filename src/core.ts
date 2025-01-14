@@ -4,6 +4,8 @@ import { IMAGE_TRANSLATE_URL } from "./env";
 import ytdl from "@distube/ytdl-core";
 import { ytdlAgent } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
+import { importPTimeout } from "./utils";
+import { translate } from "./services/translate";
 
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
@@ -115,4 +117,15 @@ export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
   thumbnailBuffer.name = "mqdefault.jpg";
 
   return thumbnailBuffer;
+};
+
+export const translateText = async (
+  text: string,
+  targetLanguageCode: string
+) => {
+  const { default: pTimeout } = await importPTimeout();
+  const translateData = await pTimeout(translate([text], targetLanguageCode), {
+    milliseconds: 10 * 1000,
+  });
+  return translateData.translations[0].text;
 };
