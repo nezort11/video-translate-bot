@@ -7,6 +7,7 @@ import { Readable } from "stream";
 import { ytdlAgent } from "./services/ytdl";
 import { logger } from "./logger";
 import {
+  TranslateException,
   TranslateInProgressException,
   VideoTranslateResponse,
   translateVideo,
@@ -30,17 +31,21 @@ const importSerializeError = async () =>
 const importNanoid = async () =>
   await dynamicImport<typeof import("nanoid")>("nanoid");
 
-const handleInternalErrorExpress = async (
-  error: unknown,
-  res: Response<ErrorObject>
-) => {
-  console.error(error);
-
+const serializeError = async (error: unknown) => {
   const { serializeError } = await importSerializeError();
   const serializedError = serializeError(error);
   console.log("serialized error", serializeError);
   // https://docs.pynt.io/documentation/api-security-testing/pynt-security-tests-coverage/stack-trace-in-response
   delete serializedError.stack;
+  return serializedError;
+};
+
+const handleInternalErrorExpress = async (
+  error: unknown,
+  res: Response<ErrorObject>
+) => {
+  console.error(error);
+  const serializedError = await serializeError(error);
   res.status(500).json(serializedError);
 };
 
@@ -117,6 +122,9 @@ app.post(
     } catch (error) {
       if (error instanceof TranslateInProgressException) {
         res.status(202).json({ message: "Translation in progress..." });
+      } else if (error instanceof TranslateException) {
+        const serializedTranslateError = await serializeError(error);
+        res.status(400).json(serializedTranslateError);
       } else {
         await handleInternalErrorExpress(error, res);
       }
