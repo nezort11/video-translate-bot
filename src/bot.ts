@@ -900,7 +900,9 @@ bot.action(/.+/, async (context) => {
         STORAGE_CHANNEL_CHAT_ID,
         {
           file: outputBuffer,
-          caption: `${videoLink}`,
+          // caption: `${videoLink}`,
+          caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+          parseMode: "html",
           thumb: thumbnailBuffer,
 
           attributes: [
@@ -1043,7 +1045,9 @@ bot.action(/.+/, async (context) => {
           STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
-            caption: `${videoLink}`,
+            // caption: `${videoLink}`,
+            caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+            parseMode: "html",
             thumb: thumbnailBuffer,
 
             attributes: [
