@@ -28,7 +28,7 @@ import {
   retrieveLaunchParams,
 } from "@telegram-apps/bridge";
 import { init, backButton } from "@telegram-apps/sdk-react";
-import { requestWriteAccess } from "@telegram-apps/sdk";
+import { openTelegramLink, requestWriteAccess } from "@telegram-apps/sdk";
 
 const initialize = async () => {
   mockTelegramEnv({
@@ -115,10 +115,20 @@ if (typeof window !== "undefined") {
 
 // downloadFile;
 
+const YOUTUBE_LINK_REGEX =
+  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/g;
+
 const formSchema = z.object({
-  link: z.string().url().min(2, {
-    message: "Link must be at least 2 characters.",
-  }),
+  link: z
+    .string()
+    .url()
+    .regex(
+      YOUTUBE_LINK_REGEX,
+      "На данный момент полноценный перевод видео поддерживается только для YouTube"
+    )
+    .min(2, {
+      message: "Link must be at least 2 characters.",
+    }),
 });
 
 // export function ProfileForm() {
@@ -225,15 +235,32 @@ export default function Home() {
       link: "",
     },
   });
+  // 0% - indeterminate progress bar, other% - determinate
   const [translateProgress, setTranslateProgress] = useState<
     number | undefined
   >();
   const [resultFileUrl, setResultFileUrl] = useState<string | undefined>();
 
   const translateVideo = async (values: z.infer<typeof formSchema>) => {
-    setTranslateProgress(0);
-
-    const translatedAudioResponse = await translateVideoAwait(values.link);
+    let translatedAudioResponse;
+    try {
+      translatedAudioResponse = await translateVideoAwait(values.link);
+    } catch (error) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response &&
+        error.response.status >= 400 &&
+        error.response.status <= 499
+      ) {
+        form.setError("link", {
+          message:
+            "Не получается перевести данное видео, попробуйте в будущем или переведите другое видео",
+        });
+        return;
+      } else {
+        throw error;
+      }
+    }
     console.log(translatedAudioResponse);
     const translatedAudioUrl = translatedAudioResponse.url;
 
@@ -247,6 +274,7 @@ export default function Home() {
     const translatedAudioBufferIntArray = new Uint8Array(translatedAudioBuffer);
     console.log("translated audio length", translatedAudioBuffer.byteLength);
 
+    console.log("Requesting video download...");
     const videoBufferResponse = await axios.post<VideoDownloadResponseData>(
       DOWNLOAD_API_URL,
       null,
@@ -259,6 +287,7 @@ export default function Home() {
     );
     console.log("videoBufferResponse", videoBufferResponse);
 
+    console.log("Downloading video...");
     const videoResponse = await axios.get<ArrayBuffer>(
       videoBufferResponse.data.url,
       {
@@ -349,6 +378,8 @@ export default function Home() {
 
     const resultBlob = new Blob([resultFile], { type: "video/mp4" });
 
+    setTranslateProgress(0);
+
     // outputBuffer.name = `${videoTitle}.mp3`;
     const isTma = await isTMA();
     if (isTma) {
@@ -393,28 +424,28 @@ export default function Home() {
         chatId: tmaChatId,
       });
       console.log("sent translate result video to the user");
+      console.log("result video storage url", videoStorageUrl);
 
       toast({
         title: "Переведенное видео было отправлено в чате с ботом",
       });
 
-      console.log("result video storage url", videoStorageUrl);
+      if (openTelegramLink.isAvailable()) {
+        openTelegramLink("https://t.me/vidtransbot");
+      }
     } else {
       setResultFileUrl(URL.createObjectURL(resultBlob));
     }
-
-    setTranslateProgress(undefined);
   };
 
   // 2. Define a submit handler.
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setTranslateProgress(undefined);
+    setTranslateProgress(0);
     setResultFileUrl(undefined);
     try {
       await translateVideo(values);
     } catch (error) {
       form.setError("root", { message: VIDEO_TRANSLATE_ERROR });
-      setTranslateProgress(undefined);
       setResultFileUrl(undefined);
       toast({
         title: "Оу упс! Что-то пошло не так.",
@@ -424,6 +455,8 @@ export default function Home() {
       });
       console.error("translate error", error);
       throw error;
+    } finally {
+      setTranslateProgress(undefined);
     }
   };
 
@@ -517,6 +550,9 @@ export default function Home() {
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage>
+                    {form.formState.errors.link?.message}
+                  </FormMessage>
                   <FormDescription>
                     {/* The URL of the video you want to translate */}
                     URL ссылка на видео, которое Вы хотите перевести
@@ -535,8 +571,14 @@ export default function Home() {
 
         {translateProgress !== undefined && translateProgress < 100 && (
           <div>
-            <Progress value={translateProgress} className="mt-4" />
-            <p className="text-center">{translateProgress}%</p>
+            <Progress
+              indeterminate={translateProgress === 0}
+              value={translateProgress}
+              className="mt-4"
+            />
+            <p className="text-center">
+              {translateProgress ? `${translateProgress}%` : " "}
+            </p>
             <p className="text-sm text-muted-foreground mt-2">
               *скорость перевода зависит от длины видео, а также от мощности
               Вашего девайса
