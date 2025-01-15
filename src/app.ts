@@ -290,6 +290,8 @@ app.post(
         STORAGE_CHANNEL_CHAT_ID,
         fileMessageId
       );
+
+      res.status(200).send();
     } catch (error) {
       await handleInternalErrorExpress(error, res);
     }
