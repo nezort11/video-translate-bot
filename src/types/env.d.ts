@@ -13,7 +13,8 @@ declare global {
       STORAGE_BUCKET: string;
       YTDL_STORAGE_BUCKET: string;
 
-      YC_IAM_TOKEN: string;
+      // YC_IAM_TOKEN: string;
+      YC_API_KEY: string;
       YC_FOLDER_ID: string;
 
       VIDEO_TRANSLATE_API_URL: string;

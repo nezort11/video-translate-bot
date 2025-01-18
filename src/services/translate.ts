@@ -1,5 +1,5 @@
 import axios from "axios";
-import { YC_IAM_TOKEN, YC_FOLDER_ID } from "../env";
+import { YC_API_KEY, YC_FOLDER_ID } from "../env";
 
 const TRANSLATE_API_URL =
   "https://translate.api.cloud.yandex.net/translate/v2/translate";
@@ -26,7 +26,7 @@ export const translate = async (
     },
     {
       headers: {
-        Authorization: `Bearer ${YC_IAM_TOKEN}`,
+        Authorization: `Api-Key ${YC_API_KEY}`,
       },
     }
   );

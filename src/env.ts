@@ -19,7 +19,8 @@ export const EXECUTION_TIMEOUT = +process.env.EXECUTION_TIMEOUT;
 
 export const APP_ENV = process.env.APP_ENV;
 
-export const YC_IAM_TOKEN = process.env.YC_IAM_TOKEN;
+// export const YC_IAM_TOKEN = process.env.YC_IAM_TOKEN;
+export const YC_API_KEY = process.env.YC_API_KEY;
 export const YC_FOLDER_ID = process.env.YC_FOLDER_ID;
 
 // Dynamically loaded env variables
