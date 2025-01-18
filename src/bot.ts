@@ -45,6 +45,7 @@ import {
   STORAGE_BUCKET,
   VIDEO_TRANSLATE_API_URL,
   YTDL_API_URL,
+  VIDEO_TRANSLATE_APP_URL,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -628,6 +629,9 @@ bot.on(message("text"), async (context) => {
   if (videoPlatform === VideoPlatform.YouTube) {
     const videoId = getYoutubeVideoId(link);
     const shortLink = getShortYoutubeLink(videoId);
+    const videoTranslateApp = new URL(VIDEO_TRANSLATE_APP_URL);
+    videoTranslateApp.searchParams.set("url", shortLink);
+
     await context.replyWithMarkdownV2(
       `⚙️ Каким образом перевести [это](${shortLink}) видео?`,
       {
@@ -654,6 +658,7 @@ bot.on(message("text"), async (context) => {
               )
             ),
           ],
+          [Markup.button.webApp("📺 Видео (mp4)", videoTranslateApp.href)],
           // [
           //   Markup.button.callback(
           //     "📺 Видео (mp4) (дольше ⏳)",

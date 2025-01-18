@@ -17,6 +17,8 @@ declare global {
       YC_API_KEY: string;
       YC_FOLDER_ID: string;
 
+      VIDEO_TRANSLATE_APP_URL: string;
+
       VIDEO_TRANSLATE_API_URL: string;
       YTDL_API_URL: string;
 

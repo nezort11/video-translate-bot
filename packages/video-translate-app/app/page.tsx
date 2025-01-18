@@ -29,6 +29,7 @@ import {
 } from "@telegram-apps/bridge";
 import { init, backButton } from "@telegram-apps/sdk-react";
 import { openTelegramLink, requestWriteAccess } from "@telegram-apps/sdk";
+import { useSearchParams } from "next/navigation";
 
 const initialize = async () => {
   mockTelegramEnv({
@@ -227,12 +228,12 @@ const VIDEO_TRANSLATE_ERROR =
   "Проблема при попытке переводе видео. Попробуй еще раз или немного позже";
 
 export default function Home() {
-  // 1. Define your form.
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      link: "",
+      link: decodeURIComponent(searchParams.get("url") ?? ""),
     },
   });
   // 0% - indeterminate progress bar, other% - determinate

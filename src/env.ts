@@ -32,6 +32,8 @@ export const NOTIFICATION_USER_ID = process.env.NOTIFICATION_USER_ID!;
 export const STORAGE_BUCKET = process.env.STORAGE_BUCKET;
 export const YTDL_STORAGE_BUCKET = process.env.YTDL_STORAGE_BUCKET;
 
+export const VIDEO_TRANSLATE_APP_URL = process.env.VIDEO_TRANSLATE_APP_URL;
+
 export const VIDEO_TRANSLATE_API_URL = process.env.VIDEO_TRANSLATE_API_URL;
 export const YTDL_API_URL = process.env.YTDL_API_URL;
 
