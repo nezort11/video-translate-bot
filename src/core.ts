@@ -41,9 +41,9 @@ const getYoutubeThumbnailLink = (youtubeLink: string) => {
   return `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
 };
 
-const getLinkMatch = (text: string) => {
+export const getLinkMatch = (text: string) => {
   // Youtube link is higher priority than regular link
-  let linkMatch = text.match(YOUTUBE_LINK_REGEX)?.[0]; // || text.match(LINK_REGEX)?.[0];
+  let linkMatch = text.match(LINK_REGEX)?.[0]; // || text.match(LINK_REGEX)?.[0];
   if (!linkMatch) {
     return;
   }
@@ -51,6 +51,16 @@ const getLinkMatch = (text: string) => {
     return `https://${linkMatch}`;
   }
   return linkMatch;
+};
+
+//  use getLinkMatch if string contains link inside
+export const isValidUrl = (string) => {
+  try {
+    new URL(string);
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const getVideoInfo = async (link: string) => {

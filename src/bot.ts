@@ -67,8 +67,11 @@ import {
   getYoutubeVideoId,
   getVideoThumbnail,
   translateText,
+  isValidUrl,
+  getLinkMatch,
 } from "./core";
 import { ytdlAgent } from "./services/ytdl";
+import { translate } from "./services/translate";
 
 const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
@@ -135,6 +138,21 @@ const getLinkTitle = async (link: string) => {
 
 const getShortYoutubeLink = (youtubeVideoId: string) =>
   `https://youtu.be/${youtubeVideoId}`;
+
+const buildGoogleSearchVideosUrl = (query: string) => {
+  const googleUrl = new URL("https://www.google.com/search");
+  googleUrl.searchParams.set("q", query);
+  googleUrl.searchParams.set("safe", "off");
+  googleUrl.searchParams.set("hl", "en");
+  googleUrl.searchParams.set("udm", "7"); // "Videos" section
+  return googleUrl.href;
+};
+
+const buildYoutubeSearchUrl = (query: string) => {
+  const youtubeSearchUrl = new URL("https://www.youtube.com/results");
+  youtubeSearchUrl.searchParams.set("search_query", query);
+  return youtubeSearchUrl.href;
+};
 
 const delay = (milliseconds: number) =>
   new Promise((resolve) => setTimeout((_) => resolve(undefined), milliseconds));
@@ -301,6 +319,14 @@ const s3Session = new S3Session(STORAGE_BUCKET);
 bot.use(s3Session);
 // bot.use(Telegraf.log());
 
+const replyError = (
+  context: Context,
+  ...replyArgs: Parameters<typeof Context.prototype.reply>
+) => {
+  replyArgs[0] = `⚠️  ${replyArgs[0]}`;
+  return context.reply(...replyArgs);
+};
+
 const handleError = async (error: unknown, context: Context) => {
   if (typeof error === "object" && error !== null) {
     if (
@@ -437,6 +463,10 @@ bot.start(async (context) => {
     // Перевожу не только с английского, но и с многих других языков"
     { disable_notification: true }
   );
+});
+
+bot.command("search", async (context) => {
+  // await context.reply
 });
 
 bot.command("test", async (context) => {
@@ -622,8 +652,37 @@ bot.on(message("text"), async (context) => {
     `Incoming translate request: ${inspect(context.update, { depth: null })}`
   );
 
-  const link = context.message.text;
+  const text = context.message.text;
+  const linkMatch = getLinkMatch(text);
+  const textContainsLink = !!linkMatch;
+  if (!textContainsLink) {
+    if (text.length > 100) {
+      return await replyError(
+        context,
+        "Запрос слишком длинный, пожалуйста сделайте короче"
+      );
+    }
 
+    const translatedTextResult = await translate([text], "en");
+    const translatedText = translatedTextResult.translations[0].text;
+
+    const googleSearchYoutubeVideosUrl = buildGoogleSearchVideosUrl(
+      `${translatedText} site:youtube.com`
+    );
+    const youtubeSearchUrl = buildYoutubeSearchUrl(translatedText);
+
+    await context.replyWithMarkdown(
+      `🔍 Выполни поиск по запросу "\`${translatedText}\`" (${text}).\n*Для перевода, пожалуйста, скопируйте и пришлите 🔗 ссылку на необходимое видео`,
+      Markup.inlineKeyboard([
+        Markup.button.url("🔍 Google", googleSearchYoutubeVideosUrl),
+        Markup.button.url("📺 YouTube", youtubeSearchUrl),
+      ])
+    );
+
+    return;
+  }
+
+  const link = text;
   const videoPlatform = getVideoPlatform(link);
   logger.log("Video platform:", videoPlatform);
   if (videoPlatform === VideoPlatform.YouTube) {
