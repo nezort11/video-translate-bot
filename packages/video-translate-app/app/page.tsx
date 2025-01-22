@@ -249,7 +249,7 @@ export default function Home() {
   >();
   const [resultFileUrl, setResultFileUrl] = useState<string | undefined>();
   const [translationCompleted, setTranslationCompleted] =
-    useState<boolean>(true);
+    useState<boolean>(false);
 
   const translateVideo = async (values: z.infer<typeof formSchema>) => {
     setTranslateProgress("Перевод аудио речи...");
