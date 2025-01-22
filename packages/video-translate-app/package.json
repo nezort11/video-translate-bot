@@ -13,6 +13,7 @@
     "@ffmpeg/core": "0.12.10",
     "@ffmpeg/ffmpeg": "0.12.15",
     "@hookform/resolvers": "^3.10.0",
+    "@radix-ui/react-dialog": "^1.1.4",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-progress": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.1",

@@ -3,6 +3,13 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -238,11 +245,14 @@ export default function Home() {
   });
   // 0% - indeterminate progress bar, other% - determinate
   const [translateProgress, setTranslateProgress] = useState<
-    number | undefined
+    undefined | string | number
   >();
   const [resultFileUrl, setResultFileUrl] = useState<string | undefined>();
+  const [translationCompleted, setTranslationCompleted] =
+    useState<boolean>(true);
 
   const translateVideo = async (values: z.infer<typeof formSchema>) => {
+    setTranslateProgress("Перевод аудио речи...");
     let translatedAudioResponse;
     try {
       translatedAudioResponse = await translateVideoAwait(values.link);
@@ -276,6 +286,7 @@ export default function Home() {
     console.log("translated audio length", translatedAudioBuffer.byteLength);
 
     console.log("Requesting video download...");
+    setTranslateProgress("Скачивание видео потока...");
     const videoBufferResponse = await axios.post<VideoDownloadResponseData>(
       DOWNLOAD_API_URL,
       null,
@@ -299,6 +310,7 @@ export default function Home() {
     const videoIntArray = new Uint8Array(videoBuffer);
     console.log("video buffer length", videoBuffer.byteLength);
 
+    setTranslateProgress("Скачивание необходимых инструментов...");
     const ffmpeg = new FFmpeg();
     // let ffmpegProgress = 0;
     // if (!ffmpeg.isLoaded()) {
@@ -400,6 +412,7 @@ export default function Home() {
       // && writeAccessAvailable
     ) {
       console.log("requesting upload url...");
+      setTranslateProgress("Отправка переведенного видео...");
       const videoStorageResponse = await axios.post<VideoUploadResponseData>(
         UPLOAD_API_URL
       );
@@ -427,9 +440,10 @@ export default function Home() {
       console.log("sent translate result video to the user");
       console.log("result video storage url", videoStorageUrl);
 
-      toast({
-        title: "Переведенное видео было отправлено в чате с ботом",
-      });
+      setTranslationCompleted(true);
+      // toast({
+      //   title: "Переведенное видео было отправлено в чат с ботом",
+      // });
 
       if (openTelegramLink.isAvailable()) {
         openTelegramLink("https://t.me/vidtransbot");
@@ -441,10 +455,10 @@ export default function Home() {
 
   // 2. Define a submit handler.
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setTranslateProgress(0);
     setResultFileUrl(undefined);
     try {
       await translateVideo(values);
+      form.reset();
     } catch (error) {
       form.setError("root", { message: VIDEO_TRANSLATE_ERROR });
       setResultFileUrl(undefined);
@@ -506,7 +520,7 @@ export default function Home() {
                   </FormMessage>
                   <FormDescription>
                     {/* The URL of the video you want to translate */}
-                    URL ссылка на видео, которое Вы хотите перевести
+                    URL ссылка на видео, которое нужно перевести
                   </FormDescription>
                   {/* <FormMessage>{field.}</FormMessage> */}
                 </FormItem>
@@ -520,22 +534,46 @@ export default function Home() {
           </form>
         </Form>
 
-        {translateProgress !== undefined && translateProgress < 100 && (
+        {translateProgress !== undefined && translateProgress !== 100 && (
           <div>
             <Progress
-              indeterminate={translateProgress === 0}
-              value={translateProgress}
+              indeterminate={typeof translateProgress !== "number"}
+              value={
+                typeof translateProgress === "number"
+                  ? translateProgress
+                  : undefined
+              }
               className="mt-4"
             />
             <p className="text-center">
-              {translateProgress ? `${translateProgress}%` : " "}
+              {typeof translateProgress === "number"
+                ? `${translateProgress}%`
+                : translateProgress}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               *скорость перевода зависит от длины видео, а также от мощности
               Вашего девайса
+              <br />
+              *рекомендуется не переключаться с этого экрана, чтобы перевод не
+              остановился
             </p>
           </div>
         )}
+
+        <Dialog
+          open={translationCompleted}
+          onOpenChange={setTranslationCompleted}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>✅ Перевод завершен</DialogTitle>
+              <DialogDescription>
+                Переведенное видео было отправленно в чат с ботом, можете
+                закрывать данное приложения
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
 
         {/* {outputFileUrl && (
           <audio controls>
