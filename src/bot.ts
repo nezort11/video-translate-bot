@@ -671,8 +671,8 @@ bot.on(message("text"), async (context) => {
     );
     const youtubeSearchUrl = buildYoutubeSearchUrl(translatedText);
 
-    await context.replyWithMarkdown(
-      `🔍 Выполни поиск по запросу "\`${translatedText}\`" (${text}).\n*Для перевода, пожалуйста, скопируйте и пришлите 🔗 ссылку на необходимое видео`,
+    await context.reply(
+      `🔍 Выполни поиск по запросу ${translatedText} (${text}).\n*Для перевода, пожалуйста, скопируйте и пришлите 🔗 ссылку на необходимое видео`,
       Markup.inlineKeyboard([
         Markup.button.url("🔍 Google", googleSearchYoutubeVideosUrl),
         Markup.button.url("📺 YouTube", youtubeSearchUrl),
