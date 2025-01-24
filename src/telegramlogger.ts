@@ -59,9 +59,16 @@ export const telegramLoggerIncomingMiddleware: Middleware<Context> = async (
   if (!ctx.callbackQuery) {
     (async () => {
       try {
-        await ctx.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+        // dont forward user videos for privacy reasons
+        if ("video" in ctx.message) {
+          await ctx.telegram.sendMessage("[[video]]");
+        } else if ("video_note" in ctx.message) {
+          await ctx.telegram.sendMessage("[[video_note]]");
+        } else {
+          await ctx.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+        }
       } catch (error) {
-        logger.warn(error);
+        logger.warn(`Forward logger error: ${error}`);
       }
     })();
   }
