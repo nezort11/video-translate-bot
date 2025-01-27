@@ -1,0 +1,18 @@
+diff --git a/dist/esm/index.d.ts b/dist/esm/index.d.ts
+index 4c8e184afaa259beb08df0a6d0b4f5be58c86b50..a83bbd5affa46662c2eece298747950149292fd4 100644
+--- a/dist/esm/index.d.ts
++++ b/dist/esm/index.d.ts
+@@ -1,2 +1,4 @@
+ export * from "./classes.js";
+ export * from "./types.js";
++export * from "./const.js";
++export * from "./errors.js";
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 4c8e184afaa259beb08df0a6d0b4f5be58c86b50..a83bbd5affa46662c2eece298747950149292fd4 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -1,2 +1,4 @@
+ export * from "./classes.js";
+ export * from "./types.js";
++export * from "./const.js";
++export * from "./errors.js";

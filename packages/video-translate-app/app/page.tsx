@@ -242,7 +242,7 @@ const translateVideoAwait = async (
   return translatedAudioResponse.data;
 };
 
-export class VideoTranslateError extends Error {
+
   public constructor(...args: Parameters<typeof Error>) {
     super(...args);
     this.name = this.constructor.name;
@@ -326,7 +326,7 @@ export default function Home() {
     const videoIntArray = new Uint8Array(videoBuffer);
     console.log("video buffer length", videoBuffer.byteLength);
 
-    setTranslateProgress("Скачивание необходимых инструментов...");
+    setTranslateProgress("Установка необходимых инструментов...");
     const ffmpeg = new FFmpeg();
     // let ffmpegProgress = 0;
     // if (!ffmpeg.isLoaded()) {

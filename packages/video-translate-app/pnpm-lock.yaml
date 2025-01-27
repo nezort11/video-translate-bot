@@ -1,5 +1,10 @@
 lockfileVersion: '6.0'
 
+patchedDependencies:
+  '@ffmpeg/ffmpeg@0.12.15':
+    hash: 25pz63perxdmp632uc4ue6hora
+    path: patches/@ffmpeg__ffmpeg@0.12.15.patch
+
 dependencies:
   '@ffmpeg/core':
     specifier: ^0.12.10
@@ -9,7 +14,7 @@ dependencies:
     version: 0.12.9
   '@ffmpeg/ffmpeg':
     specifier: 0.12.15
-    version: 0.12.15
+    version: 0.12.15(patch_hash=25pz63perxdmp632uc4ue6hora)
   '@ffmpeg/util':
     specifier: ^0.12.2
     version: 0.12.2
@@ -160,12 +165,13 @@ packages:
     engines: {node: '>=16.x'}
     dev: false
 
-  /@ffmpeg/ffmpeg@0.12.15:
+  /@ffmpeg/ffmpeg@0.12.15(patch_hash=25pz63perxdmp632uc4ue6hora):
     resolution: {integrity: sha512-1C8Obr4GsN3xw+/1Ww6PFM84wSQAGsdoTuTWPOj2OizsRDLT4CXTaVjPhkw6ARyDus1B9X/L2LiXHqYYsGnRFw==}
     engines: {node: '>=18.x'}
     dependencies:
       '@ffmpeg/types': 0.12.4
     dev: false
+    patched: true
 
   /@ffmpeg/types@0.12.4:
     resolution: {integrity: sha512-k9vJQNBGTxE5AhYDtOYR5rO5fKsspbg51gbcwtbkw2lCdoIILzklulcjJfIDwrtn7XhDeF2M+THwJ2FGrLeV6A==}
