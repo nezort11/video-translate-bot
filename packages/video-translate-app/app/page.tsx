@@ -358,6 +358,7 @@ export default function Home() {
 
     const resultFilePath = "video.mp4";
 
+    setTranslateProgress("Обработка видео...");
     console.log("Executing ffmpeg command...");
     // prettier-ignore
     // await ffmpeg.run(
@@ -552,10 +553,10 @@ export default function Home() {
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               *скорость перевода зависит от длины видео, а также от мощности
-              Вашего девайса
+              твоего девайса
               <br />
-              *рекомендуется не переключаться с этого экрана, чтобы перевод не
-              остановился
+              *рекомендуется не прятать этот экран, чтобы перевод не приостановился
+              (iOS/Android)
             </p>
           </div>
         )}

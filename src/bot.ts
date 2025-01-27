@@ -373,10 +373,13 @@ const handleTranslateInProgress = async (
   progress: number
 ) => {
   try {
+    // await context.editMessageText(
+    //   `⏳ Видео в процессе перевода, обработка может занять до нескольких часов... (прогресс ${Math.floor(
+    //     progress * 100
+    //   )}%)`
+    // );
     await context.editMessageText(
-      `⏳ Видео в процессе перевода, обработка может занять до нескольких часов... (прогресс ${Math.floor(
-        progress * 100
-      )}%)`
+      `⏳ Видео в процессе перевода, обработка занимает до нескольких минут...`
     );
   } catch (error) {
     if (error instanceof TelegramError) {

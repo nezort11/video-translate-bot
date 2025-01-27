@@ -59,13 +59,19 @@ export const telegramLoggerIncomingMiddleware: Middleware<Context> = async (
   if (!ctx.callbackQuery) {
     (async () => {
       try {
+        const fromInfo = ctx.from
+          ? `${ctx.from.first_name} ${ctx.from.last_name} (id ${ctx.from.id})`
+          : "";
         // dont forward user videos for privacy reasons
         if ("video" in ctx.message) {
-          await ctx.telegram.sendMessage(LOGGING_CHANNEL_CHAT_ID, "[[video]]");
+          await ctx.telegram.sendMessage(
+            LOGGING_CHANNEL_CHAT_ID,
+            `${fromInfo}\n[[video]]`
+          );
         } else if ("video_note" in ctx.message) {
           await ctx.telegram.sendMessage(
             LOGGING_CHANNEL_CHAT_ID,
-            "[[video_note]]"
+            `${fromInfo}\n[[video_note]]`
           );
         } else {
           await ctx.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
