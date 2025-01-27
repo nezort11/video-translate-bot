@@ -243,7 +243,8 @@ const translateVideoAwait = async (
 };
 
 
-  public constructor(...args: Parameters<typeof Error>) {
+class VideoTranslateError extends Error {
+  constructor(...args: Parameters<typeof Error>) {
     super(...args);
     this.name = this.constructor.name;
   }
