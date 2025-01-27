@@ -18,11 +18,20 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import logoImg from "./images/logo.jpg";
 
 import axios from "axios";
-// import { createFFmpeg } from "@ffmpeg/ffmpeg";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
+import {
+  FFmpeg,
+  // CORE_VERSION,
+  // MIME_TYPE_JAVASCRIPT,
+  // MIME_TYPE_WASM,
+  LogEventCallback,
+  ProgressEventCallback,
+  ERROR_TERMINATED,
+} from "@ffmpeg/ffmpeg";
+// import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -137,6 +146,8 @@ const formSchema = z.object({
     .min(2, {
       message: "Link must be at least 2 characters.",
     }),
+  multithreading: z.boolean(),
+  threads: z.coerce.number(),
 });
 
 // export function ProfileForm() {
@@ -231,6 +242,13 @@ const translateVideoAwait = async (
   return translatedAudioResponse.data;
 };
 
+export class VideoTranslateError extends Error {
+  public constructor(...args: Parameters<typeof Error>) {
+    super(...args);
+    this.name = this.constructor.name;
+  }
+}
+
 const VIDEO_TRANSLATE_ERROR =
   "Проблема при попытке переводе видео. Попробуй еще раз или немного позже";
 
@@ -241,6 +259,8 @@ export default function Home() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       link: decodeURIComponent(searchParams.get("url") ?? ""),
+      multithreading: false,
+      threads: 2,
     },
   });
   // 0% - indeterminate progress bar, other% - determinate
@@ -263,11 +283,7 @@ export default function Home() {
         error.response.status >= 400 &&
         error.response.status <= 499
       ) {
-        form.setError("link", {
-          message:
-            "Не получается перевести данное видео, попробуйте в будущем или переведите другое видео",
-        });
-        return;
+        throw new VideoTranslateError();
       } else {
         throw error;
       }
@@ -316,26 +332,46 @@ export default function Home() {
     // if (!ffmpeg.isLoaded()) {
     if (!ffmpeg.loaded) {
       console.info("Loading ffmpeg...");
-      // await ffmpeg.load();
+
+      // Utilize webpack assets modules to trigger bundle https://webpack.js.org/blog/2020-10-10-webpack-5-release/#asset-modules
+      // - ONLY `umd` works (`esm` doesnt work for some reason)
+      // - must be static (dont extract into variable! - limitation of webpack)
+      // - must be relative path (adjust based on current file directory)
+      const ffmpegCoreUrl = new URL(
+        "../node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.js",
+        import.meta.url
+      ).href;
+      const ffmpegCoreWasmUrl = new URL(
+        "../node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.wasm",
+        import.meta.url
+      ).href;
+      const ffmpegCoreMtUrl = new URL(
+        "../node_modules/@ffmpeg/core-mt/dist/umd/ffmpeg-core.js",
+        import.meta.url
+      ).href;
+      const ffmpegCoreMtWasmUrl = new URL(
+        "../node_modules/@ffmpeg/core-mt/dist/umd/ffmpeg-core.wasm",
+        import.meta.url
+      ).href;
+      const ffmpegCoreMtWorkerUrl = new URL(
+        "../node_modules/@ffmpeg/core-mt/dist/umd/ffmpeg-core.worker.js",
+        import.meta.url
+      ).href;
+
       await ffmpeg.load({
-        // log: true,
-        // logger: ({ message }) => console.info(message),
+        ...(values.multithreading
+          ? {
+              coreURL: ffmpegCoreMtUrl,
+              wasmURL: ffmpegCoreMtWasmUrl,
+              workerURL: ffmpegCoreMtWorkerUrl,
+            }
+          : {
+              coreURL: ffmpegCoreUrl,
+              wasmURL: ffmpegCoreWasmUrl,
+            }),
       });
       console.info("FFmpeg loaded");
     }
-    // ffmpeg.setLogger(({ message }) => console.info(message));
-    ffmpeg.on("log", ({ message }) => {
-      console.log("ffmpeg message", message);
-    });
-    // ffmpeg.setProgress(({ ratio }) => {
-    //   // ffmpegProgress = ratio;
-    //   console.log("ffmpeg progress", ratio);
-    // });
-    ffmpeg.on("progress", ({ progress }) => {
-      console.log("ffmpeg progress", progress);
-
-      setTranslateProgress(Math.round(progress * 100));
-    });
 
     const videoFilePath = "source.mp4";
     // const audioFilePath = "source2.mp3";
@@ -358,10 +394,32 @@ export default function Home() {
 
     const resultFilePath = "video.mp4";
 
+    const ffmpegLogListener: LogEventCallback = ({ message }) => {
+      console.log("ffmpeg message", message);
+    };
+
+    let ffmpegProgress: undefined | number = undefined;
+    const ffmpegProgressListener: ProgressEventCallback = ({ progress }) => {
+      console.log("ffmpeg progress", progress);
+      ffmpegProgress = progress;
+      setTranslateProgress(Math.round(progress * 100));
+    };
+
+    ffmpeg.on("log", ffmpegLogListener);
+    ffmpeg.on("progress", ffmpegProgressListener);
+
     setTranslateProgress("Обработка видео...");
+
+    const FFMPEG_HANG_TIMEOUT = 10000;
+    setTimeout(() => {
+      // If the ffmpeg.exec takes to long to start progress then probably has internal error inside
+      if (ffmpegProgress === undefined) {
+        ffmpeg.terminate(); // will trigger throw ERROR_TERMINATED from ffmpeg.exec
+      }
+    }, FFMPEG_HANG_TIMEOUT);
+
     console.log("Executing ffmpeg command...");
     // prettier-ignore
-    // await ffmpeg.run(
     await ffmpeg.exec([
       "-i", videoFilePath,
       "-i", translateAudioFilePath,
@@ -370,6 +428,9 @@ export default function Home() {
         `[0:a]volume=${percent(10)}[a];` + // 10% original playback
         `[1:a]volume=${percent(100)}[b];` + // voice over
         '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
+
+      // may hang in chromium/safari (not firefox) https://github.com/ffmpegwasm/ffmpeg.wasm/issues/597#issuecomment-1994003272
+      ...(values.multithreading ? ["-threads", `${values.threads}`] : []),
 
       // "-qscale:a", "9", // "4",
       // "-codec:a", "libmp3lame", // "aac",
@@ -380,6 +441,9 @@ export default function Home() {
       resultFilePath,
     ]);
     console.log("Executed ffmpeg command");
+
+    ffmpeg.off("log", ffmpegLogListener);
+    ffmpeg.off("progress", ffmpegProgressListener);
     // ffmpeg -i input.mp4 -f null /dev/null
 
     // const videoTitle = "outputAudio";
@@ -461,16 +525,30 @@ export default function Home() {
       await translateVideo(values);
       form.reset();
     } catch (error) {
-      form.setError("root", { message: VIDEO_TRANSLATE_ERROR });
-      setResultFileUrl(undefined);
-      toast({
-        title: "Оу упс! Что-то пошло не так.",
-        description: VIDEO_TRANSLATE_ERROR,
-        // title: "Uh oh! Something went wrong.",
-        // description: "There was a problem with your request.",
-      });
-      console.error("translate error", error);
-      throw error;
+      if (error instanceof VideoTranslateError) {
+        form.setError("link", {
+          message:
+            "Не получается перевести данное видео, попробуйте в будущем или переведите другое видео",
+        });
+      } else if (error === ERROR_TERMINATED) {
+        form.setError("threads", {
+          message:
+            "Ошибка при обработке видео (попробуйте уменьшить количество потоков)",
+        });
+      }
+      // Generic error handler
+      else {
+        form.setError("root", { message: VIDEO_TRANSLATE_ERROR });
+        setResultFileUrl(undefined);
+        toast({
+          title: "Оу упс! Что-то пошло не так.",
+          description: VIDEO_TRANSLATE_ERROR,
+          // title: "Uh oh! Something went wrong.",
+          // description: "There was a problem with your request.",
+        });
+        console.error("translate error", error);
+        throw error;
+      }
     } finally {
       setTranslateProgress(undefined);
     }
@@ -532,6 +610,62 @@ export default function Home() {
               Перевести
             </Button>
             <FormMessage>{form.formState.errors.root?.message}</FormMessage>
+            <div className="border p-4 rounded-md shadow space-y-4">
+              <FormField
+                control={form.control}
+                name="multithreading"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 ">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={form.formState.isSubmitting}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Включить ускорение оброботки видео (экспереминтально)
+                      </FormLabel>
+                      <FormDescription>
+                        Включает режим многопоточной обратоки, возможны ошибки
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="threads"
+                disabled={form.formState.isSubmitting}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {/* Video Link */}
+                      Количество потоков для обратоки
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        // placeholder="https://youtu.be/HeZf1QDpaOQ"
+                        {...field}
+                        disabled={!form.watch("multithreading")}
+                      />
+                    </FormControl>
+                    <FormMessage>
+                      {form.formState.errors.link?.message}
+                    </FormMessage>
+                    <FormDescription>
+                      Количество потоков твоего устройста, которые будут
+                      использоваться (учитывайте характеристикаки своего
+                      устройста)
+                    </FormDescription>
+                    {/* <FormMessage>{field.}</FormMessage> */}
+                  </FormItem>
+                )}
+              />
+            </div>
           </form>
         </Form>
 
@@ -555,8 +689,8 @@ export default function Home() {
               *скорость перевода зависит от длины видео, а также от мощности
               твоего девайса
               <br />
-              *рекомендуется не прятать этот экран, чтобы перевод не приостановился
-              (iOS/Android)
+              *рекомендуется не прятать этот экран, чтобы перевод не
+              приостановился (iOS/Android)
             </p>
           </div>
         )}
