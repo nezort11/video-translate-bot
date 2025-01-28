@@ -651,7 +651,10 @@ export default function Home() {
                         min={1}
                         // placeholder="https://youtu.be/HeZf1QDpaOQ"
                         {...field}
-                        disabled={!form.watch("multithreading")}
+                        disabled={
+                          !form.watch("multithreading") ||
+                          form.formState.isSubmitting
+                        }
                       />
                     </FormControl>
                     <FormMessage>
