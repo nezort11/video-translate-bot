@@ -294,7 +294,7 @@ app.post(
 
       await bot.telegram.copyMessage(
         chatId,
-        STORAGE_CHANNEL_CHAT_ID,
+        LOGGING_CHANNEL_CHAT_ID,
         fileMessageId
       );
 
