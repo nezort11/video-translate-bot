@@ -85,7 +85,7 @@ export const telegramLoggerIncomingMiddleware: Middleware<Context> = async (
   return await next();
 };
 
-export const telegramLoggerOutcomingMiddleware: Middleware<Context> = async (
+export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
   ctx,
   next
 ) => {

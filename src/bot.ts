@@ -50,7 +50,7 @@ import {
 import {
   telegramLoggerContext,
   telegramLoggerIncomingMiddleware,
-  telegramLoggerOutcomingMiddleware,
+  telegramLoggerOutgoingMiddleware,
 } from "./telegramlogger";
 // import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml, importPTimeout } from "./utils";
@@ -441,7 +441,7 @@ bot.use(async (context, next) => {
 
 bot.use(telegramLoggerIncomingMiddleware);
 
-bot.use(telegramLoggerOutcomingMiddleware);
+bot.use(telegramLoggerOutgoingMiddleware);
 
 bot.catch(async (error, context) => {
   await handleError(error, context);
