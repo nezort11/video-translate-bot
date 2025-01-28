@@ -45,12 +45,13 @@ jobs:
           container-name: ${{ vars.CONTAINER_NAME }}
           folder-id: ${{ vars.FOLDER_ID }}
           revision-cores: 1
-          revision-memory: 2048Mb # Mb/Gb
+          revision-memory: 2048Mb
           # revision-core-fraction: 100
           revision-concurrency: 3
           revision-execution-timeout: ${{ vars.EXECUTION_TIMEOUT }} # seconds
           revision-env: |
             EXECUTION_TIMEOUT=${{ vars.EXECUTION_TIMEOUT }}
+          # adjust to Dockerfile WORKDIR
           revision-storage-mounts: "${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only"
 
     # steps:

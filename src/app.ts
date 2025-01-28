@@ -16,7 +16,8 @@ import S3Localstorage from "s3-localstorage";
 import { STORAGE_CHANNEL_CHAT_ID, YTDL_STORAGE_BUCKET } from "./env";
 import { getClient } from "./telegramclient";
 import { getVideoInfo, getVideoThumbnail, translateText } from "./core";
-import { bot } from "./botinstance";
+// import bot instance with logger middlewares attached
+import { bot } from "./bot";
 
 // https://github.com/TypeStrong/ts-node/discussions/1290
 const dynamicImport = new Function("specifier", "return import(specifier)") as <
