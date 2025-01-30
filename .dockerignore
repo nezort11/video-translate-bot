@@ -7,3 +7,6 @@ compose.yml
 # Environment variables/secrets
 # (storing environment files inside a Docker image is generally not recommended)
 ./env
+
+# Directory should be automatically created when mounting storage bucket
+/storage
