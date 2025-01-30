@@ -9,13 +9,13 @@
       "type": "node",
       "request": "launch",
       // TODO: SUBSTITUTE WITH THE OUTPUT OF `which node`
-      "runtimeExecutable": "/Users/nezort11/.volta/bin/node",
+      // "runtimeExecutable": "/Users/nezort11/.volta/bin/node",
+      "runtimeExecutable": "/Users/nezort11/.volta/bin/tsx",
       "runtimeArgs": [
-        "--inspect",
-        "--experimental-specifier-resolution=node",
-        "--no-warnings",
-        "--loader",
-        "ts-node/esm"
+        "--inspect"
+        // "--no-warnings"
+        // "--loader",
+        // "ts-node"
       ],
       "args": ["./src/index.ts"],
       "cwd": "${workspaceRoot}",
