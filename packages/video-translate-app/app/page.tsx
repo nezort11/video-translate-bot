@@ -610,6 +610,33 @@ export default function Home() {
               {/* Submit */}
               Перевести
             </Button>
+
+            {translateProgress !== undefined && translateProgress !== 100 && (
+              <div>
+                <Progress
+                  indeterminate={typeof translateProgress !== "number"}
+                  value={
+                    typeof translateProgress === "number"
+                      ? translateProgress
+                      : undefined
+                  }
+                  className="mt-4"
+                />
+                <p className="text-center">
+                  {typeof translateProgress === "number"
+                    ? `${translateProgress}%`
+                    : translateProgress}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  *скорость перевода зависит от длины видео, а также от мощности
+                  твоего девайса
+                  <br />
+                  *рекомендуется не прятать этот экран, чтобы перевод не
+                  приостановился (iOS/Android)
+                </p>
+              </div>
+            )}
+
             <FormMessage>{form.formState.errors.root?.message}</FormMessage>
             <div className="border p-4 rounded-md shadow space-y-4">
               <FormField
@@ -672,32 +699,6 @@ export default function Home() {
             </div>
           </form>
         </Form>
-
-        {translateProgress !== undefined && translateProgress !== 100 && (
-          <div>
-            <Progress
-              indeterminate={typeof translateProgress !== "number"}
-              value={
-                typeof translateProgress === "number"
-                  ? translateProgress
-                  : undefined
-              }
-              className="mt-4"
-            />
-            <p className="text-center">
-              {typeof translateProgress === "number"
-                ? `${translateProgress}%`
-                : translateProgress}
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              *скорость перевода зависит от длины видео, а также от мощности
-              твоего девайса
-              <br />
-              *рекомендуется не прятать этот экран, чтобы перевод не
-              приостановился (iOS/Android)
-            </p>
-          </div>
-        )}
 
         <Dialog
           open={translationCompleted}
