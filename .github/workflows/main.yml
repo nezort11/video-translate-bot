@@ -52,7 +52,9 @@ jobs:
           revision-env: |
             EXECUTION_TIMEOUT=${{ vars.EXECUTION_TIMEOUT }}
           # adjust to Dockerfile WORKDIR
-          revision-storage-mounts: "${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only"
+          revision-storage-mounts: |
+            ${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only
+            ${{ vars.STORAGE_BUCKET_NAME }}:/app/storage:read-write
 
     # steps:
     #   - name: Connect to remote server via SSH

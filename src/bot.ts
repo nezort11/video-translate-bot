@@ -1,7 +1,11 @@
 import { bot } from "./botinstance";
 
-import { S3Session } from "telegraf-session-s33";
-import { Composer, Context, Markup, TelegramError } from "telegraf";
+// import { S3Session } from "telegraf-session-s33";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { Composer, Context, Markup, TelegramError, session } from "telegraf";
+import { SQLite } from "@telegraf/session/sqlite";
 import { message } from "telegraf/filters";
 import axios, { AxiosError } from "axios";
 import { load } from "cheerio";
@@ -314,10 +318,16 @@ const ffmpeg = createFFmpeg({
 
 bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
-const s3Session = new S3Session(STORAGE_BUCKET);
+// const s3Session = new S3Session(STORAGE_BUCKET);
 
-bot.use(s3Session);
+// bot.use(s3Session);
 // bot.use(Telegraf.log());
+
+const sessionDb = new Database("./storage/session.sqlite");
+
+const sessionStore = SQLite<{}>({ database: sessionDb });
+
+bot.use(session({ store: sessionStore }));
 
 const replyError = (
   context: Context,
