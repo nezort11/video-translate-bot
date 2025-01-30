@@ -3,9 +3,9 @@ export {};
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      // where the app is running
+      // where the app in running? how to start an app? (long polling / webhook)
       APP_ENV: "local" | "remote";
-      // in which environment to run the app
+      // using what environment variables to start the app?
       NODE_ENV: "development" | "production";
       DEBUG: string;
       EXECUTION_TIMEOUT: string;
