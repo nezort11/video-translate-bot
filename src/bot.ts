@@ -50,6 +50,7 @@ import {
   VIDEO_TRANSLATE_API_URL,
   YTDL_API_URL,
   VIDEO_TRANSLATE_APP_URL,
+  APP_ENV,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -316,6 +317,7 @@ const ffmpeg = createFFmpeg({
 });
 // const ffmpeg: any = {};
 
+// Disable bot in group chat
 bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
 // const s3Session = new S3Session(STORAGE_BUCKET);
@@ -449,9 +451,12 @@ bot.use(async (context, next) => {
   // }
 });
 
-bot.use(telegramLoggerIncomingMiddleware);
+// Disable message logging locally
+if (APP_ENV !== "local") {
+  bot.use(telegramLoggerIncomingMiddleware);
 
-bot.use(telegramLoggerOutgoingMiddleware);
+  bot.use(telegramLoggerOutgoingMiddleware);
+}
 
 bot.catch(async (error, context) => {
   await handleError(error, context);
@@ -641,7 +646,7 @@ bot.command("debug_ytdl_info", async (context) => {
 
 bot.command("debug_ytdl_download", async (context) => {
   const commandArgs = context.message.text.split(" ").slice(1);
-  const quality = parseInt(commandArgs[0]);
+  const quality = parseInt(commandArgs[0] || "18");
   const videoStream = ytdl(mockVideoLink, {
     agent: ytdlAgent,
     quality,
@@ -660,12 +665,16 @@ bot.command("debug_timeout", async (context) => {
   });
 });
 
-bot.on(message("text"), async (context) => {
+bot.on(message("text"), async (context, next) => {
+  const text = context.message.text;
+  if (text.startsWith("/")) {
+    return await next();
+  }
+
   logger.info(
     `Incoming translate request: ${inspect(context.update, { depth: null })}`
   );
 
-  const text = context.message.text;
   const linkMatch = getLinkMatch(text);
   const textContainsLink = !!linkMatch;
   if (!textContainsLink) {
