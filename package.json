@@ -22,6 +22,7 @@
     "start:dev": "NODE_ENV=development pnpm run:js",
     "dev:deamon": "pnpm _pre:nvm 'NODE_ENV=development pnpm _dev:deamon:command'",
     "dev:prod:deamon": "pnpm _pre:nvm 'NODE_ENV=production pnpm _dev:deamon:command'",
+    "db:migrate": "pnpm drizzle-kit generate:sqlite && pnpm drizzle-kit push:sqlite",
     "yc:registry:create": "source ./scripts/pre-env.sh && yc container registry create --name $REGISTRY_NAME",
     "yc:registry:get": "source ./scripts/pre-env.sh && yc container registry get $REGISTRY_NAME",
     "yc:registry:configure": "yc container registry configure-docker",
@@ -100,7 +101,7 @@
     "protobufjs": "7.2.2"
   },
   "dependencies": {
-    "@distube/ytdl-core": "4.15.9",
+    "@distube/ytdl-core": "4.16.0",
     "@ffmpeg/core": "0.11.0",
     "@ffmpeg/ffmpeg": "0.11.6",
     "@iamtraction/google-translate": "2.0.1",
@@ -142,6 +143,7 @@
     "@types/node": "18.15.3",
     "@types/node-persist": "^3",
     "@yandex-cloud/serverless-plugin": "1.7.25",
+    "drizzle-kit": "0.30.4",
     "husky": "8.0.3",
     "nodemon": "2.0.20",
     "serverless": "3.40.0",
