@@ -14,6 +14,7 @@ import {
 } from "./services/vtrans";
 import S3Localstorage from "s3-localstorage";
 import {
+  DEBUG_ENV,
   LOGGING_CHANNEL_CHAT_ID,
   STORAGE_CHANNEL_CHAT_ID,
   YTDL_STORAGE_BUCKET,
@@ -41,7 +42,9 @@ const serializeError = async (error: unknown) => {
   const serializedError = serializeError(error);
   console.log("serialized error", serializeError);
   // https://docs.pynt.io/documentation/api-security-testing/pynt-security-tests-coverage/stack-trace-in-response
-  delete serializedError.stack;
+  if (DEBUG_ENV !== "true") {
+    delete serializedError.stack;
+  }
   return serializedError;
 };
 

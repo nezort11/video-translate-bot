@@ -5,8 +5,10 @@ declare global {
     interface ProcessEnv {
       // where the app in running? how to start an app? (long polling / webhook)
       APP_ENV: "local" | "remote";
-      // using what environment variables to start the app?
+      // which environment variables to use to start the app?
       NODE_ENV: "development" | "production";
+      // enable verbose debug information?
+      DEBUG_ENV: "true" | undefined;
       DEBUG: string;
       EXECUTION_TIMEOUT: string;
 
