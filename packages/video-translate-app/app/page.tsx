@@ -1,5 +1,6 @@
 "use client"; // only skip SSR, left with SSG
 import Image from "next/image";
+import { setUser, setContext } from "@sentry/nextjs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,14 @@ import {
 import { init, backButton } from "@telegram-apps/sdk-react";
 import { openTelegramLink, requestWriteAccess } from "@telegram-apps/sdk";
 import { useSearchParams } from "next/navigation";
+
+type Serializable =
+  | string
+  | number
+  | boolean
+  | null
+  | Serializable[]
+  | { [key: string]: Serializable };
 
 const initialize = async () => {
   mockTelegramEnv({
@@ -123,6 +132,20 @@ const initialize = async () => {
     console.log("launch params", launchParams);
 
     backButton.mount();
+
+    const user = launchParams.initData?.user;
+    if (user) {
+      setUser({
+        id: user.id, // user or chat id
+        username: user.username,
+        geo: {
+          country_code: user.languageCode,
+        },
+      });
+    }
+
+    const launchParamsData = launchParams as unknown as Serializable;
+    setContext("launch_params", launchParamsData as Record<string, unknown>);
   }
 };
 
