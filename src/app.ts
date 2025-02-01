@@ -185,11 +185,14 @@ app.post(
       //   format: formats[0],
       // });
 
+      console.log("create ytdl stream");
       const videoStream = ytdl(videoUrl, {
         agent: ytdlAgent,
         quality: format,
       });
+      console.log("ytdl video stream", videoStream);
 
+      console.log("downloading video streaming to buffer...");
       const videoBuffer = await streamToBuffer(videoStream);
       console.log("video buffer length", videoBuffer.byteLength);
 

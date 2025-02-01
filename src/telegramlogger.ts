@@ -1,6 +1,6 @@
-// @ts-nocheck
 import { Context, type Middleware, Telegraf, Telegram } from "telegraf";
-import type { Deunionize, PropOr } from "telegraf/typings/deunionize";
+// import type { Deunionize, PropOr } from "telegraf/typings/deunionize";
+import { Deunionize, PropOr } from "telegraf/typings/core/helpers/deunionize";
 import type { Update, UserFromGetMe, Message } from "telegraf/types";
 import type { GetUpdateContent } from "telegraf/typings/context";
 import { BOT_TOKEN, LOGGING_CHANNEL_CHAT_ID } from "./env";
@@ -52,35 +52,33 @@ export const telegramLoggerForwardMessage = async (
   }
 };
 
+const forwardContextMessage = async (ctx: Context) => {
+  // skip forward callback queries and other non-messages
+  if (ctx.callbackQuery || !ctx.message) {
+    return;
+  }
+
+  const fromInfo = ctx.from
+    ? `${ctx.from.first_name} ${ctx.from.last_name} (id ${ctx.from.id})`
+    : "";
+  // dont forward user-sent videos for privacy reasons
+  if ("video" in ctx.message || "video_note" in ctx.message) {
+    await ctx.telegram.sendMessage(
+      LOGGING_CHANNEL_CHAT_ID,
+      `${fromInfo}\n[[video]]`
+    );
+  } else {
+    await ctx.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
+  }
+};
+
 export const telegramLoggerIncomingMiddleware: Middleware<Context> = async (
   ctx,
   next
 ) => {
-  if (!ctx.callbackQuery) {
-    (async () => {
-      try {
-        const fromInfo = ctx.from
-          ? `${ctx.from.first_name} ${ctx.from.last_name} (id ${ctx.from.id})`
-          : "";
-        // dont forward user videos for privacy reasons
-        if ("video" in ctx.message) {
-          await ctx.telegram.sendMessage(
-            LOGGING_CHANNEL_CHAT_ID,
-            `${fromInfo}\n[[video]]`
-          );
-        } else if ("video_note" in ctx.message) {
-          await ctx.telegram.sendMessage(
-            LOGGING_CHANNEL_CHAT_ID,
-            `${fromInfo}\n[[video_note]]`
-          );
-        } else {
-          await ctx.forwardMessage(LOGGING_CHANNEL_CHAT_ID);
-        }
-      } catch (error) {
-        logger.warn(`Forward logger error: ${error}`);
-      }
-    })();
-  }
+  forwardContextMessage(ctx).catch((error) =>
+    logger.warn("Proxy forward message error:", error)
+  );
 
   return await next();
 };
