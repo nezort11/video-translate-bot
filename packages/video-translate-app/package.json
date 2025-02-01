@@ -24,6 +24,7 @@
     "@telegram-apps/bridge": "^1.9.2",
     "@telegram-apps/sdk": "^2.11.3",
     "@telegram-apps/sdk-react": "^2.0.25",
+    "@vercel/analytics": "^1.4.1",
     "axios": "^1.7.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
