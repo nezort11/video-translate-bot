@@ -242,7 +242,6 @@ const translateVideoAwait = async (
   return translatedAudioResponse.data;
 };
 
-
 class VideoTranslateError extends Error {
   constructor(...args: Parameters<typeof Error>) {
     super(...args);
@@ -251,7 +250,7 @@ class VideoTranslateError extends Error {
 }
 
 const VIDEO_TRANSLATE_ERROR =
-  "Проблема при попытке переводе видео. Попробуй еще раз или немного позже";
+  "Проблема при попытке переводе видео. Попробуй еще раз или немного позже. Информация об ошибке была передана";
 
 export default function Home() {
   const searchParams = useSearchParams();
@@ -547,7 +546,9 @@ export default function Home() {
           // title: "Uh oh! Something went wrong.",
           // description: "There was a problem with your request.",
         });
+
         console.error("translate error", error);
+        // let error bubble to the top (handled by sentry)
         throw error;
       }
     } finally {

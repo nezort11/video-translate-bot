@@ -2,8 +2,8 @@ import { bot } from "./botinstance";
 
 // import { S3Session } from "telegraf-session-s33";
 import Database from "better-sqlite3";
+import { count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { Composer, Context, Markup, TelegramError, session } from "telegraf";
 import { SQLite } from "@telegraf/session/sqlite";
 import { message } from "telegraf/filters";
@@ -77,6 +77,12 @@ import {
 } from "./core";
 import { ytdlAgent } from "./services/ytdl";
 import { translate } from "./services/translate";
+import { updatesTable } from "./schema";
+
+const database = new Database("./storage/db.sqlite");
+
+// https://orm.drizzle.team/docs/get-started-sqlite#better-sqlite3
+const db = drizzle({ client: database });
 
 const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
@@ -325,10 +331,29 @@ bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 // bot.use(s3Session);
 // bot.use(Telegraf.log());
 
+const trackUpdate = async (update: Update) => {
+  try {
+    await db.insert(updatesTable).values({
+      updateId: update.update_id,
+      updateData: update,
+    });
+  } catch (error) {
+    logger.warn("save update error", error);
+  }
+};
+
+// Track all incoming updates (for analytics purposes)
+bot.use(async (context, next) => {
+  // Save incoming update (async)
+  logger.log(`Saving update id ${context.update.update_id}`);
+  trackUpdate(context.update);
+
+  await next();
+});
+
+// Provide a session storage provider
 const sessionDb = new Database("./storage/session.sqlite");
-
 const sessionStore = SQLite<{}>({ database: sessionDb });
-
 bot.use(session({ store: sessionStore }));
 
 const replyError = (
@@ -622,6 +647,11 @@ const mockVideoLink = "https://www.youtube.com/watch?v=CcnwFJqEnxU";
 
 bot.command("chatid", async (context) => {
   await context.reply(`Your chat id: ${context.chat.id}`);
+});
+
+bot.command("debug_stats", async (context) => {
+  const updates = await db.select({ count: count() }).from(updatesTable);
+  await context.reply(`Total updates: ${updates[0].count}\n` + `Total users:`);
 });
 
 bot.command("debug_vtrans", async (context) => {
