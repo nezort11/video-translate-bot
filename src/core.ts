@@ -93,40 +93,46 @@ export const getVideoInfo = async (link: string) => {
   };
 };
 
-export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
-  let thumbnailData: ArrayBuffer;
-  try {
-    logger.info("Requesting to translate video thumbnail...");
-    const thumbnailResponse = await axios.post<ArrayBuffer>(
-      IMAGE_TRANSLATE_URL,
-      {
-        imageLink: videoThumbnailUrl,
-      },
-      {
-        responseType: "arraybuffer",
-      }
-    );
-    thumbnailData = thumbnailResponse.data;
-    logger.info(`Translated video thumbnail: ${thumbnailData.byteLength}`);
-  } catch (error) {
-    if (error instanceof AxiosError) {
-      logger.info("Downloading original video thumbnail...");
-      const thumbnailResponse = await axios.get<ArrayBuffer>(
-        videoThumbnailUrl,
-        {
-          responseType: "arraybuffer",
-        }
-      );
-      thumbnailData = thumbnailResponse.data;
-    } else {
-      throw error;
-    }
-  }
-  const thumbnailBuffer = Buffer.from(thumbnailData);
-  logger.info(`Thumbnail downloaded: ${thumbnailBuffer.length}`);
-  thumbnailBuffer.name = "mqdefault.jpg";
+const createThumbnailBuffer = (data: ArrayBuffer) => {
+  const buffer = Buffer.from(data);
+  logger.info(`Thumbnail downloaded: ${buffer.length}`);
+  buffer.name = "mqdefault.jpg";
+  return buffer;
+};
 
-  return thumbnailBuffer;
+const handleRequestError = (error: unknown, warning: string) => {
+  if (error instanceof AxiosError) {
+    logger.warn(warning, error);
+  } else {
+    throw error;
+  }
+};
+
+export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
+  logger.info("Requesting to translate video thumbnail...");
+  try {
+    const { data } = await axios.post<ArrayBuffer>(
+      IMAGE_TRANSLATE_URL,
+      { imageLink: videoThumbnailUrl },
+      { responseType: "arraybuffer" }
+    );
+
+    logger.info(`Translated video thumbnail: ${data.byteLength}`);
+    return createThumbnailBuffer(data);
+  } catch (error) {
+    handleRequestError(error, "getting translated video thumbnail failed");
+  }
+
+  logger.info("Downloading original video thumbnail...");
+  try {
+    const { data } = await axios.get<ArrayBuffer>(videoThumbnailUrl, {
+      responseType: "arraybuffer",
+    });
+    return createThumbnailBuffer(data);
+  } catch (error) {
+    handleRequestError(error, "getting original video thumbnail failed");
+    return null;
+  }
 };
 
 export const translateText = async (

@@ -960,7 +960,8 @@ bot.action(/.+/, async (context) => {
     const videoThumbnailUrl = videoInfo.thumbnail;
     let thumbnailBuffer: Buffer | undefined;
     if (videoThumbnailUrl) {
-      thumbnailBuffer = await getVideoThumbnail(videoThumbnailUrl);
+      thumbnailBuffer =
+        (await getVideoThumbnail(videoThumbnailUrl)) ?? undefined;
     }
     const originalArtist = videoInfo.artist;
     let artist = originalArtist;
