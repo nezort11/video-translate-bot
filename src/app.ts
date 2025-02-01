@@ -270,7 +270,8 @@ app.post(
 
       let thumbnailBuffer: Buffer | undefined;
       if (videoThumbnailUrl) {
-        thumbnailBuffer = await getVideoThumbnail(videoThumbnailUrl);
+        thumbnailBuffer =
+          (await getVideoThumbnail(videoThumbnailUrl)) ?? undefined;
       }
 
       const outputBuffer: Buffer = await s3Localstorage.getItem(key, null);
