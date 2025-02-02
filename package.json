@@ -11,6 +11,7 @@
   "main": "./src/index.ts",
   "scripts": {
     "build": "pnpm tsc --build",
+    "typecheck": "tsc --noEmit",
     "command:js": "node",
     "command:ts": "DEBUG='*' pnpm tsx",
     "run:js": "pnpm command:js ./build/index.js",
@@ -150,6 +151,7 @@
     "@yandex-cloud/serverless-plugin": "1.7.25",
     "drizzle-kit": "0.30.4",
     "husky": "8.0.3",
+    "lint-staged": "15.4.3",
     "nodemon": "2.0.20",
     "serverless": "3.40.0",
     "ts-node": "10.9.1",
@@ -168,5 +170,8 @@
       "post-merge": "yarnhook",
       "post-rewrite": "yarnhook"
     }
+  },
+  "lint-staged": {
+    "*.ts": "tsc --noEmit"
   }
 }
