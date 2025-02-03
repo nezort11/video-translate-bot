@@ -423,7 +423,7 @@ const handleTranslateInProgress = async (
     //   )}%)`
     // );
     await context.editMessageText(
-      `⏳ Видео в процессе перевода, обработка занимает до нескольких минут...`
+      `⏳ Видео в процессе перевода, время обработка зависит от длительности видео...`
     );
   } catch (error) {
     if (error instanceof TelegramError) {
