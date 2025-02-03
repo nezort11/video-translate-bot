@@ -78,6 +78,13 @@ import {
 import { ytdlAgent } from "./services/ytdl";
 import { translate } from "./services/translate";
 import { updatesTable } from "./schema";
+import {
+  ActionType,
+  createActionButton,
+  decodeActionPayload,
+  generateActionId,
+  getActionData,
+} from "./actions";
 
 const database = new Database("./storage/db.sqlite");
 
@@ -750,24 +757,38 @@ bot.on(message("text"), async (context, next) => {
         // reply_to_message_id: context.message.message_id,
         reply_markup: Markup.inlineKeyboard([
           [
-            Markup.button.callback(
+            createActionButton(
               "🎙️ Голос (mp3) (быстрее ⚡️)",
-              encodeTranslateAction(
-                TranslateType.Voice,
-                shortLink,
-                TranslateQuality.Mp4_360p
-              )
+              // encodeTranslateAction(
+              //   TranslateType.Voice,
+              //   shortLink,
+              //   TranslateQuality.Mp4_360p
+              // )
+              {
+                context,
+                data: {
+                  type: ActionType.TranslateVoice,
+                  link: shortLink,
+                },
+              }
             ),
           ],
           [
-            Markup.button.callback(
-              "🎧 Аудио (mp3)",
-              encodeTranslateAction(
-                TranslateType.Audio,
-                shortLink,
-                TranslateQuality.Mp4_360p
-              )
-            ),
+            createActionButton("🎧 Аудио (mp3)", {
+              context,
+              data: {
+                type: ActionType.TranslateAudio,
+                link: shortLink,
+              },
+            }),
+            // Markup.button.callback(
+            //   "🎧 Аудио (mp3)",
+            //   encodeTranslateAction(
+            //     TranslateType.Audio,
+            //     shortLink,
+            //     TranslateQuality.Mp4_360p
+            //   )
+            // ),
           ],
           [Markup.button.webApp("📺 Видео (mp4)", videoTranslateApp.href)],
           // [
@@ -789,14 +810,21 @@ bot.on(message("text"), async (context, next) => {
       // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
         [
-          Markup.button.callback(
-            "🎙️ Голос (mp3) (быстрее ⚡️)",
-            encodeTranslateAction(
-              TranslateType.Voice,
-              link,
-              TranslateQuality.Mp4_360p
-            )
-          ),
+          createActionButton("🎙️ Голос (mp3) (быстрее ⚡️)", {
+            context,
+            data: {
+              type: ActionType.TranslateVoice,
+              link: link,
+            },
+          }),
+          // Markup.button.callback(
+          //   "🎙️ Голос (mp3) (быстрее ⚡️)",
+          //   encodeTranslateAction(
+          //     TranslateType.Voice,
+          //     link,
+          //     TranslateQuality.Mp4_360p
+          //   )
+          // ),
         ],
       ]).reply_markup,
     }
@@ -806,9 +834,24 @@ bot.on(message("text"), async (context, next) => {
 let videoTranslateProgressCount = 0;
 bot.action(/.+/, async (context) => {
   const isFromOwner = context.from?.username === OWNER_USERNAME;
-  const actionData = context.match[0];
-  const actionType = actionData[0] as TranslateType;
+  const actionPayload = decodeActionPayload(context.match[0]);
+  const actionData = getActionData(
+    context,
+    actionPayload.actionGroupId,
+    actionPayload.actionId
+  );
+  if (!actionData) {
+    // Old action messages was cleared than just delete message
+    await context.deleteMessage();
+    // throw new Error("Action data is undefined");
+    return;
+  }
+  const actionType = actionData.type;
+
+  // const actionType = actionData[0] as TranslateType;
+  // @ts-ignore
   if (actionType === TranslateType.ChooseVideoQuality) {
+    // @ts-ignore
     const link = actionData.slice(1);
     await context.editMessageText(
       "Выбери качество видео:",
@@ -838,8 +881,13 @@ bot.action(/.+/, async (context) => {
     return;
   }
 
-  const translateAction = decodeTranslateAction(actionData);
-  const videoLink = translateAction.url;
+  // const translateAction = decodeTranslateAction(actionData);
+  // const videoLink = translateAction.url;
+  const videoLink = actionData.link;
+  const translateAction = {
+    translateType: null,
+    quality: TranslateQuality.Mp4_360p,
+  };
 
   const videoInfo = await getVideoInfo(videoLink);
   const originalVideoDuration = videoInfo.duration;
@@ -993,7 +1041,8 @@ bot.action(/.+/, async (context) => {
       videoDuration = audioDuration as number;
     }
 
-    if (translateAction.translateType === TranslateType.Voice) {
+    // if (translateAction.translateType === TranslateType.Voice) {
+    if (actionType === ActionType.TranslateVoice) {
       const outputBuffer = translateAudioBuffer;
       outputBuffer.name = `${videoTitle}.mp3`;
 
@@ -1093,8 +1142,8 @@ bot.action(/.+/, async (context) => {
 
     let fileMessageId = 0;
     await {
-      [TranslateType.Voice]: async () => {},
-      [TranslateType.Audio]: async () => {
+      [ActionType.TranslateVoice]: async () => {},
+      [ActionType.TranslateAudio]: async () => {
         const resultFilePath = "audio.mp3";
 
         // prettier-ignore
@@ -1234,7 +1283,7 @@ bot.action(/.+/, async (context) => {
         fileMessageId = fileMessage.id;
       },
       [TranslateType.ChooseVideoQuality]: async () => {},
-    }[translateAction.translateType]();
+    }[actionType]();
     logger.info("Uploaded to telegram");
 
     await context.telegram.copyMessage(
