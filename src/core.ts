@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { logger } from "./logger";
 import { IMAGE_TRANSLATE_URL } from "./env";
-import ytdl from "@distube/ytdl-core";
+import ytdl, { thumbnail } from "@distube/ytdl-core";
 import { ytdlAgent } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
 import { importPTimeout } from "./utils";
@@ -36,10 +36,10 @@ export const getVideoPlatform = (link: string) => {
 export const getYoutubeVideoId = (youtubeLink: string) =>
   Array.from(youtubeLink.matchAll(YOUTUBE_LINK_REGEX))[0][6];
 
-const getYoutubeThumbnailLink = (youtubeLink: string) => {
-  const youtubeVideoId = getYoutubeVideoId(youtubeLink);
-  return `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
-};
+// const getYoutubeThumbnailLink = (youtubeLink: string) => {
+//   const youtubeVideoId = getYoutubeVideoId(youtubeLink);
+//   return `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
+// };
 
 export const getLinkMatch = (text: string) => {
   // Youtube link is higher priority than regular link
@@ -63,6 +63,19 @@ export const isValidUrl = (string) => {
   }
 };
 
+const findMaxJpgYoutubeThumbnail = (thumbnails: thumbnail[]) => {
+  let thumb: null | string = null;
+  let maxThumbnailWidth = 0;
+  for (const thumbnail of thumbnails) {
+    if (thumbnail.url.includes(".jpg") && thumbnail.width > maxThumbnailWidth) {
+      thumb = thumbnail.url;
+      maxThumbnailWidth = thumbnail.width;
+    }
+  }
+
+  return thumb;
+};
+
 export const getVideoInfo = async (link: string) => {
   const videoPlatform = getVideoPlatform(link);
 
@@ -76,11 +89,14 @@ export const getVideoInfo = async (link: string) => {
     // });
     // const videoInfo = videoInfoResponse.data;
     const videoInfo = await ytdl.getBasicInfo(link, { agent: ytdlAgent });
+    const videoThumbnail = findMaxJpgYoutubeThumbnail(
+      videoInfo.videoDetails.thumbnail.thumbnails
+    );
     return {
       title: videoInfo.videoDetails.title,
       artist: videoInfo.videoDetails.author.name,
       duration: +videoInfo.videoDetails.lengthSeconds,
-      thumbnail: getYoutubeThumbnailLink(link),
+      thumbnail: videoThumbnail,
       formats: videoInfo.formats,
     };
   }

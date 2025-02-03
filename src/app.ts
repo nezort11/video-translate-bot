@@ -336,11 +336,15 @@ app.post(
       console.log("getting video info...");
       const videoInfo = await getVideoInfo(link);
       console.log("got video info thumbnail", videoInfo.thumbnail);
-      console.log("downloading video thumbnail...");
-      const thumbnail = await getVideoThumbnail(videoInfo.thumbnail);
-      console.log("downloaded thumbnail size", thumbnail?.byteLength);
+      if (videoInfo.thumbnail) {
+        console.log("downloading video thumbnail...");
+        const thumbnail = await getVideoThumbnail(videoInfo.thumbnail);
+        console.log("downloaded thumbnail size", thumbnail?.byteLength);
 
-      res.status(200).json({ thumbnail: thumbnail?.byteLength });
+        return res.status(200).json({ thumbnail: thumbnail?.byteLength });
+      }
+
+      res.status(200).send();
     } catch (error) {
       await handleInternalErrorExpress(error, res);
     }
