@@ -240,7 +240,7 @@ app.post("/upload", async (req, res) => {
 
 app.post(
   "/send",
-  async (req: Request<{}, any | ErrorObject, SendVideoBody, null>, res) => {
+  async (req: Request<{}, void | ErrorObject, SendVideoBody, null>, res) => {
     try {
       const { key, link, duration, chatId } = req.body;
       const videoLink = link;
@@ -306,6 +306,37 @@ app.post(
       );
 
       res.status(200).send();
+    } catch (error) {
+      await handleInternalErrorExpress(error, res);
+    }
+  }
+);
+
+type DownloadThumbnail = {
+  link: string;
+};
+
+type DownloadThumbnailResponse = {
+  thumbnail: string | null;
+};
+
+app.post(
+  "/debug/download/thumbnail",
+  async (
+    req: Request<
+      {},
+      DownloadThumbnailResponse | ErrorObject,
+      DownloadThumbnail,
+      null
+    >,
+    res
+  ) => {
+    try {
+      const { link } = req.body;
+      const videoInfo = await getVideoInfo(link);
+      const thumbnail = await getVideoThumbnail(videoInfo.thumbnail);
+
+      res.status(200).json({ thumbnail: thumbnail?.byteLength });
     } catch (error) {
       await handleInternalErrorExpress(error, res);
     }
