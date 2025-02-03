@@ -330,6 +330,26 @@ const ffmpeg = createFFmpeg({
 });
 // const ffmpeg: any = {};
 
+// Store current webhook invocation update
+let currentUpdateContext: Context | null = null;
+
+bot.use(async (context, next) => {
+  currentUpdateContext = context;
+  await next();
+});
+
+// handle non-fatal (warn) errors
+const handleWarnError = (message: string, error: unknown) => {
+  logger.warn(message, error);
+  Sentry.captureException(new Error(message, { cause: error }), {
+    level: "warning",
+    // @ts-expect-error user object is serializable
+    user: currentUpdateContext?.from,
+    // @ts-expect-error update object is serializable
+    extra: currentUpdateContext?.update,
+  });
+};
+
 // Disable bot in group chat
 bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
@@ -345,7 +365,7 @@ const trackUpdate = async (update: Update) => {
       updateData: update,
     });
   } catch (error) {
-    logger.warn("save update error", error);
+    handleWarnError("save update error", error);
   }
 };
 
@@ -1001,7 +1021,7 @@ bot.action(/.+/, async (context) => {
         videoTitle = await translateText(videoTitle, "ru");
         logger.info(`Translated video title to russian: ${videoTitle}`);
       } catch (error) {
-        logger.warn("Unable to translate video title:", error);
+        handleWarnError("Unable to translate video title:", error);
       }
     }
 
