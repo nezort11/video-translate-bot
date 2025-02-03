@@ -35,7 +35,8 @@ type ActionPayload = {
   actionId: string; // identifier of the specific action created
 };
 
-type SceneActionSession = {
+// extend scenes session property
+type SceneActionSession = SceneContext["session"] & {
   actionData?: {
     [actionGroupId: string]: {
       [actionId: string]: ActionData;
@@ -43,8 +44,9 @@ type SceneActionSession = {
   };
 };
 
-export type SceneActionContext = SceneContext & {
-  session: SceneActionSession;
+// .session can be undefined (but still extend scene context)
+export type SceneActionContext = Omit<SceneContext, "session"> & {
+  session: SceneActionSession | undefined;
 };
 
 export const generateActionId = () => {
@@ -55,7 +57,7 @@ export const clearActionGroup = (
   context: SceneActionContext,
   actionGroupId: string
 ) => {
-  delete context.session.actionData?.[actionGroupId];
+  delete context.session?.actionData?.[actionGroupId];
 };
 
 export const getActionData = <T extends ActionType>(
@@ -63,9 +65,9 @@ export const getActionData = <T extends ActionType>(
   actionGroupId: string,
   actionId: string
 ) => {
-  const actionData = context.session.actionData?.[actionGroupId]?.[actionId] as
-    | ActionTypeToActionDataMap[T]
-    | undefined;
+  const actionData = context.session?.actionData?.[actionGroupId]?.[
+    actionId
+  ] as ActionTypeToActionDataMap[T] | undefined;
 
   if (actionData) {
     // Automatically cleanup all other irrelevant actions in the action group
