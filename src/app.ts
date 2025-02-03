@@ -333,8 +333,12 @@ app.post(
   ) => {
     try {
       const { link } = req.body;
+      console.log("getting video info...");
       const videoInfo = await getVideoInfo(link);
+      console.log("got video info thumbnail", videoInfo.thumbnail);
+      console.log("downloading video thumbnail...");
       const thumbnail = await getVideoThumbnail(videoInfo.thumbnail);
+      console.log("downloaded thumbnail size", thumbnail?.byteLength);
 
       res.status(200).json({ thumbnail: thumbnail?.byteLength });
     } catch (error) {
