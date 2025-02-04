@@ -18,51 +18,75 @@ export type VideoTranslateResponse = {
   duration: number;
   status: number;
   code: string;
+  language: string;
   message?: string;
 };
 
-const videoTranslateRequestProto = new protobuf.Type("VideoTranslateRequest")
-  .add(new protobuf.Field("url", 3, "string"))
-  .add(new protobuf.Field("deviceId", 4, "string"))
-  .add(new protobuf.Field("unknown0", 5, "int32"))
-  .add(new protobuf.Field("unknown1", 6, "fixed64"))
-  .add(new protobuf.Field("unknown2", 7, "int32"))
-  .add(new protobuf.Field("language", 8, "string"))
-  .add(new protobuf.Field("unknown3", 9, "int32"))
-  .add(new protobuf.Field("unknown4", 10, "int32"));
+const VideoTranslationHelpObjectProto = new protobuf.Type(
+  "VideoTranslationHelpObject"
+)
+  .add(new protobuf.Field("target", 1, "string")) // video_file_url or subtitles_file_url
+  .add(new protobuf.Field("targetUrl", 2, "string")); // url to video_file or url to subtitles
 
-const videoTranslateResponseProto = new protobuf.Type("VideoTranslateResponse")
+const VideoTranslateRequestProto = new protobuf.Type("VideoTranslationRequest")
+  .add(new protobuf.Field("url", 3, "string"))
+  .add(new protobuf.Field("deviceId", 4, "string")) // used in mobile version
+  .add(new protobuf.Field("firstRequest", 5, "bool")) // true for the first request, false for subsequent ones
+  .add(new protobuf.Field("duration", 6, "double"))
+  .add(new protobuf.Field("unknown2", 7, "int32")) // 1 1
+  .add(new protobuf.Field("language", 8, "string")) // source language code
+  .add(new protobuf.Field("unknown3", 9, "int32")) // 0 - without translationHelp | 1 - with translationHelp (??? But it works without it)
+  .add(new protobuf.Field("unknown4", 10, "int32")) // 0 0
+  .add(
+    new protobuf.Field(
+      "translationHelp",
+      11,
+      "VideoTranslationHelpObject",
+      "repeated"
+    )
+  ) // array for translation assistance ([0] -> {2: link to video, 1: "video_file_url"}, [1] -> {2: link to subtitles, 1: "subtitles_file_url"})
+  .add(new protobuf.Field("responseLanguage", 14, "string"))
+  .add(new protobuf.Field("unknown5", 15, "int32")) // 0
+  .add(new protobuf.Field("unknown6", 16, "int32")) // 1
+  .add(new protobuf.Field("unknown7", 17, "int32")); // 0
+
+const VideoTranslateResponseProto = new protobuf.Type(
+  "VideoTranslationResponse"
+)
   .add(new protobuf.Field("url", 1, "string"))
   .add(new protobuf.Field("duration", 2, "double"))
   .add(new protobuf.Field("status", 4, "int32"))
+  .add(new protobuf.Field("remainingTime", 5, "int32")) // secs before translation (used as interval before next request in yaBrowser)
+  .add(new protobuf.Field("unknown6", 6, "int32")) // unknown 0 (1st request) -> 10 (2nd, 3th and etc requests)
   .add(new protobuf.Field("code", 7, "string"))
+  .add(new protobuf.Field("language", 8, "string")) // detected language (if the wrong one is set)
   .add(new protobuf.Field("message", 9, "string"));
 
 new protobuf.Root()
   .define("yandex")
-  .add(videoTranslateRequestProto)
-  .add(videoTranslateResponseProto);
+  .add(VideoTranslationHelpObjectProto)
+  .add(VideoTranslateRequestProto)
+  .add(VideoTranslateResponseProto);
 
-const encodeVideoTranslateRequest = (url: string, deviceId: string) => {
-  return videoTranslateRequestProto
-    .encode({
-      url: url,
-      deviceId: deviceId,
-      unknown0: 1,
-      unknown1: parseInt("0x4075500000000000", 16),
-      unknown2: 1,
-      // language: "en",
-      unknown3: 0,
-      unknown4: 0,
-    })
-    .finish();
+const encodeVideoTranslateRequest = (url: string, targetLanguage?: string) => {
+  return VideoTranslateRequestProto.encode({
+    url: url,
+    // deviceId: deviceId,
+    firstRequest: true,
+    unknown1: parseInt("0x4075500000000000", 16),
+    unknown2: 1,
+    // language: "en",
+    unknown3: 0,
+    unknown4: 0,
+    responseLanguage: targetLanguage,
+  }).finish();
 };
 
 const decodeVideoTranslateResponse = (
   response: Uint8Array
   // Iterable<number>
 ) => {
-  return videoTranslateResponseProto.decode(
+  return VideoTranslateResponseProto.decode(
     response
     // new Uint8Array(response)
   ) as any as VideoTranslateResponse;
@@ -85,9 +109,12 @@ const generateUuid = () => {
   return uuid;
 };
 
-const translateVideoRequest = async (url: string) => {
-  const deviceId = generateUuid();
-  const videoTranslateRequest = encodeVideoTranslateRequest(url, deviceId);
+const translateVideoRequest = async (url: string, targetLanguage?: string) => {
+  // const deviceId = generateUuid();
+  const videoTranslateRequest = encodeVideoTranslateRequest(
+    url,
+    targetLanguage
+  );
 
   // const decoder = new TextDecoder();
   const utf8Encoder = new TextEncoder();
@@ -170,14 +197,15 @@ export class TranslateException extends Error {
 
 export class TranslateInProgressException {}
 
-export const translateVideo = async (url: string) => {
-  const videoTranslateResponse = await translateVideoRequest(url);
-  console.log("videoTranslateResponse", videoTranslateResponse);
+export const translateVideo = async (url: string, targetLanguage?: string) => {
+  const videoTranslateResponse = await translateVideoRequest(
+    url,
+    targetLanguage
+  );
   const videoTranslateResponseData = decodeVideoTranslateResponse(
     videoTranslateResponse
   );
-  // console.log("videoTranslateResponseData", videoTranslateResponseData);
-  // console.log("translateResponse", translateResponse);
+  console.log("videoTranslateResponseData", videoTranslateResponseData);
 
   switch (videoTranslateResponseData.status) {
     case 0:

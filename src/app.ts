@@ -40,7 +40,7 @@ const importNanoid = async () =>
 const serializeError = async (error: unknown) => {
   const { serializeError } = await importSerializeError();
   const serializedError = serializeError(error);
-  console.log("serialized error", serializeError);
+  console.log("serialized error", serializedError);
   // https://docs.pynt.io/documentation/api-security-testing/pynt-security-tests-coverage/stack-trace-in-response
   if (DEBUG_ENV !== "true") {
     delete serializedError.stack;
@@ -91,6 +91,7 @@ app.post("/debug/timeout", async (req, res) => {
 
 type VideoTranslateParams = {
   url: string;
+  lang?: string;
 };
 
 type GetInfoParams = {
@@ -121,11 +122,16 @@ app.post(
     res
   ) => {
     try {
-      const videoUrl = decodeURIComponent(req.query.url);
+      const videoUrl = req.query.url;
+      const targetLanguageCode = req.query.lang;
       console.log("videoUrl", videoUrl);
+      console.log("languageCode", targetLanguageCode);
 
       // "https://www.youtube.com/watch?v=5bId3N7QZec"
-      const translateResult = await translateVideo(videoUrl);
+      const translateResult = await translateVideo(
+        videoUrl,
+        targetLanguageCode
+      );
       res.json(translateResult);
     } catch (error) {
       if (error instanceof TranslateInProgressException) {
@@ -147,7 +153,7 @@ app.get(
     res
   ) => {
     try {
-      const videoUrl = decodeURIComponent(req.query.url);
+      const videoUrl = req.query.url;
       console.log("videoUrl", videoUrl);
 
       // // "https://www.youtube.com/watch?v=5bId3N7QZec"
@@ -169,7 +175,7 @@ app.post(
     res
   ) => {
     try {
-      const videoUrl = decodeURIComponent(req.query.url);
+      const videoUrl = req.query.url;
       console.log("videoUrl", videoUrl);
       const format = parseInt(req.query.format);
 
