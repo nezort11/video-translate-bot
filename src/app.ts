@@ -91,7 +91,7 @@ app.post("/debug/timeout", async (req, res) => {
 
 type VideoTranslateParams = {
   url: string;
-  lang?: string;
+  lang?: string; // currently supports ru,en,kk https://github.com/FOSWLY/vot-cli/wiki/%5BEN%5D-Supported-langs
 };
 
 type GetInfoParams = {

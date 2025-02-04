@@ -1,4 +1,4 @@
-import { bot } from "./botinstance";
+import { BotContext, bot } from "./botinstance";
 
 // import { S3Session } from "telegraf-session-s33";
 import Database from "better-sqlite3";
@@ -7,6 +7,8 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { Composer, Context, Markup, TelegramError, session } from "telegraf";
 import { SQLite } from "@telegraf/session/sqlite";
 import { message } from "telegraf/filters";
+import { Stage, WizardScene } from "telegraf/scenes";
+import { KeyedDistinct } from "telegraf/typings/core/helpers/util";
 import axios, { AxiosError } from "axios";
 import { load } from "cheerio";
 // import { getAudioDurationInSeconds } from "get-audio-duration";
@@ -59,7 +61,7 @@ import {
 } from "./telegramlogger";
 // import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml, importPTimeout } from "./utils";
-import { Update } from "telegraf/types";
+import { Message, Update } from "telegraf/types";
 import {
   TranslateException,
   TranslateInProgressException,
@@ -96,6 +98,17 @@ const getVideoDurationInSeconds: any = {};
 // const ytdl: any = {};
 
 const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
+
+const messageTextNotCommand = (
+  update: Update
+): update is Update.MessageUpdate<KeyedDistinct<Message, "text">> => {
+  if (!("message" in update)) return false;
+  if (!("text" in update.message)) return false;
+  if ("text" in update.message && update.message.text.startsWith("/"))
+    return false;
+
+  return true;
+};
 
 const axiosInstance = axios.create({
   timeout: AXIOS_REQUEST_TIMEOUT,
@@ -280,6 +293,10 @@ enum YoutubeVideoFormatItag {
   Mp4aAudio256kb = 141, // not always present in video formats list
 }
 
+enum SceneName {
+  VideoSearch = "VIDEO_SEARCH",
+}
+
 const translateQualityToYoutubeVideoFormatItag = {
   [TranslateQuality.Mp4_360p]: {
     video: YoutubeVideoFormatItag.Mp4AvcVideo360p,
@@ -411,19 +428,27 @@ const handleError = async (error: unknown, context: Context) => {
   }
 
   logger.error(error);
-  if (IS_PRODUCTION) {
+
+  if (APP_ENV !== "local") {
     Sentry.captureException(error);
   }
 
-  console.error(error);
   await Promise.allSettled([
     context.reply(
       `⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже (✉️ информация об ошибке уже передана).`
     ),
 
-    telegramLoggerContext.reply(`<code>${escapeHtml(inspect(error))}</code>`, {
-      parse_mode: "HTML",
-    }),
+    ...(APP_ENV === "local"
+      ? []
+      : [
+          telegramLoggerContext.reply(
+            `<code>${escapeHtml(inspect(error))}</code>`,
+            {
+              parse_mode: "HTML",
+            }
+          ),
+        ]),
+
     // sendAdminNotification(
     //   `${(error as Error)?.stack || error}\nMessage: ${inspect(context, {
     //     depth: 10,
@@ -535,8 +560,86 @@ bot.start(async (context) => {
   );
 });
 
+// Exit scenes on any /command entered
+bot.use(async (ctx, next) => {
+  if (
+    ctx.message &&
+    "text" in ctx.message &&
+    ctx.message.text.startsWith("/")
+  ) {
+    delete ctx.session?.__scenes;
+  }
+
+  return await next();
+});
+
+bot.command("cancel", async (context) => {
+  // delete context.session.__scenes;
+  await context.reply("Диалог покинут", {
+    ...Markup.removeKeyboard(),
+    disable_notification: true,
+  });
+});
+
+bot.command("translate", async (context) => {
+  await context.reply(
+    "Для перевода видео, пожалуйста пришли ссылку на видео в этот чат. На данный момент бот переводит с этих языков 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷🇮🇹 на 🇬🇧🇷🇺🇰🇿"
+  );
+});
+
+const videoSearchWizard = new WizardScene<BotContext>(
+  SceneName.VideoSearch,
+  // .enter()
+  async (context) => {
+    await context.reply(
+      "Для поиска видео на других языках пожалуйста введи необходимый поисковой запрос:"
+    );
+    return context.wizard.next();
+  },
+  async (context) => {
+    if (context.has(message("text"))) {
+      const searchQuery = context.message.text;
+      if (searchQuery.length > 100) {
+        return await replyError(
+          context,
+          "Запрос слишком длинный, пожалуйста сделайте короче"
+        );
+      }
+
+      const translatedTextResult = await translate([searchQuery], "en");
+      const translatedText = translatedTextResult.translations[0].text;
+
+      const googleSearchYoutubeVideosUrl = buildGoogleSearchVideosUrl(
+        `${translatedText} site:youtube.com`
+      );
+      const youtubeSearchUrl = buildYoutubeSearchUrl(translatedText);
+
+      await context.reply(
+        `🔍 Выполни поиск по запросу ${translatedText} (${searchQuery}).\n*Для перевода, пожалуйста, скопируйте и пришлите 🔗 ссылку на необходимое видео`,
+        Markup.inlineKeyboard([
+          Markup.button.url("📺 YouTube", youtubeSearchUrl),
+          Markup.button.url("🔍 Google", googleSearchYoutubeVideosUrl),
+        ])
+      );
+      await context.scene.leave();
+    } else {
+      return await replyError(
+        context,
+        "Пожалуйста, введи необходимый запрос текстом"
+      );
+    }
+  }
+);
+
+// Initialize before the .scene is used
+const stage = new Stage();
+// @ts-expect-error WizardScene is compatible with BaseScene
+stage.register(videoSearchWizard);
+// @ts-expect-error invalid types
+bot.use(stage.middleware());
+
 bot.command("search", async (context) => {
-  // await context.reply
+  await context.scene.enter(SceneName.VideoSearch);
 });
 
 bot.command("test", async (context) => {
@@ -722,44 +825,18 @@ bot.command("debug_timeout", async (context) => {
   });
 });
 
-bot.on(message("text"), async (context, next) => {
+bot.on(messageTextNotCommand, async (context, next) => {
   const text = context.message.text;
-  if (text.startsWith("/")) {
+
+  const linkMatch = getLinkMatch(text);
+  const textContainsLink = !!linkMatch;
+  if (!textContainsLink) {
     return await next();
   }
 
   logger.info(
     `Incoming translate request: ${inspect(context.update, { depth: null })}`
   );
-
-  const linkMatch = getLinkMatch(text);
-  const textContainsLink = !!linkMatch;
-  if (!textContainsLink) {
-    if (text.length > 100) {
-      return await replyError(
-        context,
-        "Запрос слишком длинный, пожалуйста сделайте короче"
-      );
-    }
-
-    const translatedTextResult = await translate([text], "en");
-    const translatedText = translatedTextResult.translations[0].text;
-
-    const googleSearchYoutubeVideosUrl = buildGoogleSearchVideosUrl(
-      `${translatedText} site:youtube.com`
-    );
-    const youtubeSearchUrl = buildYoutubeSearchUrl(translatedText);
-
-    await context.reply(
-      `🔍 Выполни поиск по запросу ${translatedText} (${text}).\n*Для перевода, пожалуйста, скопируйте и пришлите 🔗 ссылку на необходимое видео`,
-      Markup.inlineKeyboard([
-        Markup.button.url("🔍 Google", googleSearchYoutubeVideosUrl),
-        Markup.button.url("📺 YouTube", youtubeSearchUrl),
-      ])
-    );
-
-    return;
-  }
 
   const link = text;
   const videoPlatform = getVideoPlatform(link);

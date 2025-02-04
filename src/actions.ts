@@ -1,7 +1,12 @@
 import { Markup } from "telegraf";
-import type { SceneContext } from "telegraf/typings/scenes";
+import type {
+  SceneContext,
+  WizardSession,
+  WizardSessionData,
+} from "telegraf/typings/scenes";
 // // @ts-expect-error nanoid@3 is commonjs no esm
 import { nanoid } from "nanoid";
+import type { BotContext } from "./botinstance";
 
 export enum ActionType {
   TranslateVoice = "TRANSLATE_VOICE",
@@ -36,7 +41,7 @@ type ActionPayload = {
 };
 
 // extend scenes session property
-type SceneActionSession = SceneContext["session"] & {
+export type SceneActionSession = WizardSession<WizardSessionData> & {
   actionData?: {
     [actionGroupId: string]: {
       [actionId: string]: ActionData;
@@ -44,9 +49,8 @@ type SceneActionSession = SceneContext["session"] & {
   };
 };
 
-// .session can be undefined (but still extend scene context)
 export type SceneActionContext = Omit<SceneContext, "session"> & {
-  session: SceneActionSession | undefined;
+  session?: SceneActionSession;
 };
 
 export const generateActionId = () => {
@@ -54,14 +58,14 @@ export const generateActionId = () => {
 };
 
 export const clearActionGroup = (
-  context: SceneActionContext,
+  context: BotContext,
   actionGroupId: string
 ) => {
   delete context.session?.actionData?.[actionGroupId];
 };
 
 export const getActionData = <T extends ActionType>(
-  context: SceneActionContext,
+  context: BotContext,
   actionGroupId: string,
   actionId: string
 ) => {
@@ -78,7 +82,7 @@ export const getActionData = <T extends ActionType>(
 };
 
 export const setActionData = (
-  context: SceneActionContext,
+  context: BotContext,
   actionId: string,
   data: ActionData
 ) => {
@@ -101,7 +105,7 @@ export const decodeActionPayload = (
 };
 
 export interface CreateActionArgs {
-  context: SceneActionContext;
+  context: BotContext;
   data: ActionData;
 }
 
