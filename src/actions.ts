@@ -1,3 +1,26 @@
+/**
+ * Screen Router Navigation Action System
+ *
+ * - createRouter: router - [router id]
+ * - createActionButton: action - [router id]/[action id]
+ * - route(router) - render screen
+ * - navigate(screen) - change screen
+ *
+ * session:
+ * - routers
+ *
+ * routers:
+ * - router
+ *
+ * router
+ * - screen: enum (current screen)
+ * - session: object (router state data)
+ * - actions: object (current actions)
+ *
+ * actions:
+ * - type: enum
+ * - actionData: object
+ */
 import { Markup } from "telegraf";
 import type {
   SceneContext,
@@ -8,114 +31,159 @@ import type {
 import { nanoid } from "nanoid";
 import type { BotContext } from "./botinstance";
 
+export enum Screen {
+  Translate = "TRANSLATE",
+  LanguageSettings = "LANGUAGE_SETTINGS",
+  Settings = "SETTINGS",
+}
+
 export enum ActionType {
+  Navigate = "NAVIGATE",
+
+  Translate = "TRANSLATE",
   TranslateVoice = "TRANSLATE_VOICE",
   TranslateAudio = "TRANSLATE_AUDIO",
+  ChooseLanguage = "CHOOSE_LANGUAGE",
 }
 
-interface ActionDataBase<T extends ActionType> {
+export interface ActionDataBase<T extends ActionType> {
   type: T;
-  previousData?: ActionData;
 }
 
-type TranslateLinkActionData = {
+// Action Data Types
+export type NavigateActionData = ActionDataBase<ActionType.Navigate> & {
+  screen: Screen;
+};
+
+export type TranslateActionData = ActionDataBase<ActionType.Translate> & {
   link: string;
 };
 
-export type TranslateVoiceActionData =
-  ActionDataBase<ActionType.TranslateVoice> & TranslateLinkActionData;
+export type ChooseLanguageActionData =
+  ActionDataBase<ActionType.ChooseLanguage> & {
+    language: string;
+  };
 
-export type TranslateAudioActionData =
-  ActionDataBase<ActionType.TranslateAudio> & TranslateLinkActionData;
+export type ActionData =
+  | NavigateActionData
+  | ActionDataBase<ActionType.TranslateVoice>
+  | ActionDataBase<ActionType.TranslateAudio>
+  | TranslateActionData
+  | ChooseLanguageActionData;
 
-type ActionTypeToActionDataMap = {
-  [ActionType.TranslateVoice]: TranslateVoiceActionData;
-  [ActionType.TranslateAudio]: TranslateAudioActionData;
-};
-
-export type ActionData = TranslateVoiceActionData | TranslateAudioActionData;
+export interface Router {
+  id: string;
+  screen: Screen;
+  session: any;
+  actions: Record<string, ActionData>;
+}
 
 type ActionPayload = {
-  actionGroupId: string; // aggregational identifier used to group union actions (to clear irrelevant actions)
+  routerId: string; // aggregational identifier used to group union actions (to clear irrelevant actions)
   actionId: string; // identifier of the specific action created
 };
 
-// extend scenes session property
 export type SceneActionSession = WizardSession<WizardSessionData> & {
-  actionData?: {
-    [actionGroupId: string]: {
-      [actionId: string]: ActionData;
-    };
-  };
+  routers?: Record<string, Router>;
+
+  translateLanguage?: string;
 };
 
 export type SceneActionContext = Omit<SceneContext, "session"> & {
   session?: SceneActionSession;
 };
 
-export const generateActionId = () => {
+export const generateUniqueId = () => {
   return nanoid(8);
 };
 
-export const clearActionGroup = (
+export const createRouter = (
   context: BotContext,
-  actionGroupId: string
+  defaultScreen: Screen,
+  defaultSession: any
 ) => {
-  delete context.session?.actionData?.[actionGroupId];
+  const routerId = generateUniqueId();
+
+  context.session ??= {};
+  context.session.routers ??= {};
+  const router = {
+    id: routerId,
+    screen: defaultScreen,
+    session: defaultSession,
+    actions: {},
+  };
+  context.session.routers[routerId] = router;
+
+  return router;
+};
+
+export const clearRouterActions = (context: BotContext, routerId: string) => {
+  // case must be present, so reset the actions
+  context.session.routers![routerId].actions = {};
 };
 
 export const getActionData = <T extends ActionType>(
   context: BotContext,
-  actionGroupId: string,
+  routerId: string,
   actionId: string
 ) => {
-  const actionData = context.session?.actionData?.[actionGroupId]?.[
-    actionId
-  ] as ActionTypeToActionDataMap[T] | undefined;
+  const actionData = context.session?.routers?.[routerId]?.actions?.[actionId];
 
   if (actionData) {
     // Automatically cleanup all other irrelevant actions in the action group
-    clearActionGroup(context, actionGroupId);
+    // clearActionGroup(context, actionGroupId);
+    clearRouterActions(context, routerId);
   }
 
   return actionData;
 };
 
+export const getRouter = (context: BotContext, routerId: string) => {
+  const router = context.session.routers![routerId];
+  return router;
+};
+
 export const setActionData = (
   context: BotContext,
+  routerId: string,
   actionId: string,
   data: ActionData
 ) => {
-  const actionGroupId = context.update.update_id;
-  context.session ??= {};
-  context.session.actionData ??= {};
-  context.session.actionData[actionGroupId] ??= {};
-  context.session.actionData[actionGroupId][actionId] = data;
+  // router with the provided routerId must exist
+  context.session.routers![routerId].actions[actionId] = data;
+};
+
+export const setRouterSession = (
+  context: BotContext,
+  routerId: string,
+  key: string,
+  data: string
+) => {
+  context.session.routers![routerId].session[key] = data;
 };
 
 const encodeActionPayload = (data: ActionPayload) => {
-  return `${data.actionGroupId},${data.actionId}`;
+  return `${data.routerId},${data.actionId}`;
 };
 
 export const decodeActionPayload = (
   actionCallbackData: string
 ): ActionPayload => {
-  const [actionGroupId, actionId] = actionCallbackData.split(",");
-  return { actionGroupId, actionId };
+  const [routerId, actionId] = actionCallbackData.split(",");
+  return { routerId, actionId };
 };
 
 export interface CreateActionArgs {
   context: BotContext;
+  routerId: string;
   data: ActionData;
 }
 
 // Create new action and return serialized callback data
-export const createAction = ({ context, data }: CreateActionArgs) => {
-  const actionGroupId = `${context.update.update_id}`;
-  const actionId = generateActionId();
-
-  setActionData(context, actionId, data);
-  return encodeActionPayload({ actionGroupId, actionId });
+export const createAction = ({ context, routerId, data }: CreateActionArgs) => {
+  const actionId = generateUniqueId();
+  setActionData(context, routerId, actionId, data);
+  return encodeActionPayload({ routerId, actionId });
 };
 
 // Wrap around Markup.button.callback to automatically create callback data for action

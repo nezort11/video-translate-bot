@@ -82,10 +82,13 @@ import { translate } from "./services/translate";
 import { updatesTable } from "./schema";
 import {
   ActionType,
+  Router,
+  Screen,
   createActionButton,
+  createRouter,
   decodeActionPayload,
-  generateActionId,
   getActionData,
+  getRouter,
 } from "./actions";
 
 const database = new Database("./storage/db.sqlite");
@@ -167,7 +170,7 @@ const getLinkTitle = async (link: string) => {
   }
 };
 
-const getShortYoutubeLink = (youtubeVideoId: string) =>
+const shortenYoutubeLink = (youtubeVideoId: string) =>
   `https://youtu.be/${youtubeVideoId}`;
 
 const buildGoogleSearchVideosUrl = (query: string) => {
@@ -200,11 +203,20 @@ const TRANSLATE_PULLING_INTERVAL = moment
 //   );
 // };
 
+const getTranslateLanguage = (context: BotContext) => {
+  let defaultLanguage = context.from?.language_code ?? "en";
+  if (!["en", "ru", "kk"].includes(defaultLanguage)) {
+    defaultLanguage = "en";
+  }
+  return context.session.translateLanguage ?? defaultLanguage;
+};
+
 const translateVideoFinal = async (
-  url: string
+  url: string,
+  targetLanguage?: string
 ): Promise<VideoTranslateResponse> => {
   try {
-    return await translateVideo(url);
+    return await translateVideo(url, targetLanguage);
     // const videoTranslateResponse = await translateVideo(url);
     // return videoTranslateResponse.data;
   } catch (error) {
@@ -825,29 +837,36 @@ bot.command("debug_timeout", async (context) => {
   });
 });
 
-bot.on(messageTextNotCommand, async (context, next) => {
-  const text = context.message.text;
+const mapLanguageCodeToFlag = {
+  en: "🇬🇧",
+  ru: "🇷🇺",
+  kk: "🇰🇿",
+};
 
-  const linkMatch = getLinkMatch(text);
-  const textContainsLink = !!linkMatch;
-  if (!textContainsLink) {
-    return await next();
-  }
-
-  logger.info(
-    `Incoming translate request: ${inspect(context.update, { depth: null })}`
+const renderScreen = async (
+  context: BotContext,
+  ...args: Parameters<BotContext["reply"]>
+) => {
+  const isEdit = context.callbackQuery ?? context.inlineMessageId;
+  args[1] = { parse_mode: "MarkdownV2", ...args[1] };
+  return await context[(isEdit ? "editMessageText" : "reply") as "reply"](
+    ...args
   );
+};
 
-  const link = text;
+const renderTranslateScreen = async (context: BotContext, router: Router) => {
+  const link = router.session.link as string;
   const videoPlatform = getVideoPlatform(link);
   logger.log("Video platform:", videoPlatform);
+
   if (videoPlatform === VideoPlatform.YouTube) {
     const videoId = getYoutubeVideoId(link);
-    const shortLink = getShortYoutubeLink(videoId);
+    const shortLink = shortenYoutubeLink(videoId);
     const videoTranslateApp = new URL(VIDEO_TRANSLATE_APP_URL);
     videoTranslateApp.searchParams.set("url", shortLink);
 
-    await context.replyWithMarkdownV2(
+    await renderScreen(
+      context,
       `⚙️ Каким образом перевести [это](${shortLink}) видео?`,
       {
         disable_notification: true,
@@ -863,9 +882,9 @@ bot.on(messageTextNotCommand, async (context, next) => {
               // )
               {
                 context,
+                routerId: router.id,
                 data: {
                   type: ActionType.TranslateVoice,
-                  link: shortLink,
                 },
               }
             ),
@@ -873,9 +892,9 @@ bot.on(messageTextNotCommand, async (context, next) => {
           [
             createActionButton("🎧 Аудио (mp3)", {
               context,
+              routerId: router.id,
               data: {
                 type: ActionType.TranslateAudio,
-                link: shortLink,
               },
             }),
             // Markup.button.callback(
@@ -888,6 +907,21 @@ bot.on(messageTextNotCommand, async (context, next) => {
             // ),
           ],
           [Markup.button.webApp("📺 Видео (mp4)", videoTranslateApp.href)],
+          [
+            createActionButton(
+              `Язык перевода: ${
+                mapLanguageCodeToFlag[getTranslateLanguage(context)]
+              }`,
+              {
+                context,
+                routerId: router.id,
+                data: {
+                  type: ActionType.Navigate,
+                  screen: Screen.LanguageSettings,
+                },
+              }
+            ),
+          ],
           // [
           //   Markup.button.callback(
           //     "📺 Видео (mp4) (дольше ⏳)",
@@ -900,7 +934,8 @@ bot.on(messageTextNotCommand, async (context, next) => {
     return;
   }
 
-  await context.replyWithMarkdownV2(
+  await renderScreen(
+    context,
     `⚙️ Каким образом перевести [это](${link}) видео?`,
     {
       disable_notification: true,
@@ -909,9 +944,9 @@ bot.on(messageTextNotCommand, async (context, next) => {
         [
           createActionButton("🎙️ Голос (mp3) (быстрее ⚡️)", {
             context,
+            routerId: router.id,
             data: {
               type: ActionType.TranslateVoice,
-              link: link,
             },
           }),
           // Markup.button.callback(
@@ -926,17 +961,98 @@ bot.on(messageTextNotCommand, async (context, next) => {
       ]).reply_markup,
     }
   );
+};
+
+const renderChooseTranslateLanguage = async (
+  context: BotContext,
+  router: Router
+) => {
+  const routerId = router.id;
+  await renderScreen(
+    context,
+    "Выберите язык на который нужно перевести данное видео",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            createActionButton("🇬🇧", {
+              context,
+              routerId,
+              data: {
+                type: ActionType.ChooseLanguage,
+                language: "en",
+                // previousData,
+              },
+            }),
+            createActionButton("🇷🇺", {
+              context,
+              routerId,
+              data: {
+                type: ActionType.ChooseLanguage,
+                language: "ru",
+              },
+            }),
+            createActionButton("🇰🇿", {
+              context,
+              routerId,
+              data: {
+                type: ActionType.ChooseLanguage,
+                language: "kk",
+              },
+            }),
+          ],
+          [
+            createActionButton("⏪ Назад", {
+              context,
+              routerId,
+              data: {
+                type: ActionType.Navigate,
+                screen: Screen.Translate,
+              },
+            }),
+          ],
+        ],
+      },
+    }
+  );
+};
+
+const route = async (context: BotContext, routerId: string) => {
+  const router = getRouter(context, routerId);
+  switch (router.screen) {
+    case Screen.Translate:
+      await renderTranslateScreen(context, router);
+      break;
+    case Screen.LanguageSettings:
+      await renderChooseTranslateLanguage(context, router);
+      break;
+  }
+};
+
+bot.on(messageTextNotCommand, async (context, next) => {
+  const text = context.message.text;
+
+  const linkMatch = getLinkMatch(text);
+  const textContainsLink = !!linkMatch;
+  if (!textContainsLink) {
+    return await next();
+  }
+
+  logger.info(
+    `Incoming translate request: ${inspect(context.update, { depth: null })}`
+  );
+
+  const router = createRouter(context, Screen.Translate, { link: text });
+  await route(context, router.id);
 });
 
 let videoTranslateProgressCount = 0;
 bot.action(/.+/, async (context) => {
   const isFromOwner = context.from?.username === OWNER_USERNAME;
   const actionPayload = decodeActionPayload(context.match[0]);
-  const actionData = getActionData(
-    context,
-    actionPayload.actionGroupId,
-    actionPayload.actionId
-  );
+  const routerId = actionPayload.routerId;
+  const router = getRouter(context, actionPayload.routerId);
+  const actionData = getActionData(context, routerId, actionPayload.actionId);
   if (!actionData) {
     // Old action messages was cleared than just delete message
     await context.deleteMessage();
@@ -944,6 +1060,18 @@ bot.action(/.+/, async (context) => {
     return;
   }
   const actionType = actionData.type;
+
+  if (actionType === ActionType.Navigate) {
+    context.session.routers![routerId].screen = actionData.screen;
+    return await route(context, routerId);
+  }
+
+  if (actionType === ActionType.ChooseLanguage) {
+    context.session.translateLanguage = actionData.language;
+    context.session.routers![routerId].screen = Screen.Translate;
+
+    return await route(context, routerId);
+  }
 
   // const actionType = actionData[0] as TranslateType;
   // @ts-ignore
@@ -980,7 +1108,8 @@ bot.action(/.+/, async (context) => {
 
   // const translateAction = decodeTranslateAction(actionData);
   // const videoLink = translateAction.url;
-  const videoLink = actionData.link;
+  const videoLink = router.session.link as string;
+  const targetTranslateLanguage = getTranslateLanguage(context);
   const translateAction = {
     translateType: null,
     quality: TranslateQuality.Mp4_360p,
@@ -1052,7 +1181,10 @@ bot.action(/.+/, async (context) => {
     logger.info("Request translation...");
     let translationUrl: string; //| undefined;
     try {
-      const videoTranslateData = await translateVideoFinal(videoLink);
+      const videoTranslateData = await translateVideoFinal(
+        videoLink,
+        targetTranslateLanguage
+      );
       translationUrl = videoTranslateData.url;
     } catch (error) {
       // if (error instanceof Error) {
@@ -1095,7 +1227,7 @@ bot.action(/.+/, async (context) => {
     if (videoTitle) {
       try {
         logger.info("Translating video title to russian...");
-        videoTitle = await translateText(videoTitle, "ru");
+        videoTitle = await translateText(videoTitle, targetTranslateLanguage);
         logger.info(`Translated video title to russian: ${videoTitle}`);
       } catch (error) {
         handleWarnError("Unable to translate video title:", error);
@@ -1116,7 +1248,7 @@ bot.action(/.+/, async (context) => {
         //   to: "ru",
         // });
         // artist = translateResponse.text;
-        artist = await translateText(artist, "ru");
+        artist = await translateText(artist, targetTranslateLanguage);
         artist = artist.split(" ").map(capitalize).join(" ");
       } catch (error) {
         logger.warn("Unable to translate video artist:", error);
@@ -1144,12 +1276,17 @@ bot.action(/.+/, async (context) => {
       outputBuffer.name = `${videoTitle}.mp3`;
 
       const telegramClient = await getClient();
+      const finalArtist = artist
+        ? artist === originalArtist
+          ? artist
+          : `${artist} (${originalArtist})`
+        : "Unknown artist";
       const fileMessage = await telegramClient.sendFile(
         STORAGE_CHANNEL_CHAT_ID,
         {
           file: outputBuffer,
           // caption: `${videoLink}`,
-          caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+          caption: `🎧 <b>${videoTitle}</b>\n— ${finalArtist}\n${videoLink}`,
           parseMode: "html",
           thumb: thumbnailBuffer,
 
@@ -1157,9 +1294,7 @@ bot.action(/.+/, async (context) => {
             new Api.DocumentAttributeAudio({
               duration: Math.floor(videoDuration),
               title: videoTitle,
-              performer: artist
-                ? `${artist} (${originalArtist})`
-                : "Unknown artist",
+              performer: finalArtist,
             }),
             // new Api.DocumentAttributeFilename({
             //   fileName: "mqdefault.jpg",
