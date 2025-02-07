@@ -231,13 +231,14 @@ export type VideoUploadResponseData = {
   url: string;
 };
 
-const translateVideo = async (videoLink: string) => {
+const translateVideo = async (videoLink: string, targetLanguage?: string) => {
   const translatedAudioResponse = await axios.post<VideoTranslateResponseData>(
     TRANSLATE_API_URL,
     null,
     {
       params: {
         url: videoLink,
+        ...(targetLanguage && { lang: targetLanguage }),
       },
     }
   );
@@ -251,16 +252,20 @@ const delay = (milliseconds: number) =>
   new Promise((resolve) => setTimeout(() => resolve(undefined), milliseconds));
 
 const translateVideoAwait = async (
-  videoLink: string
+  videoLink: string,
+  targetLanguage?: string
 ): Promise<VideoTranslateResponseData> => {
   console.log("Requesting translation...");
-  const translatedAudioResponse = await translateVideo(videoLink);
+  const translatedAudioResponse = await translateVideo(
+    videoLink,
+    targetLanguage
+  );
 
   if (translatedAudioResponse.status === 202) {
     console.info("Translation in progress...");
     await delay(TRANSLATE_PULLING_INTERVAL);
 
-    return await translateVideoAwait(videoLink);
+    return await translateVideoAwait(videoLink, targetLanguage);
   }
   return translatedAudioResponse.data;
 };
@@ -281,7 +286,7 @@ export default function Home() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      link: decodeURIComponent(searchParams.get("url") ?? ""),
+      link: searchParams.get("url") ?? "",
       multithreading: false,
       threads: 2,
     },
@@ -298,7 +303,11 @@ export default function Home() {
     setTranslateProgress("Перевод аудио речи...");
     let translatedAudioResponse;
     try {
-      translatedAudioResponse = await translateVideoAwait(values.link);
+      const translateLanguage = searchParams.get("lang") ?? undefined;
+      translatedAudioResponse = await translateVideoAwait(
+        values.link,
+        translateLanguage
+      );
     } catch (error) {
       if (
         axios.isAxiosError(error) &&
