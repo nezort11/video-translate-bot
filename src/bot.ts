@@ -864,6 +864,8 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
     const shortLink = shortenYoutubeLink(videoId);
     const videoTranslateApp = new URL(VIDEO_TRANSLATE_APP_URL);
     videoTranslateApp.searchParams.set("url", shortLink);
+    const translateLanguage = getTranslateLanguage(context);
+    videoTranslateApp.searchParams.set("lang", translateLanguage);
 
     await renderScreen(
       context,
@@ -909,9 +911,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
           [Markup.button.webApp("📺 Видео (mp4)", videoTranslateApp.href)],
           [
             createActionButton(
-              `Язык перевода: ${
-                mapLanguageCodeToFlag[getTranslateLanguage(context)]
-              }`,
+              `Язык перевода: ${mapLanguageCodeToFlag[translateLanguage]}`,
               {
                 context,
                 routerId: router.id,
@@ -1055,7 +1055,9 @@ bot.action(/.+/, async (context) => {
   const actionData = getActionData(context, routerId, actionPayload.actionId);
   if (!actionData) {
     // Old action messages was cleared than just delete message
-    await context.deleteMessage();
+    try {
+      await context.deleteMessage();
+    } catch (error) {}
     // throw new Error("Action data is undefined");
     return;
   }
