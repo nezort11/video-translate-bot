@@ -1,6 +1,9 @@
 import { BotContext, bot } from "./botinstance";
 
 // import { S3Session } from "telegraf-session-s33";
+import i18next, { TFunction } from "i18next";
+import Backend from "i18next-fs-backend";
+import yaml from "js-yaml";
 import Database from "better-sqlite3";
 import { count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -204,11 +207,19 @@ const TRANSLATE_PULLING_INTERVAL = moment
 // };
 
 const getTranslateLanguage = (context: BotContext) => {
-  let defaultLanguage = context.from?.language_code ?? "en";
-  if (!["en", "ru", "kk"].includes(defaultLanguage)) {
-    defaultLanguage = "en";
+  if (context.session.translateLanguage) {
+    return context.session.translateLanguage;
   }
-  return context.session.translateLanguage ?? defaultLanguage;
+
+  const lang = context.from?.language_code;
+  switch (lang) {
+    case "en":
+    case "ru":
+    case "kk":
+      return lang;
+    default:
+      return "en";
+  }
 };
 
 const translateVideoFinal = async (
@@ -362,8 +373,37 @@ const ffmpeg = createFFmpeg({
 // Store current webhook invocation update
 let currentUpdateContext: Context | null = null;
 
+let t: TFunction<"translation", undefined>;
+
 bot.use(async (context, next) => {
   currentUpdateContext = context;
+  await next();
+});
+
+bot.use(async (context, next) => {
+  await i18next.use(Backend).init({
+    // Default language
+    lng: "en",
+    fallbackLng: "en",
+    // Preload supported languages
+    preload: ["en", "ru"],
+    backend: {
+      loadPath: path.join(__dirname, "../locales/{{lng}}.yaml"),
+      parse: (data) => yaml.load(data), // Use YAML parsing
+    },
+  });
+
+  let lang = "en";
+  // Use the stored language from session if available
+  if (context.session?.language) {
+    lang = context.session.language;
+  } else if (context.from?.language_code === "ru") {
+    lang = "ru";
+  }
+
+  // Attach a fixed translation function for the detected language
+  t = i18next.getFixedT(lang);
+
   await next();
 });
 
@@ -379,8 +419,8 @@ const handleWarnError = (message: string, error: unknown) => {
   });
 };
 
-// Disable bot in group chat
-bot.use(Composer.drop((context) => context.chat?.type !== "private"));
+// Disable bot in group chat (can be disabled in botfather)
+// bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
 // const s3Session = new S3Session(STORAGE_BUCKET);
 
@@ -432,9 +472,7 @@ const handleError = async (error: unknown, context: Context) => {
     const { TimeoutError } = await importPTimeout();
     // p-timeout error thrown by telegraf based on `handlerTimeout`
     if ("name" in error && error.name === TimeoutError.name) {
-      await context.reply(
-        `⚠️ Не получилось перевести видео, так как это занимает слишком ⏳ много времени.`
-      );
+      await replyError(context, t("translation_failed"));
       return;
     }
   }
@@ -446,9 +484,7 @@ const handleError = async (error: unknown, context: Context) => {
   }
 
   await Promise.allSettled([
-    context.reply(
-      `⚠️ Ошибка! Попробуй еще раз 🔁 или немного позже (✉️ информация об ошибке уже передана).`
-    ),
+    replyError(context, t("error_retry")),
 
     ...(APP_ENV === "local"
       ? []
@@ -479,9 +515,7 @@ const handleTranslateInProgress = async (
     //     progress * 100
     //   )}%)`
     // );
-    await context.editMessageText(
-      `⏳ Видео в процессе перевода, время обработка зависит от длительности видео...`
-    );
+    await context.editMessageText(t("translation_in_progress"));
   } catch (error) {
     if (error instanceof TelegramError) {
       if (
@@ -551,21 +585,22 @@ bot.catch(async (error, context) => {
   await handleError(error, context);
 });
 
-const START_MESSAGE = `
-👋 Привет, пришли мне 🔗 ссылку на видео и я попробую 🚧 перевести его.
+// const START_MESSAGE = `
+// 👋 Привет, пришли мне 🔗 ссылку на видео и я попробую 🚧 перевести его.
 
-Поддерживаю полноценный перевод 📺 видео с видео-платформ 🌐 youtube.com
+// Поддерживаю полноценный перевод 📺 видео с видео-платформ 🌐 youtube.com
 
-а также перевод 🎤 голоса для
-🌐 instagram.com, tiktok.com, x.com
-🇨🇳 bilibili.com, youku.com, v.qq.com, iqiyi.com
-🇷🇺 vk.com, ok.ru
-и других
-`;
+// а также перевод 🎤 голоса для
+// 🌐 instagram.com, tiktok.com, x.com
+// 🇨🇳 bilibili.com, youku.com, v.qq.com, iqiyi.com
+// 🇷🇺 vk.com, ok.ru
+// и других
+// `;
 
 bot.start(async (context) => {
+  // const router = createRouter(context, undefined, {});
   await context.reply(
-    START_MESSAGE,
+    t("start"),
     //  Я поддерживаю много различных платформ / соцсетей / сайтов, а также простые ссылки для видео / аудио.
     // Перевожу не только с английского, но и с многих других языков"
     { disable_notification: true }
@@ -587,16 +622,14 @@ bot.use(async (ctx, next) => {
 
 bot.command("cancel", async (context) => {
   // delete context.session.__scenes;
-  await context.reply("Диалог покинут", {
+  await context.reply(t("dialog_left"), {
     ...Markup.removeKeyboard(),
     disable_notification: true,
   });
 });
 
 bot.command("translate", async (context) => {
-  await context.reply(
-    "Для перевода видео, пожалуйста пришли ссылку на видео в этот чат. На данный момент бот переводит с этих языков 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷🇮🇹 на 🇬🇧🇷🇺🇰🇿"
-  );
+  await context.reply(t("translate"));
 });
 
 const videoSearchWizard = new WizardScene<BotContext>(
@@ -848,7 +881,7 @@ const renderScreen = async (
   ...args: Parameters<BotContext["reply"]>
 ) => {
   const isEdit = context.callbackQuery ?? context.inlineMessageId;
-  args[1] = { parse_mode: "MarkdownV2", ...args[1] };
+  args[1] = { parse_mode: "Markdown", ...args[1] };
   return await context[(isEdit ? "editMessageText" : "reply") as "reply"](
     ...args
   );
@@ -867,100 +900,99 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
     const translateLanguage = getTranslateLanguage(context);
     videoTranslateApp.searchParams.set("lang", translateLanguage);
 
-    await renderScreen(
-      context,
-      `⚙️ Каким образом перевести [это](${shortLink}) видео?`,
-      {
-        disable_notification: true,
-        // reply_to_message_id: context.message.message_id,
-        reply_markup: Markup.inlineKeyboard([
-          [
-            createActionButton(
-              "🎙️ Голос (mp3) (быстрее ⚡️)",
-              // encodeTranslateAction(
-              //   TranslateType.Voice,
-              //   shortLink,
-              //   TranslateQuality.Mp4_360p
-              // )
-              {
-                context,
-                routerId: router.id,
-                data: {
-                  type: ActionType.TranslateVoice,
-                },
-              }
-            ),
-          ],
-          [
-            createActionButton("🎧 Аудио (mp3)", {
-              context,
-              routerId: router.id,
-              data: {
-                type: ActionType.TranslateAudio,
-              },
-            }),
-            // Markup.button.callback(
-            //   "🎧 Аудио (mp3)",
-            //   encodeTranslateAction(
-            //     TranslateType.Audio,
-            //     shortLink,
-            //     TranslateQuality.Mp4_360p
-            //   )
-            // ),
-          ],
-          [Markup.button.webApp("📺 Видео (mp4)", videoTranslateApp.href)],
-          [
-            createActionButton(
-              `Язык перевода: ${mapLanguageCodeToFlag[translateLanguage]}`,
-              {
-                context,
-                routerId: router.id,
-                data: {
-                  type: ActionType.Navigate,
-                  screen: Screen.LanguageSettings,
-                },
-              }
-            ),
-          ],
-          // [
-          //   Markup.button.callback(
-          //     "📺 Видео (mp4) (дольше ⏳)",
-          //     encodeChooseVideoQualityAction(shortLink)
-          //   ),
-          // ],
-        ]).reply_markup,
-      }
+    const translateVideoMessage = t("translate_video").replace(
+      "this",
+      `[this](${shortLink})`
     );
-    return;
-  }
-
-  await renderScreen(
-    context,
-    `⚙️ Каким образом перевести [это](${link}) видео?`,
-    {
+    await renderScreen(context, translateVideoMessage, {
+      parse_mode: "Markdown",
       disable_notification: true,
       // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
         [
-          createActionButton("🎙️ Голос (mp3) (быстрее ⚡️)", {
+          createActionButton(
+            t("voice_faster"),
+            // encodeTranslateAction(
+            //   TranslateType.Voice,
+            //   shortLink,
+            //   TranslateQuality.Mp4_360p
+            // )
+            {
+              context,
+              routerId: router.id,
+              data: {
+                type: ActionType.TranslateVoice,
+              },
+            }
+          ),
+        ],
+        [
+          createActionButton(t("audio_mp3"), {
             context,
             routerId: router.id,
             data: {
-              type: ActionType.TranslateVoice,
+              type: ActionType.TranslateAudio,
             },
           }),
           // Markup.button.callback(
-          //   "🎙️ Голос (mp3) (быстрее ⚡️)",
+          //   "🎧 Аудио (mp3)",
           //   encodeTranslateAction(
-          //     TranslateType.Voice,
-          //     link,
+          //     TranslateType.Audio,
+          //     shortLink,
           //     TranslateQuality.Mp4_360p
           //   )
           // ),
         ],
+        [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
+        [
+          createActionButton(
+            t("translation_language", {
+              language_flag: mapLanguageCodeToFlag[translateLanguage],
+            }),
+            {
+              context,
+              routerId: router.id,
+              data: {
+                type: ActionType.Navigate,
+                screen: Screen.LanguageSettings,
+              },
+            }
+          ),
+        ],
+        // [
+        //   Markup.button.callback(
+        //     "📺 Видео (mp4) (дольше ⏳)",
+        //     encodeChooseVideoQualityAction(shortLink)
+        //   ),
+        // ],
       ]).reply_markup,
-    }
-  );
+    });
+    return;
+  }
+
+  await renderScreen(context, t("translate_video", { link }), {
+    disable_notification: true,
+    // reply_to_message_id: context.message.message_id,
+    reply_markup: Markup.inlineKeyboard([
+      [
+        createActionButton(t("voice_faster"), {
+          context,
+          routerId: router.id,
+          data: {
+            type: ActionType.TranslateVoice,
+          },
+        }),
+        // Markup.button.callback(
+        //   "🎙️ Голос (mp3) (быстрее ⚡️)",
+        //   encodeTranslateAction(
+        //     TranslateType.Voice,
+        //     link,
+        //     TranslateQuality.Mp4_360p
+        //   )
+        // ),
+      ],
+    ]).reply_markup,
+  });
 };
 
 const renderChooseTranslateLanguage = async (
@@ -968,53 +1000,49 @@ const renderChooseTranslateLanguage = async (
   router: Router
 ) => {
   const routerId = router.id;
-  await renderScreen(
-    context,
-    "Выберите язык на который нужно перевести данное видео",
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            createActionButton("🇬🇧", {
-              context,
-              routerId,
-              data: {
-                type: ActionType.ChooseLanguage,
-                language: "en",
-                // previousData,
-              },
-            }),
-            createActionButton("🇷🇺", {
-              context,
-              routerId,
-              data: {
-                type: ActionType.ChooseLanguage,
-                language: "ru",
-              },
-            }),
-            createActionButton("🇰🇿", {
-              context,
-              routerId,
-              data: {
-                type: ActionType.ChooseLanguage,
-                language: "kk",
-              },
-            }),
-          ],
-          [
-            createActionButton("⏪ Назад", {
-              context,
-              routerId,
-              data: {
-                type: ActionType.Navigate,
-                screen: Screen.Translate,
-              },
-            }),
-          ],
+  await renderScreen(context, t("choose_language"), {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          createActionButton("🇬🇧", {
+            context,
+            routerId,
+            data: {
+              type: ActionType.ChooseLanguage,
+              language: "en",
+              // previousData,
+            },
+          }),
+          createActionButton("🇷🇺", {
+            context,
+            routerId,
+            data: {
+              type: ActionType.ChooseLanguage,
+              language: "ru",
+            },
+          }),
+          createActionButton("🇰🇿", {
+            context,
+            routerId,
+            data: {
+              type: ActionType.ChooseLanguage,
+              language: "kk",
+            },
+          }),
         ],
-      },
-    }
-  );
+        [
+          createActionButton(t("back"), {
+            context,
+            routerId,
+            data: {
+              type: ActionType.Navigate,
+              screen: Screen.Translate,
+            },
+          }),
+        ],
+      ],
+    },
+  });
 };
 
 const route = async (context: BotContext, routerId: string) => {
@@ -1081,7 +1109,7 @@ bot.action(/.+/, async (context) => {
     // @ts-ignore
     const link = actionData.slice(1);
     await context.editMessageText(
-      "Выбери качество видео:",
+      t("choose_quality"),
       Markup.inlineKeyboard([
         Markup.button.callback(
           "Низкое",
@@ -1125,32 +1153,27 @@ bot.action(/.+/, async (context) => {
     originalVideoDuration &&
     originalVideoDuration > moment.duration({ hours: 4 }).asSeconds()
   ) {
-    await context.reply(
-      "⚠️ Видео для перевода слишком длинное, попробуйте перевести другое видео",
-      { disable_notification: true }
-    );
+    await replyError(context, t("video_too_long"), {
+      disable_notification: true,
+    });
   } else if (
     translateAction.translateType === TranslateType.Video &&
     originalVideoDuration &&
     originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
   ) {
-    await context.reply(
-      "⚠️ Видео перевод слишком долго обрабатывать, попробуйте выбрать обычный аудио перевод",
-      { disable_notification: true }
-    );
+    await replyError(context, t("video_processing_slow"), {
+      disable_notification: true,
+    });
   } else if (
     translateAction.quality === TranslateQuality.Mp4_720p &&
     originalVideoDuration &&
     originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
   ) {
-    await context.reply(
-      "⚠️ Видео в выбранном качестве слишком долго обрабатывать, попробуй уменьшить качество или выбрать аудио",
-      { disable_notification: true }
-    );
+    await replyError(context, t("video_quality_too_slow"), {
+      disable_notification: true,
+    });
   } else if (videoTranslateProgressCount >= 1) {
-    await context.reply(
-      "⚠️ Максимальное количество видео в процессе 🏗 перевода в данный момент, пожалуйста, 🔁 повторите позже..."
-    );
+    await replyError(context, t("max_videos_processing"));
   } else {
     isValidationError = false;
   }
@@ -1195,19 +1218,20 @@ bot.action(/.+/, async (context) => {
           const YANDEX_TRANSLATE_ERROR_MESSAGE =
             "Возникла ошибка, попробуйте позже";
           if (error.message === YANDEX_TRANSLATE_ERROR_MESSAGE) {
-            await context.reply(
-              "⚠️ Не получается перевести это видео, 😢 к сожалению, ничего не поделать. 🕔 Может в будущем получится"
-            );
+            await replyError(context, t("cannot_translate_video"));
             return;
           }
 
-          await context.reply(`⚠️ Ошибка переводчика: ${error.message}`);
+          await replyError(
+            context,
+            t("translator_error", {
+              error_message: t("generic_error"),
+            })
+          );
           return;
         }
 
-        await context.reply(
-          "⚠️ Возникла ошибка при переводе. Информация ✉️ передана разработчикам, попробуй позже"
-        );
+        await replyError(context, t("translation_error"));
         return;
       }
       throw error;
@@ -1320,9 +1344,7 @@ bot.action(/.+/, async (context) => {
         (videoFormat) => videoFormat.itag === youtubeVideoFormatItag.video
       ) === -1
     ) {
-      await context.reply(
-        "⚠️ Выбранный формат видео для перевода не найден, попробуйте другой."
-      );
+      await replyError(context, t("video_format_not_found"));
       return;
     }
     if (
@@ -1330,9 +1352,7 @@ bot.action(/.+/, async (context) => {
         (videoFormat) => videoFormat.itag === youtubeVideoFormatItag.audio
       ) === -1
     ) {
-      await context.reply(
-        "⚠️ Выбранный формат аудио для перевода не найден, попробуйте другой."
-      );
+      await replyError(context, t("audio_format_not_found"));
       return;
     }
 
@@ -1539,15 +1559,13 @@ bot.action(/.+/, async (context) => {
 
 bot.use(async (context) => {
   if (context.message && "video" in context.message) {
-    await context.reply(
-      "⚠️ На данный момент поддерживается только YouTube, можете попробовать 📤 загрузить это видео на ютуб и прислать 🔗 ссылку",
-      { disable_notification: true }
-    );
+    await replyError(context, t("only_youtube_supported_upload"), {
+      disable_notification: true,
+    });
   } else {
-    await context.reply(
-      "⚠️ На данный момент поддерживается только YouTube, пришлите 🔗 ссылку на видео для перевода",
-      { disable_notification: true }
-    );
+    await replyError(context, t("only_youtube_supported"), {
+      disable_notification: true,
+    });
   }
 });
 

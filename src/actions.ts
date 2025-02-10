@@ -73,7 +73,7 @@ export type ActionData =
 
 export interface Router {
   id: string;
-  screen: Screen;
+  screen?: Screen;
   session: any;
   actions: Record<string, ActionData>;
 }
@@ -84,6 +84,8 @@ type ActionPayload = {
 };
 
 export type SceneActionSession = WizardSession<WizardSessionData> & {
+  language?: string;
+
   routers?: Record<string, Router>;
 
   translateLanguage?: string;
@@ -99,8 +101,8 @@ export const generateUniqueId = () => {
 
 export const createRouter = (
   context: BotContext,
-  defaultScreen: Screen,
-  defaultSession: any
+  defaultScreen?: Screen,
+  defaultSession?: any
 ) => {
   const routerId = generateUniqueId();
 

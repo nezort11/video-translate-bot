@@ -1,0 +1,39 @@
+start: |
+  👋 Hi, send me a 🔗 link to the video, and I'll try to 🚧 translate it.
+
+  I support full 📺 video translation from the video platform 🌐 youtube.com
+
+  as well as 🎤 voice translation for:
+  🌐 instagram.com, tiktok.com, x.com
+  🇨🇳 bilibili.com, youku.com, v.qq.com, iqiyi.com
+  🇷🇺 vk.com, ok.ru
+  and others.
+translate: "To translate a video, please send a link to the video in this chat. Currently, the bot translates from these languages 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷🇮🇹 to 🇬🇧🇷🇺🇰🇿."
+translate_video: "⚙️ How should we translate this video?"
+greeting: "Hello! Welcome to our bot."
+language_changed: "Language changed successfully."
+unknown_language: "Unknown language. Please choose either 'en' or 'ru'."
+
+translation_failed: "Failed to translate the video as it takes too much ⏳ time."
+error_retry: "Error! Try again 🔁 or a little later (✉️ error information has already been sent)."
+translation_in_progress: "⏳ The video is being translated, processing time depends on the video duration..."
+dialog_left: "Dialog left"
+voice_faster: "🎙️ Voice (mp3) (faster ⚡️)"
+audio_mp3: "🎧 Audio (mp3)"
+video_mp4: "📺 Video (mp4)"
+translation_language: "Translation language: {{language_flag}}"
+choose_language: "Choose the language to translate this video into"
+back: "⏪ Back"
+choose_quality: "Select video quality:"
+video_too_long: "The video is too long for translation, try another video"
+video_processing_slow: "Video translation is taking too long, try choosing regular audio translation"
+video_quality_too_slow: "Processing the selected video quality takes too long, try lowering the quality or choosing audio"
+max_videos_processing: "The maximum number of videos are currently being processed 🏗, please 🔁 try again later..."
+generic_error: "An error occurred, please try again later"
+cannot_translate_video: "Unable to translate this video, 😢 unfortunately, nothing can be done. 🕔 Maybe in the future"
+translator_error: "Translator error: {{error_message}}"
+translation_error: "An error occurred during translation. ✉️ Information has been sent to developers, try again later"
+video_format_not_found: "The selected video format for translation was not found, try another one."
+audio_format_not_found: "The selected audio format for translation was not found, try another one."
+only_youtube_supported_upload: "Currently, only YouTube is supported. You can try 📤 uploading this video to YouTube and send a 🔗 link"
+only_youtube_supported: "Currently, only YouTube is supported, please send a 🔗 link to the video for translation"
