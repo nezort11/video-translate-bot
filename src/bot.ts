@@ -419,8 +419,8 @@ const handleWarnError = (message: string, error: unknown) => {
   });
 };
 
-// Disable bot in group chat (can be disabled in botfather)
-// bot.use(Composer.drop((context) => context.chat?.type !== "private"));
+// Disable bot in group and channel chats (group can be disabled in botfather)
+bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
 // const s3Session = new S3Session(STORAGE_BUCKET);
 
