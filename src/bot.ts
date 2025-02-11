@@ -901,8 +901,8 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
     videoTranslateApp.searchParams.set("lang", translateLanguage);
 
     const translateVideoMessage = t("translate_video").replace(
-      "this",
-      `[this](${shortLink})`
+      "link",
+      shortLink
     );
     await renderScreen(context, translateVideoMessage, {
       parse_mode: "Markdown",
