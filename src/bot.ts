@@ -95,6 +95,7 @@ import {
 } from "./actions";
 
 const database = new Database("./storage/db.sqlite");
+database.pragma("journal_mode = WAL"); // Helps prevent corruption https://chatgpt.com/c/67ab8ae9-bf14-8012-9c4a-3a12d682cb1d
 
 // https://orm.drizzle.team/docs/get-started-sqlite#better-sqlite3
 const db = drizzle({ client: database });
