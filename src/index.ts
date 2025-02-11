@@ -21,13 +21,6 @@ import { logger } from "./logger";
 import { Telegraf } from "telegraf";
 import moment from "moment";
 
-const LONG_SPACE_CHARACTER = " ";
-
-export const createDescription = (icon: string, description: string) =>
-  `${LONG_SPACE_CHARACTER}${icon}${LONG_SPACE_CHARACTER.repeat(
-    2
-  )}${description}`;
-
 // import { telegramLoggerContext } from "./telegramlogger";
 
 // export const handler = http2(bot.webhookCallback("/webhook"));
@@ -49,37 +42,6 @@ process.on("warning", (warning) => {
   console.warn("Warning:", warning.name, warning.message, warning.stack);
 });
 
-const commands = [
-  {
-    command: "translate",
-    description: {
-      ru: createDescription("🌍", "Перевести видео на другой язык"),
-      en: createDescription("🌍", "Translate video to another language"),
-    },
-  },
-  {
-    command: "search",
-    description: {
-      ru: createDescription("🔍", "Искать видео на другом языке"),
-      en: createDescription("🔍", "Search for videos on another language"),
-    },
-  },
-  {
-    command: "help",
-    description: {
-      ru: createDescription("💡", "Помощь по работе с ботом"),
-      en: createDescription("💡", "Help about the bot"),
-    },
-  },
-  {
-    command: "cancel",
-    description: {
-      ru: createDescription("🚫", "Отменить текущую операцию"),
-      en: createDescription("🚫", "Cancel the current operation"),
-    },
-  },
-];
-
 const main = async () => {
   logger.info(`VERSION: ${process.version}`);
   logger.info(`DEBUG: ${DEBUG}`);
@@ -95,23 +57,6 @@ const main = async () => {
   } catch (error) {
     console.warn(error);
   }
-
-  await Promise.all([
-    bot.telegram.setMyCommands(
-      commands.map((command) => ({
-        command: command.command,
-        description: command.description.ru,
-      })),
-      { language_code: "ru" }
-    ),
-    bot.telegram.setMyCommands(
-      commands.map((command) => ({
-        command: command.command,
-        description: command.description.en,
-      })),
-      { language_code: "en" }
-    ),
-  ]);
 };
 
 // const server = http.createServer(handler);
