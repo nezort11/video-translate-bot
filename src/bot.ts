@@ -450,6 +450,7 @@ bot.use(async (context, next) => {
 
 // Provide a session storage provider
 const sessionDb = new Database("./storage/session.sqlite");
+sessionDb.pragma("journal_mode = WAL"); // Helps prevent corruption
 const sessionStore = SQLite<{}>({ database: sessionDb });
 bot.use(session({ store: sessionStore }));
 
@@ -1067,9 +1068,9 @@ bot.on(messageTextNotCommand, async (context, next) => {
     return await next();
   }
 
-  logger.info(
-    `Incoming translate request: ${inspect(context.update, { depth: null })}`
-  );
+  // logger.info(
+  //   `Incoming translate request: ${inspect(context.update, { depth: null })}`
+  // );
 
   const router = createRouter(context, Screen.Translate, { link: text });
   await route(context, router.id);
@@ -1262,11 +1263,15 @@ bot.action(/.+/, async (context) => {
     }
 
     const videoThumbnailUrl = videoInfo.thumbnail;
+    console.log("video thumbnail url: " + videoThumbnailUrl);
     let thumbnailBuffer: Buffer | undefined;
     if (videoThumbnailUrl) {
       thumbnailBuffer =
         (await getVideoThumbnail(videoThumbnailUrl)) ?? undefined;
     }
+    console.log("thumbnail buffer", thumbnailBuffer?.byteLength);
+
+    await context.replyWithPhoto({ source: thumbnailBuffer! });
     const originalArtist = videoInfo.artist;
     let artist = originalArtist;
     if (artist) {
