@@ -28,7 +28,6 @@ import { Api } from "telegram";
 import * as Sentry from "@sentry/node";
 import moment from "moment";
 import { inspect } from "util";
-import { Readable } from "stream";
 // import { TimeoutError } from "p-timeout";
 import _ from "lodash";
 const { capitalize } = _;
@@ -80,7 +79,7 @@ import {
   isValidUrl,
   getLinkMatch,
 } from "./core";
-import { ytdlAgent } from "./services/ytdl";
+import { downloadVideo, ytdlAgent } from "./services/ytdl";
 import { translate } from "./services/translate";
 import { updatesTable } from "./schema";
 import {
@@ -261,16 +260,6 @@ function toArrayBuffer(buffer: Buffer) {
   }
   return arrayBuffer;
 }
-
-const streamToBuffer = async (stream: Readable) => {
-  const streamChunks: Uint8Array[] = [];
-  for await (const streamChunk of stream) {
-    streamChunks.push(streamChunk);
-  }
-
-  const streamBuffer = Buffer.concat(streamChunks);
-  return streamBuffer;
-};
 
 const percent = (percent: number) => percent / 100;
 
@@ -854,11 +843,9 @@ bot.command("debug_ytdl_info", async (context) => {
 bot.command("debug_ytdl_download", async (context) => {
   const commandArgs = context.message.text.split(" ").slice(1);
   const quality = parseInt(commandArgs[0] || "18");
-  const videoStream = ytdl(mockVideoLink, {
-    agent: ytdlAgent,
+  const videoBuffer = await downloadVideo(mockVideoLink, {
     quality,
   });
-  const videoBuffer = await streamToBuffer(videoStream);
 
   await context.reply(`Downloaded video buffer: ${videoBuffer.byteLength}`);
 });
@@ -1365,11 +1352,6 @@ bot.action(/.+/, async (context) => {
     // logger.log(
     //   `Requesting download stream for quality ${youtubeVideoFormatItag.video} ...`
     // );
-    const videoStream = ytdl(videoLink, {
-      // quality: youtubeVideoFormatItag.video,
-      quality: 18,
-      agent: ytdlAgent,
-    });
     // logger.log(
     //   `Requesting download stream for quality ${youtubeVideoFormatItag.audio} ...`
     // );
@@ -1378,7 +1360,9 @@ bot.action(/.+/, async (context) => {
     //   agent: ytdlAgent,
     // });
     logger.info("Downloading youtube video stream...");
-    const videoBuffer = await streamToBuffer(videoStream);
+    const videoBuffer = await downloadVideo(videoLink, {
+      quality: 18,
+    });
     // const audioBuffer = await streamToBuffer(audioStream);
     logger.info(`Youtube video downloaded: ${videoBuffer.length}`);
 

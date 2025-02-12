@@ -4,7 +4,7 @@ import type { ErrorObject } from "serialize-error";
 import cors from "cors";
 import ytdl, { videoInfo } from "@distube/ytdl-core";
 import { Readable } from "stream";
-import { ytdlAgent } from "./services/ytdl";
+import { downloadVideo, ytdlAgent } from "./services/ytdl";
 import { logger } from "./logger";
 import {
   TranslateException,
@@ -55,16 +55,6 @@ const handleInternalErrorExpress = async (
   console.error(error);
   const serializedError = await serializeError(error);
   res.status(500).json(serializedError);
-};
-
-const streamToBuffer = async (stream: Readable) => {
-  const streamChunks: Uint8Array[] = [];
-  for await (const streamChunk of stream) {
-    streamChunks.push(streamChunk);
-  }
-
-  const streamBuffer = Buffer.concat(streamChunks);
-  return streamBuffer;
 };
 
 const s3Localstorage = new S3Localstorage(YTDL_STORAGE_BUCKET);
@@ -191,15 +181,10 @@ app.post(
       //   format: formats[0],
       // });
 
-      console.log("create ytdl stream");
-      const videoStream = ytdl(videoUrl, {
-        agent: ytdlAgent,
+      console.log("downloading video streaming to buffer...");
+      const videoBuffer = await downloadVideo(videoUrl, {
         quality: format,
       });
-      console.log("ytdl video stream", videoStream);
-
-      console.log("downloading video streaming to buffer...");
-      const videoBuffer = await streamToBuffer(videoStream);
       console.log("video buffer length", videoBuffer.byteLength);
 
       const { nanoid } = await importNanoid();

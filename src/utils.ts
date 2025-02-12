@@ -19,3 +19,6 @@ export const dynamicImport = new Function(
 
 export const importPTimeout = async () =>
   await dynamicImport<typeof import("p-timeout")>("p-timeout");
+
+export const importPRetry = async () =>
+  await dynamicImport<typeof import("p-retry")>("p-retry");

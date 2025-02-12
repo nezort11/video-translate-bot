@@ -1,4 +1,5 @@
 import axios, { AxiosError } from "axios";
+import { Readable } from "stream";
 import { logger } from "./logger";
 import { IMAGE_TRANSLATE_URL } from "./env";
 import ytdl, { thumbnail } from "@distube/ytdl-core";
@@ -160,4 +161,14 @@ export const translateText = async (
     milliseconds: 10 * 1000,
   });
   return translateData.translations[0].text;
+};
+
+export const streamToBuffer = async (stream: Readable) => {
+  const streamChunks: Uint8Array[] = [];
+  for await (const streamChunk of stream) {
+    streamChunks.push(streamChunk);
+  }
+
+  const streamBuffer = Buffer.concat(streamChunks);
+  return streamBuffer;
 };
