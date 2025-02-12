@@ -61,11 +61,16 @@ const forwardContextMessage = async (ctx: Context) => {
   const fromInfo = ctx.from
     ? `${ctx.from.first_name} ${ctx.from.last_name} (id ${ctx.from.id})`
     : "";
-  // dont forward user-sent videos/photos for privacy reasons
+  // dont forward user-sent videos/files/photos for privacy reasons
   if ("video" in ctx.message || "video_note" in ctx.message) {
     await ctx.telegram.sendMessage(
       LOGGING_CHANNEL_CHAT_ID,
       `${fromInfo}\n[[video]]`
+    );
+  } else if ("document" in ctx.message) {
+    await ctx.telegram.sendMessage(
+      LOGGING_CHANNEL_CHAT_ID,
+      `${fromInfo}\n[[document]]`
     );
   } else if ("photo" in ctx.message) {
     await ctx.telegram.sendMessage(
