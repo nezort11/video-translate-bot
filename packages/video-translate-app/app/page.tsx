@@ -194,25 +194,12 @@ const download = (dataUrl: string, filename: string) => {
 
 const percent = (percent: number) => percent / 100;
 
-const TRANSLATE_API_URL = new URL(
-  "/translate",
-  process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!
-).href;
+// video translate api client
+const client = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!,
 
-const DOWNLOAD_API_URL = new URL(
-  "/download",
-  process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!
-).href;
-
-const UPLOAD_API_URL = new URL(
-  "/upload",
-  process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!
-).href;
-
-const SEND_API_URL = new URL(
-  "/send",
-  process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!
-).href;
+  timeout: 15000, // 15m
+});
 
 export type VideoTranslateResponseData = {
   url: string;
@@ -232,8 +219,8 @@ export type VideoUploadResponseData = {
 };
 
 const translateVideo = async (videoLink: string, targetLanguage?: string) => {
-  const translatedAudioResponse = await axios.post<VideoTranslateResponseData>(
-    TRANSLATE_API_URL,
+  const translatedAudioResponse = await client.post<VideoTranslateResponseData>(
+    "/translate",
     null,
     {
       params: {
@@ -335,8 +322,8 @@ export default function Home() {
 
     console.log("Requesting video download...");
     setTranslateProgress("Скачивание видео потока...");
-    const videoBufferResponse = await axios.post<VideoDownloadResponseData>(
-      DOWNLOAD_API_URL,
+    const videoBufferResponse = await client.post<VideoDownloadResponseData>(
+      "/download",
       null,
       {
         params: {
@@ -510,8 +497,8 @@ export default function Home() {
     ) {
       console.log("requesting upload url...");
       setTranslateProgress("Отправка переведенного видео...");
-      const videoStorageResponse = await axios.post<VideoUploadResponseData>(
-        UPLOAD_API_URL
+      const videoStorageResponse = await client.post<VideoUploadResponseData>(
+        "/upload"
       );
       const videoStorageUrl = videoStorageResponse.data.url;
       console.log("uploading translate result to the bucket...");
@@ -528,7 +515,7 @@ export default function Home() {
       const launchParams = retrieveLaunchParams();
       const tmaChatId = launchParams.initData!.user!.id;
       console.log(`sending uploaded video result to ${tmaChatId} chat...`);
-      await axios.post<VideoUploadResponseData>(SEND_API_URL, {
+      await client.post<VideoUploadResponseData>("/send", {
         key: videoStorageKey,
         link: values.link,
         duration: translatedAudioResponse.duration,
