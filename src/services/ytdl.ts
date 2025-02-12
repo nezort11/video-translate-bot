@@ -45,12 +45,14 @@ export const downloadVideo = async (
       randomize: true,
 
       // Retry in case of Error: Client network socket disconnected before secure TLS connection was established (ECONNRESET)
-      shouldRetry: (error: unknown) => {
+      shouldRetry: (error) => {
         logger.log("ytdl download video error retry", error);
         return (
           error instanceof Error &&
-          "code" in error &&
-          error.code === "ECONNRESET"
+          error.message ===
+            "Client network socket disconnected before secure TLS connection was established"
+          // "code" in error &&
+          // error.code === "ECONNRESET"
         );
       },
     }
