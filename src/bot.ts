@@ -1258,7 +1258,7 @@ bot.action(/.+/, async (context) => {
     }
     console.log("thumbnail buffer", thumbnailBuffer?.byteLength);
 
-    await context.replyWithPhoto({ source: thumbnailBuffer! });
+    // await context.replyWithPhoto({ source: thumbnailBuffer! });
     const originalArtist = videoInfo.artist;
     let artist = originalArtist;
     if (artist) {
