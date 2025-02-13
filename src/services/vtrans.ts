@@ -82,7 +82,7 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
     unknown2: 1,
     // language: "en",
     // unknown3: 0,
-    unknown3: 1,
+    unknown3: 0,
     unknown4: 0,
     translationHelp:
       opts.videoFileUrl && opts.subtitlesFileUrl

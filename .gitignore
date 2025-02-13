@@ -10,4 +10,4 @@ cookies.json
 *.log
 
 /session
-*.sqlite
+*.sqlite*
