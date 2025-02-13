@@ -82,6 +82,8 @@ app.post("/debug/timeout", async (req, res) => {
 type VideoTranslateParams = {
   url: string;
   lang?: string; // currently supports ru,en,kk https://github.com/FOSWLY/vot-cli/wiki/%5BEN%5D-Supported-langs
+  videoUrl?: string;
+  subtitlesUrl?: string;
 };
 
 type GetInfoParams = {
@@ -114,21 +116,29 @@ app.post(
     try {
       const videoUrl = req.query.url;
       const targetLanguageCode = req.query.lang;
+      const videoFileUrl = req.query.videoUrl;
+      const subtitlesFileUrl = req.query.subtitlesUrl;
       console.log("videoUrl", videoUrl);
       console.log("languageCode", targetLanguageCode);
 
       // "https://www.youtube.com/watch?v=5bId3N7QZec"
-      const translateResult = await translateVideo(
-        videoUrl,
-        targetLanguageCode
-      );
+      const translateResult = await translateVideo(videoUrl, {
+        targetLanguage: targetLanguageCode,
+        videoFileUrl,
+        subtitlesFileUrl,
+      });
       res.json(translateResult);
-    } catch (error) {
-      if (error instanceof TranslateInProgressException) {
-        res.status(202).json({ message: "Translation in progress..." });
-      } else if (error instanceof TranslateException) {
+    } catch (error: unknown) {
+      if (error instanceof TranslateException) {
         const serializedTranslateError = await serializeError(error);
-        res.status(400).json(serializedTranslateError);
+
+        if (error instanceof TranslateInProgressException) {
+          // Translate in progress is not error just a expected exception
+          delete serializedTranslateError.stack;
+          res.status(202).json(serializedTranslateError);
+        } else {
+          res.status(400).json(serializedTranslateError);
+        }
       } else {
         await handleInternalErrorExpress(error, res);
       }

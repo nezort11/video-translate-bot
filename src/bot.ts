@@ -227,7 +227,7 @@ const translateVideoFinal = async (
   targetLanguage?: string
 ): Promise<VideoTranslateResponse> => {
   try {
-    return await translateVideo(url, targetLanguage);
+    return await translateVideo(url, { targetLanguage });
     // const videoTranslateResponse = await translateVideo(url);
     // return videoTranslateResponse.data;
   } catch (error) {

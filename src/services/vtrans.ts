@@ -13,20 +13,11 @@ const YANDEX_VIDEO_TRANSLATE_URL =
 const YANDEX_BROWSER_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 YaBrowser/24.1.0.0 Safari/537.36";
 
-export type VideoTranslateResponse = {
-  url: string;
-  duration: number;
-  status: number;
-  code: string;
-  language: string;
-  message?: string;
-};
-
 const VideoTranslationHelpObjectProto = new protobuf.Type(
   "VideoTranslationHelpObject"
 )
-  .add(new protobuf.Field("target", 1, "string")) // video_file_url or subtitles_file_url
-  .add(new protobuf.Field("targetUrl", 2, "string")); // url to video_file or url to subtitles
+  .add(new protobuf.Field("target", 1, "string")) // string enum "video_file_url", "subtitles_file_url"
+  .add(new protobuf.Field("targetUrl", 2, "string")); // url to video file or url to subtitles file
 
 const VideoTranslateRequestProto = new protobuf.Type("VideoTranslationRequest")
   .add(new protobuf.Field("url", 3, "string"))
@@ -48,7 +39,7 @@ const VideoTranslateRequestProto = new protobuf.Type("VideoTranslationRequest")
   .add(new protobuf.Field("responseLanguage", 14, "string"))
   .add(new protobuf.Field("unknown5", 15, "int32")) // 0
   .add(new protobuf.Field("unknown6", 16, "int32")) // 1
-  .add(new protobuf.Field("unknown7", 17, "int32")); // 0
+  .add(new protobuf.Field("bypassCache", 17, "bool")); // they have some kind of limiter on requests from one IP - because after one such request it stops working
 
 const VideoTranslateResponseProto = new protobuf.Type(
   "VideoTranslationResponse"
@@ -68,18 +59,67 @@ new protobuf.Root()
   .add(VideoTranslateRequestProto)
   .add(VideoTranslateResponseProto);
 
-const encodeVideoTranslateRequest = (url: string, targetLanguage?: string) => {
+enum TranslationHelp {
+  VideoFileUrl = "video_file_url",
+  SubtitlesFileUrl = "subtitles_file_url",
+}
+
+type VideoTranslateOptions = {
+  url: string;
+  targetLanguage?: string;
+
+  videoFileUrl?: string;
+  subtitlesFileUrl?: string;
+};
+
+const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
+  console.log("encoding video translate request", opts);
   return VideoTranslateRequestProto.encode({
-    url: url,
+    url: opts.url,
     // deviceId: deviceId,
     firstRequest: true,
     unknown1: parseInt("0x4075500000000000", 16),
     unknown2: 1,
     // language: "en",
-    unknown3: 0,
+    // unknown3: 0,
+    unknown3: 1,
     unknown4: 0,
-    responseLanguage: targetLanguage,
+    translationHelp:
+      opts.videoFileUrl && opts.subtitlesFileUrl
+        ? [
+            {
+              target: TranslationHelp.SubtitlesFileUrl,
+              targetUrl: opts.subtitlesFileUrl,
+            },
+
+            {
+              target: TranslationHelp.VideoFileUrl,
+              targetUrl: opts.videoFileUrl,
+            },
+          ]
+        : [],
+    responseLanguage: opts.targetLanguage,
+    // bypassCache: true,
   }).finish();
+};
+
+enum VideoTranslationStatus {
+  FAILED = 0,
+  FINISHED = 1,
+  WAITING = 2,
+  LONG_WAITING = 3,
+  PART_CONTENT = 5,
+  AUDIO_REQUESTED = 6,
+}
+
+export type VideoTranslateResponse = {
+  url: string;
+  duration: number;
+  status: VideoTranslationStatus;
+  remainingTime?: number;
+  code: string;
+  language: string;
+  message?: string;
 };
 
 const decodeVideoTranslateResponse = (
@@ -109,12 +149,9 @@ const generateUuid = () => {
   return uuid;
 };
 
-const translateVideoRequest = async (url: string, targetLanguage?: string) => {
+const translateVideoRequest = async (opts: VideoTranslateOptions) => {
   // const deviceId = generateUuid();
-  const videoTranslateRequest = encodeVideoTranslateRequest(
-    url,
-    targetLanguage
-  );
+  const videoTranslateRequest = encodeVideoTranslateRequest(opts);
 
   // const decoder = new TextDecoder();
   const utf8Encoder = new TextEncoder();
@@ -188,28 +225,47 @@ const translateVideoRequest = async (url: string, targetLanguage?: string) => {
   return videoTranslateResponse.data;
 };
 
+type VideoTranslateErrorOptions = ErrorOptions & {
+  data?: VideoTranslateResponse;
+};
+
 export class TranslateException extends Error {
-  constructor(message?: string) {
-    super(message);
-    Object.setPrototypeOf(this, TranslateException.prototype);
+  data?: VideoTranslateResponse;
+
+  constructor(message?: string, options?: VideoTranslateErrorOptions) {
+    super(message, options);
+    this.name = this.constructor.name;
+    this.data = options?.data;
   }
 }
 
-export class TranslateInProgressException {}
+export class TranslateInProgressException extends TranslateException {
+  constructor(...args: ConstructorParameters<typeof TranslateException>) {
+    super(...args);
+    this.name = this.constructor.name;
+  }
+}
 
-export const translateVideo = async (url: string, targetLanguage?: string) => {
-  const videoTranslateResponse = await translateVideoRequest(
+export const translateVideo = async (
+  url: string,
+  opts?: Omit<VideoTranslateOptions, "url">
+) => {
+  const videoTranslateResponse = await translateVideoRequest({
+    ...opts,
     url,
-    targetLanguage
-  );
+  });
   const videoTranslateResponseData = decodeVideoTranslateResponse(
     videoTranslateResponse
   );
   console.log("videoTranslateResponseData", videoTranslateResponseData);
 
+  const translateErrorOptions = { data: videoTranslateResponseData };
   switch (videoTranslateResponseData.status) {
     case 0:
-      throw new TranslateException(videoTranslateResponseData.message);
+      throw new TranslateException(
+        videoTranslateResponseData.message || "Translation failed",
+        translateErrorOptions
+      );
     case 1:
       const hasUrl =
         videoTranslateResponseData.url !== undefined &&
@@ -217,11 +273,19 @@ export const translateVideo = async (url: string, targetLanguage?: string) => {
       if (hasUrl) {
         return videoTranslateResponseData;
       }
-      // Audio link hasn't been received
-      throw new TranslateException();
+      throw new TranslateException(
+        "Audio link not received",
+        translateErrorOptions
+      );
     case 2:
-      throw new TranslateInProgressException();
+      throw new TranslateInProgressException(
+        "Translation is in progress...",
+        translateErrorOptions
+      );
     default:
-      throw new TranslateException();
+      throw new TranslateException(
+        "Unknown translation error",
+        translateErrorOptions
+      );
   }
 };
