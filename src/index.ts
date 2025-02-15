@@ -82,11 +82,19 @@ debugBot.command("debug_timeout", async (context) => {
 
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
+  // Start long polling server locally and webhook handler on the server
   if (APP_ENV === "local") {
     main();
   } else {
     app.use(bot.webhookCallback("/webhook"));
   }
+
+  // fallback middleware to handle all other requests
+  app.use(async (req, res) => {
+    console.log("received fallen request", req);
+
+    res.sendStatus(200);
+  });
 
   app.listen(PORT, () => {
     console.log(`🚀 Started express server on port ${PORT}`);
