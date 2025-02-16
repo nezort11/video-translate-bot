@@ -11,3 +11,7 @@ cookies.json
 
 /session
 *.sqlite*
+
+# Terraform
+.terraform
+*.tfstate*
