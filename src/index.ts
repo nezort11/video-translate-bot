@@ -11,7 +11,7 @@ import {
 
 // import http from "http";
 // import http2 from "serverless-http";
-import express from "express";
+import express, { Request } from "express";
 // import { fileURLToPath } from "url";
 // import storage from "node-persist";
 import { bot } from "./bot";
@@ -81,6 +81,39 @@ debugBot.command("debug_timeout", async (context) => {
 
 // app.use(debugBot.webhookCallback("/webhook"));
 
+interface EventMetadata {
+  event_id: string;
+  event_type: string;
+  created_at: string;
+  tracing_context: null | Record<string, unknown>;
+  cloud_id: string;
+  folder_id: string;
+}
+
+interface Message {
+  message_id: string;
+  md5_of_body: string;
+  body: string;
+  attributes: {
+    ApproximateFirstReceiveTimestamp: string;
+    ApproximateReceiveCount: string;
+    SenderId: string;
+    SentTimestamp: string;
+  };
+  message_attributes: Record<string, string>;
+  md5_of_message_attributes: string;
+}
+
+interface QueueMessage {
+  queue_id: string;
+  message: Message;
+}
+
+interface YandexQueueEvent {
+  event_metadata: EventMetadata;
+  messages: QueueMessage[];
+}
+
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
   // Start long polling server locally and webhook handler on the server
@@ -88,9 +121,32 @@ if (require.main === module) {
     main();
   } else {
     app.use(bot.webhookCallback("/webhook"));
+
+    const QUEUE_WEBHOOK_PATH = "/queue/callback";
+    // webhook callback called by trigger from message queue
+    app.post(
+      QUEUE_WEBHOOK_PATH,
+      async (req: Request<{}, {}, YandexQueueEvent>, res) => {
+        const messages = req.body.messages;
+        // only handle single message from queue. adjust according to trigger `batch_size`
+        const message = messages[0];
+        const updateBody = message.message.body;
+
+        // Proxy all queue request as update requests to webhook handler
+        await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
+          {
+            ...req,
+            // Replace queue request body with telegram update body
+            // @ts-expect-error body can be object, buffer or string
+            body: updateBody,
+          },
+          res
+        );
+      }
+    );
   }
 
-  // fallback middleware to handle all other requests
+  // fallback middleware to debug all other requests
   app.use(async (req, res) => {
     console.log("received fallen request url", req.url);
     console.log(
