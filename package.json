@@ -30,6 +30,8 @@
     "s3:storage:push": "rclone sync ./yc_storage yandex-cloud-nezort11:video-translate-bot-storage --progress",
     "db:migrate": "pnpm drizzle-kit generate && pnpm drizzle-kit push",
     "db:migrate:s3": "APP_MODE='remote' pnpm db:migrate",
+    "terraform:plan": "source ./env/.env && source ./terraform.env && terraform plan",
+    "terraform:apply": "source ./env/.env && source ./terraform.env && terraform apply",
     "yc:registry:create": "source ./scripts/pre-env.sh && yc container registry create --name $REGISTRY_NAME",
     "yc:registry:get": "source ./scripts/pre-env.sh && yc container registry get $REGISTRY_NAME",
     "yc:registry:configure": "yc container registry configure-docker",
