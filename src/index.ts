@@ -124,6 +124,8 @@ if (require.main === module) {
   } else {
     handler.use(bot.webhookCallback("/webhook"));
 
+    handler.use(express.json());
+
     const QUEUE_WEBHOOK_PATH = "/queue/callback";
     // webhook callback called by trigger from message queue
     handler.post(
@@ -158,7 +160,7 @@ if (require.main === module) {
 
   // fallback middleware to debug all other requests
   handler.use(async (req, res) => {
-    console.log("received fallen request url", req.url);
+    console.log("received fallen request url", req.method, req.url);
     console.log(
       "received fallen request body",
       inspect(req.body, undefined, 5)
