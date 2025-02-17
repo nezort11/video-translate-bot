@@ -145,6 +145,9 @@ if (require.main === module) {
         const updateBody = message.message.body;
 
         const update = JSON.parse(updateBody) as Update;
+        console.log("parsed update body", typeof update);
+
+        console.log("handling update message...");
         return await bot.handleUpdate(update, res);
         // Proxy all queue request as update requests to webhook handler
         // await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
