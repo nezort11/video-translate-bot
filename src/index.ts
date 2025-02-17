@@ -30,6 +30,7 @@ import { Update } from "telegraf/types";
 // export const appHandler = http(app);
 
 const handler = express();
+handler.use(express.json());
 
 // Global error handlers
 //
@@ -125,16 +126,14 @@ if (require.main === module) {
   } else {
     handler.use(bot.webhookCallback("/webhook"));
 
-    // telegram updates are application/json
-    handler.use(express.json());
-
-    const QUEUE_WEBHOOK_PATH = "/queue/callback";
+    // const QUEUE_WEBHOOK_PATH = "/queue/callback";
     // webhook callback called by trigger from message queue
     handler.post(
-      QUEUE_WEBHOOK_PATH,
+      "/queue/callback",
       async (req: Request<{}, {}, YandexQueueEvent>, res) => {
         console.log(
           "queue webhook incoming request body",
+          typeof req,
           typeof req.body,
           req.body
         );
