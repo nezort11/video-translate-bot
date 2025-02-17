@@ -142,7 +142,18 @@ if (require.main === module) {
         // only handle single message from queue. adjust according to trigger `batch_size`
         const message = messages[0];
         console.log("received queue message", inspect(message, undefined, 3));
+        console.log(
+          "message of message",
+          typeof message.message,
+          message.message
+        );
+        console.log("message of message, .body", typeof message.message.body);
         const updateBody = message.message.body;
+        console.log(
+          "update body is length",
+          typeof updateBody,
+          updateBody.length
+        );
 
         const update = JSON.parse(updateBody) as Update;
         console.log("parsed update body", typeof update);
