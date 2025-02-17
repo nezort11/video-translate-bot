@@ -28,6 +28,8 @@ import { inspect } from "util";
 
 // export const appHandler = http(app);
 
+const handler = express();
+
 // Global error handlers
 //
 process.on("uncaughtException", (error) => {
@@ -120,11 +122,11 @@ if (require.main === module) {
   if (APP_ENV === "local") {
     main();
   } else {
-    app.use(bot.webhookCallback("/webhook"));
+    handler.use(bot.webhookCallback("/webhook"));
 
     const QUEUE_WEBHOOK_PATH = "/queue/callback";
     // webhook callback called by trigger from message queue
-    app.post(
+    handler.post(
       QUEUE_WEBHOOK_PATH,
       async (req: Request<{}, {}, YandexQueueEvent>, res) => {
         const messages = req.body.messages;
@@ -146,8 +148,10 @@ if (require.main === module) {
     );
   }
 
+  handler.use(app);
+
   // fallback middleware to debug all other requests
-  app.use(async (req, res) => {
+  handler.use(async (req, res) => {
     console.log("received fallen request url", req.url);
     console.log(
       "received fallen request body",
@@ -158,7 +162,7 @@ if (require.main === module) {
     res.sendStatus(200);
   });
 
-  app.listen(PORT, () => {
+  handler.listen(PORT, () => {
     console.log(`🚀 Started express server on port ${PORT}`);
   });
 }
