@@ -95,7 +95,7 @@ if (require.main === module) {
     console.log("received fallen request url", req.url);
     console.log(
       "received fallen request body",
-      inspect(req.body, undefined, 3)
+      inspect(req.body, undefined, 5)
     );
     console.log("received fallen request headers", req.headers);
 
