@@ -20,6 +20,7 @@ import { logger } from "./logger";
 
 import { Telegraf } from "telegraf";
 import moment from "moment";
+import { inspect } from "util";
 
 // import { telegramLoggerContext } from "./telegramlogger";
 
@@ -92,7 +93,10 @@ if (require.main === module) {
   // fallback middleware to handle all other requests
   app.use(async (req, res) => {
     console.log("received fallen request url", req.url);
-    console.log("received fallen request body", req.body);
+    console.log(
+      "received fallen request body",
+      inspect(req.body, undefined, 3)
+    );
     console.log("received fallen request headers", req.headers);
 
     res.sendStatus(200);
