@@ -141,6 +141,7 @@ if (require.main === module) {
         console.log("queue webhook messages received", messages);
         // only handle single message from queue. adjust according to trigger `batch_size`
         const message = messages[0];
+        console.log("received queue message", inspect(message, undefined, 3));
         const updateBody = message.message.body;
 
         const update = JSON.parse(updateBody) as Update;
