@@ -129,7 +129,13 @@ if (require.main === module) {
     handler.post(
       QUEUE_WEBHOOK_PATH,
       async (req: Request<{}, {}, YandexQueueEvent>, res) => {
+        console.log(
+          "queue webhook incoming request body",
+          typeof req.body,
+          req.body
+        );
         const messages = req.body.messages;
+        console.log("queue webhook messages received", messages);
         // only handle single message from queue. adjust according to trigger `batch_size`
         const message = messages[0];
         const updateBody = message.message.body;
