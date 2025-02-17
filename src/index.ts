@@ -21,6 +21,7 @@ import { logger } from "./logger";
 import { Telegraf } from "telegraf";
 import moment from "moment";
 import { inspect } from "util";
+import { Update } from "telegraf/types";
 
 // import { telegramLoggerContext } from "./telegramlogger";
 
@@ -124,6 +125,7 @@ if (require.main === module) {
   } else {
     handler.use(bot.webhookCallback("/webhook"));
 
+    // telegram updates are application/json
     handler.use(express.json());
 
     const QUEUE_WEBHOOK_PATH = "/queue/callback";
@@ -142,16 +144,18 @@ if (require.main === module) {
         const message = messages[0];
         const updateBody = message.message.body;
 
+        const update = JSON.parse(updateBody) as Update;
+        return await bot.handleUpdate(update, res);
         // Proxy all queue request as update requests to webhook handler
-        await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
-          {
-            ...req,
-            // Replace queue request body with telegram update body
-            // @ts-expect-error body can be object, buffer or string
-            body: updateBody,
-          },
-          res
-        );
+        // await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
+        //   {
+        //     ...req,
+        //     // Replace queue request body with telegram update body
+        //     // @ts-expect-error body can be object, buffer or string
+        //     body: updateBody,
+        //   },
+        //   res
+        // );
       }
     );
   }
