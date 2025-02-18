@@ -15,3 +15,5 @@ cookies.json
 # Terraform
 .terraform
 *.tfstate*
+
+*.zip

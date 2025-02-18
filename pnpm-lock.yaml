@@ -120,6 +120,9 @@ importers:
       telegram:
         specifier: 2.15.15
         version: 2.15.15
+      undici:
+        specifier: 7.3.0
+        version: 7.3.0
     devDependencies:
       '@types/better-sqlite3':
         specifier: 7.6.12

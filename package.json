@@ -1,5 +1,5 @@
 {
-  "name": "yandex-video-translate-bot",
+  "name": "video-translate-bot",
   "volta": {
     "node": "18.20.2"
   },
@@ -146,7 +146,8 @@
     "telegraf": "4.16.3",
     "telegraf-session-s33": "1.0.2",
     "telegraf-throttler": "0.6.0",
-    "telegram": "2.15.15"
+    "telegram": "2.15.15",
+    "undici": "7.3.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.12",
@@ -165,6 +166,12 @@
     "tsx": "4.19.2",
     "typescript": "5.4.5",
     "yarnhook": "0.6.0"
+  },
+  "overrides": {
+    "@telegraf/session": {
+      "better-sqlite3": "11.8.1",
+      "kysely": "0.27.5"
+    }
   },
   "pnpm": {
     "patchedDependencies": {
