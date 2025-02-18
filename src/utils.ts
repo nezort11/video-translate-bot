@@ -1,3 +1,7 @@
+import { Response } from "express";
+import type { ErrorObject } from "serialize-error";
+import { DEBUG_ENV } from "./env";
+
 export const getChatId = (id: string) => {
   return `-100${id}`;
 };
@@ -22,3 +26,29 @@ export const importPTimeout = async () =>
 
 export const importPRetry = async () =>
   await dynamicImport<typeof import("p-retry")>("p-retry");
+
+export const importSerializeError = async () =>
+  await dynamicImport<typeof import("serialize-error")>("serialize-error");
+
+export const importNanoid = async () =>
+  await dynamicImport<typeof import("nanoid")>("nanoid");
+
+export const serializeErrorAsync = async (error: unknown) => {
+  const { serializeError } = await importSerializeError();
+  const serializedError = serializeError(error);
+  console.log("serialized error", serializedError);
+  // https://docs.pynt.io/documentation/api-security-testing/pynt-security-tests-coverage/stack-trace-in-response
+  if (DEBUG_ENV !== "true") {
+    delete serializedError.stack;
+  }
+  return serializedError;
+};
+
+export const handleInternalErrorExpress = async (
+  error: unknown,
+  res: Response<ErrorObject>
+) => {
+  console.error(error);
+  const serializedError = await serializeErrorAsync(error);
+  res.status(500).json(serializedError);
+};

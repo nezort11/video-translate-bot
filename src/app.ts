@@ -23,39 +23,11 @@ import { getClient } from "./telegramclient";
 import { getVideoInfo, getVideoThumbnail, translateText } from "./core";
 // import bot instance with logger middlewares attached
 import { bot } from "./bot";
-
-// https://github.com/TypeStrong/ts-node/discussions/1290
-const dynamicImport = new Function("specifier", "return import(specifier)") as <
-  T
->(
-  module: string
-) => Promise<T>;
-
-const importSerializeError = async () =>
-  await dynamicImport<typeof import("serialize-error")>("serialize-error");
-
-const importNanoid = async () =>
-  await dynamicImport<typeof import("nanoid")>("nanoid");
-
-const serializeError = async (error: unknown) => {
-  const { serializeError } = await importSerializeError();
-  const serializedError = serializeError(error);
-  console.log("serialized error", serializedError);
-  // https://docs.pynt.io/documentation/api-security-testing/pynt-security-tests-coverage/stack-trace-in-response
-  if (DEBUG_ENV !== "true") {
-    delete serializedError.stack;
-  }
-  return serializedError;
-};
-
-const handleInternalErrorExpress = async (
-  error: unknown,
-  res: Response<ErrorObject>
-) => {
-  console.error(error);
-  const serializedError = await serializeError(error);
-  res.status(500).json(serializedError);
-};
+import {
+  handleInternalErrorExpress,
+  importNanoid,
+  serializeErrorAsync,
+} from "./utils";
 
 const s3Localstorage = new S3Localstorage(YTDL_STORAGE_BUCKET);
 
@@ -130,7 +102,7 @@ app.post(
       res.json(translateResult);
     } catch (error: unknown) {
       if (error instanceof TranslateException) {
-        const serializedTranslateError = await serializeError(error);
+        const serializedTranslateError = await serializeErrorAsync(error);
 
         if (error instanceof TranslateInProgressException) {
           // Translate in progress is not error just a expected exception

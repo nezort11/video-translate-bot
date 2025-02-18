@@ -22,6 +22,7 @@ import { Telegraf } from "telegraf";
 import moment from "moment";
 import { inspect } from "util";
 import { Update } from "telegraf/types";
+import { handleInternalErrorExpress } from "./utils";
 
 // import { telegramLoggerContext } from "./telegramlogger";
 
@@ -141,28 +142,32 @@ if (require.main === module) {
     handler.post(
       QUEUE_WEBHOOK_PATH,
       async (req: Request<{}, {}, YandexQueueRequest>, res) => {
-        console.log(
-          "queue webhook incoming request body",
-          typeof req,
-          typeof req.body,
-          req.body
-        );
-        const messages = req.body.messages;
-        console.log("queue webhook messages received", messages);
-        // only handle single message from queue. adjust according to trigger `batch_size`
-        const message = messages[0];
+        try {
+          console.log(
+            "queue webhook incoming request body",
+            typeof req,
+            typeof req.body,
+            req.body
+          );
+          const messages = req.body.messages;
+          console.log("queue webhook messages received", messages);
+          // only handle single message from queue. adjust according to trigger `batch_size`
+          const message = messages[0];
 
-        const updateBody = message.details.message.body;
-        // Proxy all queue request as update requests to webhook handler
-        await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
-          {
-            ...req,
-            // Replace queue request body with telegram update body
-            // @ts-expect-error body can be object, buffer or string
-            body: updateBody,
-          },
-          res
-        );
+          const updateBody = message.details.message.body;
+          // Proxy all queue request as update requests to webhook handler
+          await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
+            {
+              ...req,
+              // Replace queue request body with telegram update body
+              // @ts-expect-error body can be object, buffer or string
+              body: updateBody,
+            },
+            res
+          );
+        } catch (error) {
+          await handleInternalErrorExpress(error, res);
+        }
       }
     );
   }
