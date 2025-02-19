@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import path from "path";
 import { getChatId } from "./utils";
 
 export const NODE_ENV = process.env.NODE_ENV;
@@ -8,11 +9,18 @@ export const IS_PRODUCTION = process.env.NODE_ENV !== "development";
 export let IS_PUBLIC = true;
 export const setIsPublic = (isPublic: boolean) => (IS_PUBLIC = isPublic);
 
+export const LAMBDA_TASK_ROOT = process.env.LAMBDA_TASK_ROOT;
+// env directory path relative to package.json
+// /function/storage from /function/code
+export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT ? "../storage/" : "./";
+export const DOTENV_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./env");
+export const STORAGE_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./storage");
+
 // either load env file directly or
 // otherwise loaded automatically by docker (.evn will not exist, checkout .dockerignore)
 // if (process.env.ENV_FILE_LOADED !== "true") {
-dotenv.config({ path: "./env/.env" }); // mutates process.env from .env if exists
-// }
+// /function/storage/env/.env
+dotenv.config({ path: path.join(DOTENV_DIR_PATH, ".env") });
 
 export const PORT = process.env.PORT ?? 3000;
 export const EXECUTION_TIMEOUT = +process.env.EXECUTION_TIMEOUT;

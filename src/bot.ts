@@ -39,22 +39,16 @@ import { VideoTranslateResponse } from "../packages/video-translate-server/src/s
 //   TranslateInProgressException,
 //   // translateVideo,
 // } from "./translate";
-import { sendAdminNotification } from "./notification";
 import { getClient } from "./telegramclient";
 import { logger } from "./logger";
 
 import {
   OWNER_USERNAME,
-  DEBUG_USER_CHAT_ID,
-  IMAGE_TRANSLATE_URL,
-  IS_PRODUCTION,
   SENTRY_DSN,
   STORAGE_CHANNEL_CHAT_ID,
-  STORAGE_BUCKET,
-  VIDEO_TRANSLATE_API_URL,
-  YTDL_API_URL,
   VIDEO_TRANSLATE_APP_URL,
   APP_ENV,
+  STORAGE_DIR_PATH,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -93,7 +87,7 @@ import {
   getRouter,
 } from "./actions";
 
-const database = new Database("./storage/db.sqlite");
+const database = new Database(path.join(STORAGE_DIR_PATH, "db.sqlite"));
 database.pragma("journal_mode = WAL"); // Helps prevent corruption https://chatgpt.com/c/67ab8ae9-bf14-8012-9c4a-3a12d682cb1d
 
 // https://orm.drizzle.team/docs/get-started-sqlite#better-sqlite3
@@ -438,7 +432,7 @@ bot.use(async (context, next) => {
 });
 
 // Provide a session storage provider
-const sessionDb = new Database("./storage/session.sqlite");
+const sessionDb = new Database(path.join(STORAGE_DIR_PATH, "session.sqlite"));
 sessionDb.pragma("journal_mode = WAL"); // Helps prevent corruption
 const sessionStore = SQLite<{}>({ database: sessionDb });
 bot.use(session({ store: sessionStore }));

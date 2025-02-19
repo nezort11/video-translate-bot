@@ -10,7 +10,7 @@ import {
 } from "./env";
 
 // import http from "http";
-// import http2 from "serverless-http";
+import http from "serverless-http";
 import express, { Request } from "express";
 // import { fileURLToPath } from "url";
 // import storage from "node-persist";
@@ -26,7 +26,7 @@ import { handleInternalErrorExpress } from "./utils";
 
 // import { telegramLoggerContext } from "./telegramlogger";
 
-// export const handler = http2(bot.webhookCallback("/webhook"));
+export const lambdaHandler = http(bot.webhookCallback("/webhook"));
 
 // export const appHandler = http(app);
 

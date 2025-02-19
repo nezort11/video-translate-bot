@@ -4,16 +4,18 @@ import ytdl, { downloadOptions } from "@distube/ytdl-core";
 import { streamToBuffer } from "../core";
 import { importPRetry } from "../utils";
 import { logger } from "../logger";
+import { DOTENV_DIR_PATH } from "../env";
 
 // 1. Install https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc
-// 2. Go to https://youtub.com (feed index page)
-// 3. Click on extension, select "JSON" and "copy" into cookies.json file
+// 2. Go to https://youtube.com (feed index page)
+// 3. Click on extension, select "JSON" and "copy" into cookies.json file (local and remote folders)
+// 4. Run "pnpm s3:env:push" to update the bucket
 const COOKIES_FILENAME = "cookies.json";
+// cookies.json file path relative to this file
 const COOKIES_FILE_PATH = path.join(
   __dirname,
-  "..",
-  "..",
-  "env",
+  "../..", // resolve to package.json
+  DOTENV_DIR_PATH,
   COOKIES_FILENAME
 );
 
