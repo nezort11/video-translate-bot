@@ -97,11 +97,12 @@ resource "yandex_function" "video-translate-bot-function" {
   entrypoint = "build/index.lambdaHandler"
   service_account_id = var.service_account_id
 
-  memory = 128
-  execution_timeout = 30
+  memory = 512 # required for voice downloading, translating and uploading
+  execution_timeout = 300 # 5m
 
   async_invocation {
-    retries_count = 1
+    retries_count = 0
+    service_account_id = var.service_account_id
   }
 
 # Error: Zip archive content size 43654324 exceeds the maximum size 3670016, use object storage to upload the content
@@ -109,6 +110,8 @@ resource "yandex_function" "video-translate-bot-function" {
 #     zip_filename = "video-translate-bot.zip"
 #   }
   package {
+    # Upload to bucket to avoid function installing dependencies restrictions
+    # https://yandex.cloud/en/docs/functions/concepts/limits#functions-other-restrictions
     bucket_name = yandex_storage_bucket.video-translate-bot-code.id
     object_name = "function.zip"
   }
@@ -135,7 +138,7 @@ resource "yandex_api_gateway" "video-translate-bot-function-gateway" {
   name        = "video-translate-bot-function-gateway"
   description = "API Gateway for video-translate-bot-function"
   # execution timeout does not matter because cloud function is invoked asynchronously
-#   execution_timeout = "300"
+  execution_timeout = "120"
 
   spec = <<EOF
 openapi: 3.0.0
