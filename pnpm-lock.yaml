@@ -142,6 +142,9 @@ importers:
       '@types/node-persist':
         specifier: ^3
         version: 3.0.0
+      '@yandex-cloud/function-types':
+        specifier: 2.1.2
+        version: 2.1.2
       '@yandex-cloud/serverless-plugin':
         specifier: 1.7.25
         version: 1.7.25(debug@4.3.4)(serverless@3.40.0)
@@ -3119,6 +3122,10 @@ packages:
 
   /@types/uuid@9.0.8:
     resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
+    dev: true
+
+  /@yandex-cloud/function-types@2.1.2:
+    resolution: {integrity: sha512-Mhq6hQMPvBUUpCSoeaxNDJBNTq+ZhMB22mmFKwOfdLK7YM0MxQuTYbzb0zTa4YG+EqmwJPgV71P48cpHrLYJaw==}
     dev: true
 
   /@yandex-cloud/nodejs-sdk@2.7.7(debug@4.3.4):

@@ -23,7 +23,7 @@ export const STORAGE_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./storage");
 dotenv.config({ path: path.join(DOTENV_DIR_PATH, ".env") });
 
 export const PORT = process.env.PORT ?? 3000;
-export const EXECUTION_TIMEOUT = +process.env.EXECUTION_TIMEOUT;
+export const EXECUTION_TIMEOUT = +(process.env.EXECUTION_TIMEOUT ?? 120);
 
 export const APP_ENV = process.env.APP_ENV;
 export const DEBUG_ENV = process.env.DEBUG_ENV;

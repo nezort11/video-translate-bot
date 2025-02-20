@@ -10,7 +10,10 @@ import {
 } from "./env";
 
 // import http from "http";
-import http from "serverless-http";
+import * as http from "http";
+// Package subpath './src/core/network/webhook' is not defined by "exports" in /function/code/node_modules/telegraf/package.json
+// import generateWebhook from "telegraf/src/core/network/webhook";
+import serverlessHttp from "serverless-http";
 import express, { Request } from "express";
 // import { fileURLToPath } from "url";
 // import storage from "node-persist";
@@ -20,18 +23,121 @@ import { logger } from "./logger";
 
 import { Telegraf } from "telegraf";
 import moment from "moment";
+import type { Handler } from "@yandex-cloud/function-types";
+// import type { MessageQueue } from "@yandex-cloud/function-types/dist/src/triggers/messageQueue";
+import type { Http } from "@yandex-cloud/function-types/dist/src/http";
+import type { MessageQueue } from "@yandex-cloud/function-types/dist/src/triggers/";
 import { inspect } from "util";
 import { Update } from "telegraf/types";
 import { handleInternalErrorExpress } from "./utils";
 
 // import { telegramLoggerContext } from "./telegramlogger";
 
-export const lambdaHandler = http(bot.webhookCallback("/webhook"));
+import d from "debug";
+// import { type Update } from "../types/typegram";
+const debug = d("telegraf:webhook");
+
+// copy pasted from telegraf/src/core/network/webhook.ts
+export default function generateWebhook(
+  filter: (req: http.IncomingMessage) => boolean,
+  updateHandler: (update: Update, res: http.ServerResponse) => Promise<void>
+) {
+  return async (
+    req: http.IncomingMessage & { body?: Update },
+    res: http.ServerResponse,
+    next = (): void => {
+      res.statusCode = 403;
+      debug("Replying with status code", res.statusCode);
+      res.end();
+    }
+  ): Promise<void> => {
+    debug("Incoming request", req.method, req.url);
+
+    if (!filter(req)) {
+      debug("Webhook filter failed", req.method, req.url);
+      return next();
+    }
+
+    let update: Update;
+
+    try {
+      if (req.body != null) {
+        /* If req.body is already set, we expect it to be the parsed
+         request body (update object) received from Telegram
+         However, some libraries such as `serverless-http` set req.body to the
+         raw buffer, so we'll handle that additionally */
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let body: any = req.body;
+        // if body is Buffer, parse it into string
+        if (body instanceof Buffer) body = String(req.body);
+        // if body is string, parse it into object
+        if (typeof body === "string") body = JSON.parse(body);
+        update = body;
+      } else {
+        let body = "";
+        // parse each buffer to string and append to body
+        for await (const chunk of req) body += String(chunk);
+        // parse body to object
+        update = JSON.parse(body);
+      }
+    } catch (error: unknown) {
+      debug("Failed to parse request body:", error);
+      // if any of the parsing steps fails, give up and respond with error
+      // res.writeHead(415).end();
+      res.statusCode = 415;
+      res.end();
+      return;
+    }
+
+    return await updateHandler(update, res);
+  };
+}
+
+// export const handler = http(bot.webhookCallback("/webhook"));
+export const handler: Handler.MessageQueue = (event, context) => {
+  const queueMessage = event.messages[0];
+  const queueEvent = queueMessage.details.message;
+  // Transform the original message queue event object to event to lambda-compatible http event object
+  const lambdaEvent: Http.Event = {
+    ...queueEvent,
+    httpMethod: "POST",
+    headers: {},
+    queryStringParameters: {},
+    isBase64Encoded: false,
+    multiValueHeaders: {},
+    multiValueQueryStringParameters: {},
+    requestContext: {
+      ...context,
+      httpMethod: "POST",
+      requestTime: queueMessage.event_metadata.created_at,
+      requestTimeEpoch: 0,
+      identity: {
+        sourceIp: "",
+        userAgent: "",
+      },
+    },
+  };
+
+  const serverlessHttpHandler = serverlessHttp(
+    generateWebhook(
+      // disable all request filters
+      () => true,
+      (update: Update, res: http.ServerResponse) =>
+        bot.handleUpdate(update, res)
+    ),
+    {
+      provider: "aws",
+    }
+  );
+
+  return serverlessHttpHandler(lambdaEvent, context);
+};
 
 // export const appHandler = http(app);
 
-const handler = express();
-handler.use(express.json());
+const handlerApp = express();
+handlerApp.use(express.json());
 
 // Global error handlers
 //
@@ -134,14 +240,14 @@ if (require.main === module) {
   if (APP_ENV === "local") {
     main();
   } else {
-    handler.use(bot.webhookCallback("/webhook"));
+    handlerApp.use(bot.webhookCallback("/webhook"));
 
     // adjust according to trigger container path
     const QUEUE_WEBHOOK_PATH = "/queue/callback";
     // webhook callback called by trigger from message queue
-    handler.post(
+    handlerApp.post(
       QUEUE_WEBHOOK_PATH,
-      async (req: Request<{}, {}, YandexQueueRequest>, res) => {
+      async (req: Request<{}, {}, MessageQueue.Event>, res) => {
         try {
           console.log(
             "queue webhook incoming request body",
@@ -172,10 +278,10 @@ if (require.main === module) {
     );
   }
 
-  handler.use(app);
+  handlerApp.use(app);
 
   // fallback middleware to debug all other requests
-  handler.use(async (req, res) => {
+  handlerApp.use(async (req, res) => {
     console.log("received fallen request url", req.method, req.url);
     console.log(
       "received fallen request body",
@@ -186,7 +292,7 @@ if (require.main === module) {
     res.sendStatus(200);
   });
 
-  handler.listen(PORT, () => {
+  handlerApp.listen(PORT, () => {
     console.log(`🚀 Started express server on port ${PORT}`);
   });
 }

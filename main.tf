@@ -90,16 +90,22 @@ paths:
 EOF
 }
 
+resource "yandex_message_queue" "video-translate-bot-function-queue" {
+  name   = "video-translate-bot-function-queue"
+}
+
 resource "yandex_function" "video-translate-bot-function" {
   name       = "video-translate-bot-function"
   user_hash  = filebase64sha256("video-translate-bot.zip")
   runtime    = "nodejs18"
-  entrypoint = "build/index.lambdaHandler"
+  entrypoint = "build/index.handler"
   service_account_id = var.service_account_id
 
   memory = 512 # required for voice downloading, translating and uploading
+  # Sync value with EXECUTION_TIMEOUT environment variable
   execution_timeout = 300 # 5m
 
+  # Configure function when invoking asynchronously (with ?integration=async)
   async_invocation {
     retries_count = 0
     service_account_id = var.service_account_id
@@ -134,11 +140,32 @@ resource "yandex_function" "video-translate-bot-function" {
   }
 }
 
+resource "yandex_function_trigger" "video-translate-bot-function-queue-trigger" {
+  name                = "video-translate-bot-function-queue-trigger"
+  description         = "Trigger for function on new messages in my-queue"
+
+  message_queue {
+    queue_id = yandex_message_queue.video-translate-bot-function-queue.arn
+    service_account_id = var.service_account_id
+
+    batch_cutoff = 0
+    batch_size = 1
+  }
+
+  function {
+    id = yandex_function.video-translate-bot-function.id
+    service_account_id = var.service_account_id
+    # Not supported for YMQ trigger
+    # retry_attempts = 1
+    # retry_interval = 100
+  }
+}
+
 resource "yandex_api_gateway" "video-translate-bot-function-gateway" {
   name        = "video-translate-bot-function-gateway"
   description = "API Gateway for video-translate-bot-function"
-  # execution timeout does not matter because cloud function is invoked asynchronously
-  execution_timeout = "120"
+  # execution timeout does not matter because of message queue
+#   execution_timeout = "120"
 
   spec = <<EOF
 openapi: 3.0.0
@@ -149,10 +176,10 @@ paths:
   /webhook:
     post:
       x-yc-apigateway-integration:
-        type: cloud_functions
-        function_id: "${yandex_function.video-translate-bot-function.id}"
-        tag: "$latest"
-        payload_format_version: "1.0"
+        type: cloud_ymq
+        action: SendMessage
+        queue_url: "${yandex_message_queue.video-translate-bot-function-queue.id}"
+        folder_id: "${var.yc_folder_id}"
         service_account_id: "${var.service_account_id}"
       responses:
         "200":
