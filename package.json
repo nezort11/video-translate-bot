@@ -151,7 +151,7 @@
     "telegraf-session-s33": "1.0.2",
     "telegraf-session-store-ydb": "1.0.3",
     "telegraf-throttler": "0.6.0",
-    "telegram": "2.15.15",
+    "telegram": "2.26.22",
     "undici": "7.3.0",
     "ydb-sdk": "5.9.1"
   },
