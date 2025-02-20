@@ -4,11 +4,13 @@ import { BotContext, bot } from "./botinstance";
 import i18next, { TFunction } from "i18next";
 import Backend from "i18next-fs-backend";
 import yaml from "js-yaml";
-import Database from "better-sqlite3";
+// import Database from "better-sqlite3";
 import { count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { Composer, Context, Markup, TelegramError, session } from "telegraf";
-import { SQLite } from "@telegraf/session/sqlite";
+// import { SQLite } from "@telegraf/session/sqlite";
+import { Driver, getCredentialsFromEnv, TypedValues } from "ydb-sdk";
+import { Ydb } from "telegraf-session-store-ydb";
 import { message } from "telegraf/filters";
 import { Stage, WizardScene } from "telegraf/scenes";
 import { KeyedDistinct } from "telegraf/typings/core/helpers/util";
@@ -49,6 +51,9 @@ import {
   VIDEO_TRANSLATE_APP_URL,
   APP_ENV,
   STORAGE_DIR_PATH,
+  MOUNT_ROOT_DIR_PATH,
+  YDB_ENDPOINT,
+  YDB_DATABASE,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -87,11 +92,11 @@ import {
   getRouter,
 } from "./actions";
 
-const database = new Database(path.join(STORAGE_DIR_PATH, "db.sqlite"));
-database.pragma("journal_mode = WAL"); // Helps prevent corruption https://chatgpt.com/c/67ab8ae9-bf14-8012-9c4a-3a12d682cb1d
+// const database = new Database(path.join(STORAGE_DIR_PATH, "db.sqlite"));
+// database.pragma("journal_mode = WAL"); // Helps prevent corruption https://chatgpt.com/c/67ab8ae9-bf14-8012-9c4a-3a12d682cb1d
 
 // https://orm.drizzle.team/docs/get-started-sqlite#better-sqlite3
-const db = drizzle({ client: database });
+// const db = drizzle({ client: database });
 
 const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
@@ -413,10 +418,41 @@ bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 
 const trackUpdate = async (update: Update) => {
   try {
-    await db.insert(updatesTable).values({
-      updateId: update.update_id,
-      updateData: update,
+    await driver.queryClient.do({
+      fn: async (session) => {
+        await session.execute({
+          text: `
+        CREATE TABLE IF NOT EXISTS updates (
+          update_id Uint64,
+          update_data Json,
+          PRIMARY KEY (update_id)
+        );
+      `,
+        });
+        console.log("Table 'updates' created successfully");
+      },
     });
+    console.log("Table 'updates' is ready");
+
+    await driver.tableClient.withSessionRetry(async (session) => {
+      await session.executeQuery(
+        `DECLARE $update_id AS Uint64;
+       DECLARE $update_data AS Json;
+       UPSERT INTO updates (update_id, update_data)
+       VALUES ($update_id, $update_data);`,
+        {
+          $update_id: TypedValues.uint64(update.update_id),
+          // Convert your update object to a JSON string
+          $update_data: TypedValues.json(JSON.stringify(update)),
+        }
+      );
+      console.log("Inserted update with ID:", update.update_id);
+    });
+
+    // await db.insert(updatesTable).values({
+    //   updateId: update.update_id,
+    //   updateData: update,
+    // });
   } catch (error) {
     handleWarnError("save update error", error);
   }
@@ -432,9 +468,28 @@ bot.use(async (context, next) => {
 });
 
 // Provide a session storage provider
-const sessionDb = new Database(path.join(STORAGE_DIR_PATH, "session.sqlite"));
-sessionDb.pragma("journal_mode = WAL"); // Helps prevent corruption
-const sessionStore = SQLite<{}>({ database: sessionDb });
+// const sessionDb = new Database(path.join(STORAGE_DIR_PATH, "session.sqlite"));
+// sessionDb.pragma("journal_mode = WAL"); // Helps prevent corruption
+// const sessionStore = SQLite<{}>({ database: sessionDb });
+// bot.use(session({ store: sessionStore }));
+
+process.env.YDB_SERVICE_ACCOUNT_KEY_FILE_CREDENTIALS = path.resolve(
+  MOUNT_ROOT_DIR_PATH,
+  "./env/sakey.json"
+);
+const driver = new Driver({
+  // connectionString does not work for some reason
+  // connectionString: "",
+  endpoint: YDB_ENDPOINT,
+  database: YDB_DATABASE,
+  authService: getCredentialsFromEnv(),
+});
+const sessionStore = Ydb<any>({
+  driver,
+  driverOptions: { enableReadyCheck: true },
+  tableOptions: { shouldCreateTable: false },
+});
+
 bot.use(session({ store: sessionStore }));
 
 const replyError = (
@@ -803,8 +858,27 @@ bot.command("chatid", async (context) => {
 });
 
 bot.command("debug_stats", async (context) => {
-  const updates = await db.select({ count: count() }).from(updatesTable);
-  await context.reply(`Total updates: ${updates[0].count}\n` + `Total users:`);
+  // const updates = await db.select({ count: count() }).from(updatesTable);
+  // await context.reply(`Total updates: ${updates[0].count}\n` + `Total users:`);
+
+  const tableClient = driver.tableClient;
+
+  let updatesCount: number = 0;
+  await tableClient.withSessionRetry(async (session) => {
+    const result = await session.executeQuery(
+      `SELECT COUNT(*) as count FROM updates;`
+    );
+
+    const row = result?.resultSets?.[0]?.rows?.[0];
+    if (row) {
+      const countValue = row.items?.[0]?.uint64Value;
+      if (countValue !== undefined) {
+        updatesCount = Number(countValue);
+      }
+    }
+  });
+
+  await context.reply(`Total updates: ${updatesCount}\n` + `Total users:`);
 });
 
 bot.command("debug_vtrans", async (context) => {

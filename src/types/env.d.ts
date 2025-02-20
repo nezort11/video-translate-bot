@@ -12,6 +12,9 @@ declare global {
       DEBUG: string;
       EXECUTION_TIMEOUT: string;
 
+      YDB_ENDPOINT: string;
+      YDB_DATABASE: string;
+
       STORAGE_BUCKET: string;
       YTDL_STORAGE_BUCKET: string;
 

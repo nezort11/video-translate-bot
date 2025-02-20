@@ -35,11 +35,12 @@
     "npm:install": "docker run --rm --platform=linux/amd64 -w /app -v \"$(pwd)/package.json:/app/package.json\" -v \"$(pwd)/node_modules:/app/node_modules\" ubuntu:22.04 bash -c \"apt update && apt install -y curl && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt install -y nodejs && npm install --omit=dev --force\"",
     "npm:pre": "mv ./node_modules ./node_modules_dev && mv ./node_modules_prod ./node_modules 2>/dev/null ; mkdir -p node_modules",
     "npm:post": "mv ./node_modules ./node_modules_prod && mv ./node_modules_dev ./node_modules",
+    "npm:reinstall": "pnpm npm:pre && pnpm npm:install && pnpm npm:post",
     "app:package": "source ./scripts/projectname-env.sh && zip -r ./${PACKAGE_NAME}.zip ./package.json ./node_modules ./build ./locales",
     "app:upload": "source ./scripts/projectname-env.sh && yc storage s3api put-object --bucket $(terraform output -raw video_translate_bot_code_bucket) --key function.zip --body ./${PACKAGE_NAME}.zip",
     "app:rebuild": "npm rebuild better-sqlite3 --target_platform=linux --target_arch=x64",
-    "app:ci": "pnpm build && pnpm npm:pre && pnpm npm:install && pnpm app:package && pnpm npm:post && pnpm app:upload",
-    "app:ci2": "pnpm build && pnpm npm:pre && pnpm app:package && pnpm npm:post && pnpm app:upload",
+    "app:ci": "pnpm build && pnpm npm:pre && pnpm app:package && pnpm npm:post && pnpm app:upload",
+    "app:deploy": "pnpm app:ci && pnpm tf apply -auto-approve",
     "webhook:info": "source ./env/.env && pnpm telegraf -m getWebhookInfo -t $BOT_TOKEN_PROD",
     "webhook:set": "source ./env/.env && pnpm telegraf -m setWebhook -t $BOT_TOKEN_PROD -D \"{ \\\"url\\\": \\\"https://$(terraform output -raw video_translate_bot_gateway_domain)/webhook\\\", \\\"drop_pending_updates\\\": \\\"True\\\" }\"",
     "webhook:delete": "source ./env/.env && pnpm telegraf -m deleteWebhook -t $BOT_TOKEN_PROD"
@@ -148,9 +149,11 @@
     "serverless-http": "3.2.0",
     "telegraf": "4.16.3",
     "telegraf-session-s33": "1.0.2",
+    "telegraf-session-store-ydb": "1.0.3",
     "telegraf-throttler": "0.6.0",
     "telegram": "2.15.15",
-    "undici": "7.3.0"
+    "undici": "7.3.0",
+    "ydb-sdk": "5.9.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.12",

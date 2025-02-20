@@ -6,6 +6,7 @@ node_modules*
 
 .env
 cookies.json
+*key.json
 
 *.log
 

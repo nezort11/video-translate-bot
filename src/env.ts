@@ -38,6 +38,8 @@ export const BOT_PUBLIC_USERNAME = process.env.BOT_PUBLIC_USERNAME!;
 export const NOTIFICATION_BOT_TOKEN = process.env.NOTIFICATION_BOT_TOKEN!;
 export const NOTIFICATION_USER_ID = process.env.NOTIFICATION_USER_ID!;
 
+export const YDB_ENDPOINT = process.env.YDB_ENDPOINT;
+export const YDB_DATABASE = process.env.YDB_DATABASE;
 export const STORAGE_BUCKET = process.env.STORAGE_BUCKET;
 export const YTDL_STORAGE_BUCKET = process.env.YTDL_STORAGE_BUCKET;
 
