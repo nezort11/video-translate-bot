@@ -31,6 +31,7 @@ video_quality_too_slow: "Processing the selected video quality takes too long, t
 max_videos_processing: "The maximum number of videos are currently being processed 🏗, please 🔁 try again later..."
 generic_error: "An error occurred, please try again later"
 cannot_translate_video: "Unable to translate this video, 😢 unfortunately, nothing can be done. 🕔 Maybe in the future"
+cannot_detect_speech: "Neural networks could not recognize speech in the video."
 translator_error: "Translator error: {{error_message}}"
 translation_error: "An error occurred during translation. ✉️ Information has been sent to developers, try again later"
 video_format_not_found: "The selected video format for translation was not found, try another one."

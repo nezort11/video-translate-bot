@@ -1197,6 +1197,14 @@ bot.action(/.+/, async (context) => {
             await replyError(context, t("cannot_translate_video"));
             return;
           }
+          const YANDEX_TRANSLATE_CANT_DETECT_SPEECH_ERROR_MESSAGE =
+            "Нейросети не смогли определить речь на видео";
+          if (
+            error.message === YANDEX_TRANSLATE_CANT_DETECT_SPEECH_ERROR_MESSAGE
+          ) {
+            await replyError(context, t("cannot_detect_speech"));
+            return;
+          }
 
           await replyError(
             context,
