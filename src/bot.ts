@@ -468,26 +468,19 @@ const handleError = async (error: unknown, context: Context) => {
     Sentry.captureException(error);
   }
 
-  await Promise.allSettled([
-    replyError(context, t("error_retry")),
-
-    ...(APP_ENV === "local"
-      ? []
-      : [
-          telegramLoggerContext.reply(
-            `<code>${escapeHtml(inspect(error))}</code>`,
-            {
-              parse_mode: "HTML",
-            }
-          ),
-        ]),
-
-    // sendAdminNotification(
-    //   `${(error as Error)?.stack || error}\nMessage: ${inspect(context, {
-    //     depth: 10,
-    //   })}`
-    // ),
-  ]);
+  await replyError(context, t("error_retry"));
+  if (APP_ENV !== "local") {
+    try {
+      await telegramLoggerContext.reply(
+        `<code>${escapeHtml(inspect(error))}</code>`,
+        {
+          parse_mode: "HTML",
+        }
+      );
+    } catch (error) {
+      console.warn("Error while sending error inspect", error);
+    }
+  }
 };
 
 const handleTranslateInProgress = async (
