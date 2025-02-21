@@ -2,7 +2,8 @@ import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 // // // @ts-expect-error no types
 // import input from "input";
-import { API_ID, APP_HASH, SESSION } from "./env";
+import { API_ID, APP_HASH, SESSION, STORAGE_CHANNEL_CHAT_ID } from "./env";
+import { bot } from "./botinstance";
 
 const session = new StringSession(SESSION);
 export const telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
@@ -30,4 +31,34 @@ export const getClient = async () => {
   }
 
   return telegramClient;
+};
+
+export const downloadLargeFile = async (chatId: number, messageId: number) => {
+  const forwardedFileMessage = await bot.telegram.forwardMessage(
+    STORAGE_CHANNEL_CHAT_ID,
+    chatId,
+    messageId
+  );
+
+  // try {
+  const telegramClient = await getClient();
+  const [fileMessage] = await telegramClient.getMessages(
+    STORAGE_CHANNEL_CHAT_ID,
+    {
+      ids: [forwardedFileMessage.message_id],
+    }
+  );
+  try {
+    const fileBuffer = (await fileMessage.downloadMedia({
+      outputFile: undefined,
+    })) as Buffer;
+
+    return fileBuffer;
+  } finally {
+    await fileMessage.delete();
+  }
+  // } finally {
+  // bot cannot delete messages in channel
+  // await bot.telegram.deleteMessage(chatId, forwardedFileMessage.message_id);
+  // }
 };

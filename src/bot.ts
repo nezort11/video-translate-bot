@@ -41,7 +41,7 @@ import { VideoTranslateResponse } from "../packages/video-translate-server/src/s
 //   TranslateInProgressException,
 //   // translateVideo,
 // } from "./translate";
-import { getClient } from "./telegramclient";
+import { downloadLargeFile, getClient } from "./telegramclient";
 import { logger } from "./logger";
 
 import {
@@ -77,6 +77,7 @@ import {
   translateText,
   isValidUrl,
   getLinkMatch,
+  uploadVideo,
 } from "./core";
 import { downloadVideo, ytdlAgent } from "./services/ytdl";
 import { translate } from "./services/translate";
@@ -461,9 +462,9 @@ const trackUpdate = async (update: Update) => {
 // Track all incoming updates (for analytics purposes)
 bot.use(async (context, next) => {
   if (APP_ENV !== "local") {
-  // Save incoming update (async)
-  logger.log(`Saving update id ${context.update.update_id}`);
-  trackUpdate(context.update);
+    // Save incoming update (async)
+    logger.log(`Saving update id ${context.update.update_id}`);
+    trackUpdate(context.update);
   }
 
   await next();
@@ -940,44 +941,67 @@ const renderScreen = async (
 };
 
 const renderTranslateScreen = async (context: BotContext, router: Router) => {
-  const link = router.session.link as string;
+  let link = router.session.link as string;
   const videoPlatform = getVideoPlatform(link);
   logger.log("Video platform:", videoPlatform);
 
+  const translateVideoMessage = t("translate_video").replace("link", link);
+  const voiceTranslateActionButton = createActionButton(t("voice_faster"), {
+    context,
+    routerId: router.id,
+    data: {
+      type: ActionType.TranslateVoice,
+    },
+  });
+  const translateLanguage = getTranslateLanguage(context);
+  const translationLanguageActionButton = createActionButton(
+    t("translation_language", {
+      language_flag: mapLanguageCodeToFlag[translateLanguage],
+    }),
+    {
+      context,
+      routerId: router.id,
+      data: {
+        type: ActionType.Navigate,
+        screen: Screen.LanguageSettings,
+      },
+    }
+  );
+
+  if (videoPlatform === VideoPlatform.Telegram) {
+    // const url = new URL(link);
+    // const telegramFileId = url.pathname.slice(1);
+
+    return await renderScreen(context, t("translate_video"), {
+      disable_notification: true,
+      // reply_to_message_id: context.message.message_id,
+      reply_markup: Markup.inlineKeyboard([
+        [voiceTranslateActionButton],
+        [translationLanguageActionButton],
+      ]).reply_markup,
+
+      // specify a reply_to_message_id on first message sent
+      ...(context.message?.message_id && {
+        reply_parameters: {
+          message_id: context.message.message_id,
+        },
+      }),
+    });
+  }
+
   if (videoPlatform === VideoPlatform.YouTube) {
     const videoId = getYoutubeVideoId(link);
-    const shortLink = shortenYoutubeLink(videoId);
+    link = shortenYoutubeLink(videoId);
     const videoTranslateApp = new URL(VIDEO_TRANSLATE_APP_URL);
-    videoTranslateApp.searchParams.set("url", shortLink);
-    const translateLanguage = getTranslateLanguage(context);
+    videoTranslateApp.searchParams.set("url", link);
     videoTranslateApp.searchParams.set("lang", translateLanguage);
 
-    const translateVideoMessage = t("translate_video").replace(
-      "link",
-      shortLink
-    );
-    await renderScreen(context, translateVideoMessage, {
+    return await renderScreen(context, translateVideoMessage, {
       parse_mode: "Markdown",
       disable_notification: true,
       // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
-        [
-          createActionButton(
-            t("voice_faster"),
-            // encodeTranslateAction(
-            //   TranslateType.Voice,
-            //   shortLink,
-            //   TranslateQuality.Mp4_360p
-            // )
-            {
-              context,
-              routerId: router.id,
-              data: {
-                type: ActionType.TranslateVoice,
-              },
-            }
-          ),
-        ],
+        [voiceTranslateActionButton],
         [
           createActionButton(t("audio_mp3"), {
             context,
@@ -996,21 +1020,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
           // ),
         ],
         [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
-        [
-          createActionButton(
-            t("translation_language", {
-              language_flag: mapLanguageCodeToFlag[translateLanguage],
-            }),
-            {
-              context,
-              routerId: router.id,
-              data: {
-                type: ActionType.Navigate,
-                screen: Screen.LanguageSettings,
-              },
-            }
-          ),
-        ],
+        [translationLanguageActionButton],
         // [
         //   Markup.button.callback(
         //     "📺 Видео (mp4) (дольше ⏳)",
@@ -1019,30 +1029,14 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
         // ],
       ]).reply_markup,
     });
-    return;
   }
 
-  await renderScreen(context, t("translate_video", { link }), {
+  await renderScreen(context, translateVideoMessage, {
     disable_notification: true,
     // reply_to_message_id: context.message.message_id,
     reply_markup: Markup.inlineKeyboard([
-      [
-        createActionButton(t("voice_faster"), {
-          context,
-          routerId: router.id,
-          data: {
-            type: ActionType.TranslateVoice,
-          },
-        }),
-        // Markup.button.callback(
-        //   "🎙️ Голос (mp3) (быстрее ⚡️)",
-        //   encodeTranslateAction(
-        //     TranslateType.Voice,
-        //     link,
-        //     TranslateQuality.Mp4_360p
-        //   )
-        // ),
-      ],
+      [voiceTranslateActionButton],
+      [translationLanguageActionButton],
     ]).reply_markup,
   });
 };
@@ -1053,47 +1047,45 @@ const renderChooseTranslateLanguage = async (
 ) => {
   const routerId = router.id;
   await renderScreen(context, t("choose_language"), {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          createActionButton("🇬🇧", {
-            context,
-            routerId,
-            data: {
-              type: ActionType.ChooseLanguage,
-              language: "en",
-              // previousData,
-            },
-          }),
-          createActionButton("🇷🇺", {
-            context,
-            routerId,
-            data: {
-              type: ActionType.ChooseLanguage,
-              language: "ru",
-            },
-          }),
-          createActionButton("🇰🇿", {
-            context,
-            routerId,
-            data: {
-              type: ActionType.ChooseLanguage,
-              language: "kk",
-            },
-          }),
-        ],
-        [
-          createActionButton(t("back"), {
-            context,
-            routerId,
-            data: {
-              type: ActionType.Navigate,
-              screen: Screen.Translate,
-            },
-          }),
-        ],
+    reply_markup: Markup.inlineKeyboard([
+      [
+        createActionButton("🇬🇧", {
+          context,
+          routerId,
+          data: {
+            type: ActionType.ChooseLanguage,
+            language: "en",
+            // previousData,
+          },
+        }),
+        createActionButton("🇷🇺", {
+          context,
+          routerId,
+          data: {
+            type: ActionType.ChooseLanguage,
+            language: "ru",
+          },
+        }),
+        createActionButton("🇰🇿", {
+          context,
+          routerId,
+          data: {
+            type: ActionType.ChooseLanguage,
+            language: "kk",
+          },
+        }),
       ],
-    },
+      [
+        createActionButton(t("back"), {
+          context,
+          routerId,
+          data: {
+            type: ActionType.Navigate,
+            screen: Screen.Translate,
+          },
+        }),
+      ],
+    ]).reply_markup,
   });
 };
 
@@ -1123,6 +1115,22 @@ bot.on(messageTextNotCommand, async (context, next) => {
   // );
 
   const router = createRouter(context, Screen.Translate, { link: text });
+  await route(context, router.id);
+});
+
+bot.on(message("video"), async (context) => {
+  // context.message.video
+
+  const video = context.message.video;
+  const videoFileUrl = new URL(`tg://video/${context.message.message_id}`);
+  videoFileUrl.searchParams.set("duration", `${video.duration}`);
+  if (video.thumbnail) {
+    videoFileUrl.searchParams.set("thumbnail", `${video.thumbnail.file_id}`);
+  }
+
+  const router = createRouter(context, Screen.Translate, {
+    link: videoFileUrl.href,
+  });
   await route(context, router.id);
 });
 
@@ -1190,7 +1198,8 @@ bot.action(/.+/, async (context) => {
 
   // const translateAction = decodeTranslateAction(actionData);
   // const videoLink = translateAction.url;
-  const videoLink = router.session.link as string;
+  let videoLink = router.session.link as string;
+  const videoPlatform = getVideoPlatform(videoLink);
   const targetTranslateLanguage = getTranslateLanguage(context);
   const translateAction = {
     translateType: null,
@@ -1246,18 +1255,33 @@ bot.action(/.+/, async (context) => {
   videoTranslateProgressCount += 1;
   try {
     await handleTranslateInProgress(context, ffmpegProgress);
-    progressInterval = setInterval(async () => {
-      try {
-        await handleTranslateInProgress(context, ffmpegProgress);
-      } catch (error) {
-        clearInterval(progressInterval);
-        await handleError(error, context);
-      }
-    }, moment.duration({ minutes: 5 }).asMilliseconds());
+    // progressInterval = setInterval(async () => {
+    //   try {
+    //     await handleTranslateInProgress(context, ffmpegProgress);
+    //   } catch (error) {
+    //     clearInterval(progressInterval);
+    //     await handleError(error, context);
+    //   }
+    // }, moment.duration({ minutes: 5 }).asMilliseconds());
 
     logger.info("Request translation...");
     let translationUrl: string; //| undefined;
     try {
+      // translaform serialized telegram video link to mp4 link
+      if (videoPlatform === VideoPlatform.Telegram) {
+        const videoUrl = new URL(videoLink);
+        const videoMessageId = +videoUrl.pathname.slice(1);
+
+        const videoBuffer = await downloadLargeFile(
+          context.chat!.id,
+          videoMessageId
+        );
+        const videoFileUrl = await uploadVideo(videoBuffer);
+
+        // set mp4 file url
+        videoLink = videoFileUrl;
+      }
+
       const videoTranslateData = await translateVideoFinal(
         videoLink,
         targetTranslateLanguage
@@ -1271,14 +1295,6 @@ bot.action(/.+/, async (context) => {
             "Возникла ошибка, попробуйте позже";
           if (error.message === YANDEX_TRANSLATE_ERROR_MESSAGE) {
             await replyError(context, t("cannot_translate_video"));
-            return;
-          }
-          const YANDEX_TRANSLATE_CANT_DETECT_SPEECH_ERROR_MESSAGE =
-            "Нейросети не смогли определить речь на видео";
-          if (
-            error.message === YANDEX_TRANSLATE_CANT_DETECT_SPEECH_ERROR_MESSAGE
-          ) {
-            await replyError(context, t("cannot_detect_speech"));
             return;
           }
 
@@ -1363,7 +1379,7 @@ bot.action(/.+/, async (context) => {
     // if (translateAction.translateType === TranslateType.Voice) {
     if (actionType === ActionType.TranslateVoice) {
       const outputBuffer = translateAudioBuffer;
-      outputBuffer.name = `${videoTitle}.mp3`;
+      outputBuffer.name = `${videoTitle || "unknown"}.mp3`;
 
       const telegramClient = await getClient();
       const finalArtist = artist
@@ -1376,7 +1392,9 @@ bot.action(/.+/, async (context) => {
         {
           file: outputBuffer,
           // caption: `${videoLink}`,
-          caption: `🎧 <b>${videoTitle}</b>\n— ${finalArtist}\n${videoLink}`,
+          caption: `🎧 <b>${videoTitle || "Unknown"}</b>\n— ${finalArtist}\n${
+            videoPlatform === VideoPlatform.Telegram ? "" : videoLink
+          }`,
           parseMode: "html",
           thumb: thumbnailBuffer,
 

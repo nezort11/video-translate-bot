@@ -20,7 +20,13 @@ import {
   YTDL_STORAGE_BUCKET,
 } from "./env";
 import { getClient } from "./telegramclient";
-import { getVideoInfo, getVideoThumbnail, translateText } from "./core";
+import {
+  getVideoInfo,
+  getVideoThumbnail,
+  s3Localstorage,
+  translateText,
+  uploadVideo,
+} from "./core";
 // import bot instance with logger middlewares attached
 import { bot } from "./bot";
 import {
@@ -28,8 +34,6 @@ import {
   importNanoid,
   serializeErrorAsync,
 } from "./utils";
-
-const s3Localstorage = new S3Localstorage(YTDL_STORAGE_BUCKET);
 
 export const app = express();
 
@@ -169,12 +173,6 @@ app.post(
       });
       console.log("video buffer length", videoBuffer.byteLength);
 
-      const { nanoid } = await importNanoid();
-      const randomUid = nanoid();
-      const storageKey = `${randomUid}.mp4`;
-      await s3Localstorage.setItem(storageKey, videoBuffer);
-      const videoObjectUrl = await s3Localstorage.getItemPublicLink(storageKey);
-
       // await s3Localstorage.setItem();
 
       // res.send(`${videoBuffer.byteLength}`);
@@ -188,7 +186,8 @@ app.post(
       // videoInfo.formats;
       // res.json(videoInfo);
 
-      res.json({ url: videoObjectUrl, byteLength: videoBuffer.byteLength });
+      const videoFileUrl = await uploadVideo(videoBuffer);
+      res.json({ url: videoFileUrl, byteLength: videoBuffer.byteLength });
     } catch (error) {
       await handleInternalErrorExpress(error, res);
     }
