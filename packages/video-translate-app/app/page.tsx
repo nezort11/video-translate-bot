@@ -198,7 +198,7 @@ const percent = (percent: number) => percent / 100;
 const client = axios.create({
   baseURL: process.env.NEXT_PUBLIC_VIDEO_TRANSLATE_API_URL!,
 
-  timeout: 15000, // 15m
+  timeout: 15 * 10 ** 6, // 15m
 });
 
 export type VideoTranslateResponseData = {
