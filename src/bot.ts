@@ -460,9 +460,11 @@ const trackUpdate = async (update: Update) => {
 
 // Track all incoming updates (for analytics purposes)
 bot.use(async (context, next) => {
+  if (APP_ENV !== "local") {
   // Save incoming update (async)
   logger.log(`Saving update id ${context.update.update_id}`);
   trackUpdate(context.update);
+  }
 
   await next();
 });
