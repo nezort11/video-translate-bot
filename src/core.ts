@@ -102,12 +102,23 @@ export const getVideoInfo = async (link: string) => {
     };
   }
 
-  const linkPreview = await getLinkPreview(link, { followRedirects: "follow" });
+  try {
+    const linkPreview = await getLinkPreview(link, {
+      followRedirects: "follow",
+    });
   const images = "images" in linkPreview ? linkPreview.images : [];
   return {
     title: "title" in linkPreview ? linkPreview.title : undefined,
     thumbnail: images[0],
   };
+  } catch (error) {
+    if (error instanceof Error && error.message === "Request timeout") {
+      console.warn(error);
+      return {};
+    } else {
+      throw error;
+    }
+  }
 };
 
 const createThumbnailBuffer = (data: ArrayBuffer) => {
