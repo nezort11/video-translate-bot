@@ -91,7 +91,7 @@ export const getVideoInfo = async (link: string) => {
     // const videoInfo = videoInfoResponse.data;
     const videoInfo = await ytdl.getBasicInfo(link, { agent: ytdlAgent });
     const videoThumbnail = findMaxJpgYoutubeThumbnail(
-      videoInfo.videoDetails.thumbnail.thumbnails
+      videoInfo.videoDetails.thumbnails
     );
     return {
       title: videoInfo.videoDetails.title,
