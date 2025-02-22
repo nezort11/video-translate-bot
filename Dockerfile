@@ -1,5 +1,7 @@
 FROM node:18-bullseye
 
+RUN apt update && apt install -y ffmpeg
+
 RUN corepack enable && corepack prepare pnpm@8.6.9 --activate
 
 # COPY ./ffmpeg-dist /ffmpeg-dist

@@ -22,7 +22,8 @@ import path from "path";
 import fs from "fs/promises";
 import fss from "fs";
 import ytdl from "@distube/ytdl-core";
-import { createFFmpeg } from "@ffmpeg/ffmpeg";
+// import { createFFmpeg } from "@ffmpeg/ffmpeg";
+import ffmpeg from "fluent-ffmpeg";
 import http from "http";
 import https from "https";
 import { Api } from "telegram";
@@ -356,13 +357,13 @@ const decodeTranslateAction = (actionData: string) => {
 // https://github.com/ffmpegwasm/ffmpeg.wasm/tree/0.11.x
 // https://ffmpegwasm.netlify.app/docs/migration
 // https://ffmpegwasm.netlify.app/docs/faq#why-ffmpegwasm-doesnt-support-nodejs
-const ffmpeg = createFFmpeg({
-  log: true,
-  logger: ({ message }) => logger.info(message),
-  // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
-  // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
-  // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
-});
+// const ffmpeg = createFFmpeg({
+//   log: true,
+//   logger: ({ message }) => logger.info(message),
+//   // corePath: path.resolve("../ffmpeg-dist/ffmpeg-core.js"),
+//   // workerPath: path.resolve("../ffmpeg-dist/ffmpeg-core.worker.js"),
+//   // wasmPath: path.resolve("../ffmpeg-dist/ffmpeg-core.wasm"),
+// });
 // const ffmpeg: any = {};
 
 // Store current webhook invocation update
@@ -1508,23 +1509,28 @@ bot.action(/.+/, async (context) => {
     // const audioBuffer = await streamToBuffer(audioStream);
     logger.info(`Video downloaded: ${videoBuffer.length}`);
 
-    if (!ffmpeg.isLoaded()) {
-      logger.info("Loading ffmpeg...");
-      await ffmpeg.load();
-      logger.info("FFmpeg loaded");
-    }
-    ffmpeg.setLogger(({ message }) => logger.info(message));
-    ffmpeg.setProgress(({ ratio }) => {
-      ffmpegProgress = ratio;
-    });
+    // if (!ffmpeg.isLoaded()) {
+    //   logger.info("Loading ffmpeg...");
+    //   await ffmpeg.load();
+    //   logger.info("FFmpeg loaded");
+    // }
+    // ffmpeg.setLogger(({ message }) => logger.info(message));
+    // ffmpeg.setProgress(({ ratio }) => {
+    //   ffmpegProgress = ratio;
+    // });
 
-    const videoFilePath = "source.mp4";
-    const audioFilePath = "source2.mp3";
-    const translateAudioFilePath = "source3.mp3";
+    // const videoFilePath = "source.mp4";
+    // const audioFilePath = "source2.mp3";
+    // const translateAudioFilePath = "source3.mp3";
+    const tempDir = "/tmp";
+    const videoFilePath = path.join(tempDir, "source.mp4");
+    const translateAudioFilePath = path.join(tempDir, "source3.mp3");
 
-    ffmpeg.FS("writeFile", videoFilePath, videoBuffer);
-    // ffmpeg.FS("writeFile", audioFilePath, audioBuffer);
-    ffmpeg.FS("writeFile", translateAudioFilePath, translateAudioBuffer);
+    // ffmpeg.FS("writeFile", videoFilePath, videoBuffer);
+    // // ffmpeg.FS("writeFile", audioFilePath, audioBuffer);
+    // ffmpeg.FS("writeFile", translateAudioFilePath, translateAudioBuffer);
+    await fs.writeFile(videoFilePath, videoBuffer);
+    await fs.writeFile(translateAudioFilePath, translateAudioBuffer);
 
     if (videoPlatform === VideoPlatform.Telegram) {
       videoLink = "";
@@ -1537,28 +1543,81 @@ bot.action(/.+/, async (context) => {
         const resultFilePath = "audio.mp3";
 
         // prettier-ignore
-        await ffmpeg.run(
-          "-i", videoFilePath,
-          "-i", translateAudioFilePath,
+        // await ffmpeg.run(
+        //   "-i", videoFilePath,
+        //   "-i", translateAudioFilePath,
 
-          "-filter_complex",
-            `[0:a]volume=${percent(10)}[a];` + // 10% original playback
-            `[1:a]volume=${percent(100)}[b];` + // voice over
-            '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
+        //   "-filter_complex",
+        //     `[0:a]volume=${percent(10)}[a];` + // 10% original playback
+        //     `[1:a]volume=${percent(100)}[b];` + // voice over
+        //     '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
-          // "-qscale:a", "9", // "4",
-          // "-codec:a", "libmp3lame", // "aac",
-          "-b:a", "64k", // decrease output size (MB) - default 128kb
-          "-ac", "1", // decrease audio channel stereo to mono
-          // " -pre", "ultrafast",
+        //   // "-qscale:a", "9", // "4",
+        //   // "-codec:a", "libmp3lame", // "aac",
+        //   "-b:a", "64k", // decrease output size (MB) - default 128kb
+        //   "-ac", "1", // decrease audio channel stereo to mono
+        //   // " -pre", "ultrafast",
 
-          resultFilePath,
-        );
+        //   resultFilePath,
+        // );
         // ffmpeg -i input.mp4 -f null /dev/null
+        await new Promise((resolve, reject) =>
+          ffmpeg()
+            // add first input (video with its original audio)
+            .input(videoFilePath)
+            // add second input (voice-over audio)
+            .input(translateAudioFilePath)
+            // Create a complex filter chain:
+            //   - Reduce the volume of the first audio stream to 10%
+            //   - Use the full volume for the second audio stream
+            //   - Mix them using amix without dropping any inputs
+            .complexFilter(
+              [
+                {
+                  filter: "volume",
+                  options: percent(10), // 10% volume
+                  inputs: "0:a",
+                  outputs: "a",
+                },
+                {
+                  filter: "volume",
+                  options: percent(100), // 100% volume
+                  inputs: "1:a",
+                  outputs: "b",
+                },
+                {
+                  filter: "amix",
+                  options: { inputs: 2, dropout_transition: 0 },
+                  inputs: ["a", "b"],
+                  outputs: "mixed",
+                },
+              ],
+              "mixed"
+            )
+            // Set audio output options: bitrate and channels
+            .outputOptions([
+              "-b:a 64k", // set audio bitrate to 64kbps
+              "-ac 1", // force mono audio output
+            ])
+            // Copy video stream without re-encoding (if desired, you can add "-c:v copy")
+            .save(resultFilePath)
+            .on("progress", (progress) => {
+              console.log(`Processing: ${progress.percent}% done`);
+            })
+            .on("end", () => {
+              console.log("Processing finished successfully.");
+              resolve(undefined);
+            })
+            .on("error", (err) => {
+              console.error("An error occurred:", err.message);
+              reject(err);
+            })
+        );
 
         logger.info("Getting ffmpeg output in node environment");
-        const outputFile = ffmpeg.FS("readFile", resultFilePath);
-        const outputBuffer = Buffer.from(outputFile);
+        // const outputFile = ffmpeg.FS("readFile", resultFilePath);
+        const outputBuffer = await fs.readFile(resultFilePath);
+        // const outputBuffer = Buffer.from(outputFile);
         outputBuffer.name = `${videoTitle}.mp3`;
 
         // await context.sendAudio(
@@ -1623,29 +1682,85 @@ bot.action(/.+/, async (context) => {
         // );
       },
       [ActionType.TranslateVideo]: async () => {
-        const resultFilePath = "video.mp4";
+        // const resultFilePath = "video.mp4";
+        const resultFilePath = path.join(tempDir, "video.mp4");
 
-        // prettier-ignore
-        await ffmpeg.run(
-          "-i", videoFilePath,
-          // "-i", audioFilePath,
-          "-i", translateAudioFilePath,
+        // // prettier-ignore
+        // await ffmpeg.run(
+        //   "-i", videoFilePath,
+        //   // "-i", audioFilePath,
+        //   "-i", translateAudioFilePath,
 
-          "-filter_complex",
-            `[0:a]volume=${percent(10)}[a];` + // 10% original playback
-            `[1:a]volume=${percent(100)}[b];` + // voice over
-            '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
+        //   "-filter_complex",
+        //     `[0:a]volume=${percent(10)}[a];` + // 10% original playback
+        //     `[1:a]volume=${percent(100)}[b];` + // voice over
+        //     '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
-          // "-qscale:a", "9", // "4",
-          // "-codec:a", "libmp3lame", // "aac",
-          // "-b:a", "64k", // decrease output size (MB) - default 128kb
-          // " -pre", "ultrafast",
+        //   // "-qscale:a", "9", // "4",
+        //   // "-codec:a", "libmp3lame", // "aac",
+        //   // "-b:a", "64k", // decrease output size (MB) - default 128kb
+        //   // " -pre", "ultrafast",
 
-          resultFilePath,
-        );
+        //   resultFilePath,
+        // );
+        await new Promise((resolve, reject) => {
+          ffmpeg()
+            .input(videoFilePath)
+            .input(translateAudioFilePath)
+            .complexFilter(
+              [
+                {
+                  filter: "volume",
+                  options: percent(10), // 10% volume for first audio input
+                  inputs: "0:a",
+                  outputs: "a",
+                },
+                {
+                  filter: "volume",
+                  options: percent(100), // 100% volume for second audio input
+                  inputs: "1:a",
+                  outputs: "b",
+                },
+                {
+                  filter: "amix",
+                  options: { inputs: 2, dropout_transition: 0 },
+                  inputs: ["a", "b"],
+                  outputs: "mixed",
+                },
+              ],
+              "mixed"
+            )
+            // .outputOptions(["-map 0:v", "-map [out]"])
+            .outputOptions([
+              "-map 0:v", // video from first input
+              "-map [mixed]", // our processed audio
+              "-c:v copy", // copy video without re-encoding
+              "-c:a aac", // encode audio using AAC
+            ])
+            .save(resultFilePath)
+            .on("progress", (progress) => {
+              console.log(`Processing: ${progress.percent}% done`);
+            })
+            .on("end", () => {
+              console.log("Processing finished");
+              // const outputBuffer_ = await fs.readFile(resultFilePath);
+              // // await Promise.all([
+              // //   fs.unlink(videoFilePath),
+              // //   fs.unlink(translateAudioFilePath),
+              // //   fs.unlink(resultFilePath),
+              // // ]);
+              // resolve(outputBuffer_);
+              resolve(undefined);
+            })
+            .on("error", (err) => {
+              console.error("FFmpeg error:", err);
+              reject(err);
+            });
+        });
+        const outputBuffer = await fs.readFile(resultFilePath);
 
-        const outputFile = ffmpeg.FS("readFile", resultFilePath);
-        const outputBuffer: Buffer | null = Buffer.from(outputFile);
+        // const outputFile = ffmpeg.FS("readFile", resultFilePath);
+        // const outputBuffer: Buffer | null = Buffer.from(outputFile);
         outputBuffer.name = `${videoTitle}.mp4`;
 
         const telegramClient = await getClient();
