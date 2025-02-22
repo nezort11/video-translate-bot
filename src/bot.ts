@@ -1592,7 +1592,7 @@ bot.action(/.+/, async (context) => {
                   outputs: "mixed",
                 },
               ],
-              "mixed"
+              // "mixed"
             )
             // Set audio output options: bitrate and channels
             .outputOptions([
@@ -1707,29 +1707,26 @@ bot.action(/.+/, async (context) => {
           ffmpeg()
             .input(videoFilePath)
             .input(translateAudioFilePath)
-            .complexFilter(
-              [
-                {
-                  filter: "volume",
-                  options: percent(10), // 10% volume for first audio input
-                  inputs: "0:a",
-                  outputs: "a",
-                },
-                {
-                  filter: "volume",
-                  options: percent(100), // 100% volume for second audio input
-                  inputs: "1:a",
-                  outputs: "b",
-                },
-                {
-                  filter: "amix",
-                  options: { inputs: 2, dropout_transition: 0 },
-                  inputs: ["a", "b"],
-                  outputs: "mixed",
-                },
-              ],
-              "mixed"
-            )
+            .complexFilter([
+              {
+                filter: "volume",
+                options: percent(10), // 10% volume for first audio input
+                inputs: "0:a",
+                outputs: "a",
+              },
+              {
+                filter: "volume",
+                options: percent(100), // 100% volume for second audio input
+                inputs: "1:a",
+                outputs: "b",
+              },
+              {
+                filter: "amix",
+                options: { inputs: 2, dropout_transition: 0 },
+                inputs: ["a", "b"],
+                outputs: "mixed",
+              },
+            ])
             // .outputOptions(["-map 0:v", "-map [out]"])
             .outputOptions([
               "-map 0:v", // video from first input
