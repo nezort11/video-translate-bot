@@ -43,6 +43,7 @@ export enum ActionType {
   Translate = "TRANSLATE",
   TranslateVoice = "TRANSLATE_VOICE",
   TranslateAudio = "TRANSLATE_AUDIO",
+  TranslateVideo = "TRANSLATE_VIDEO",
   ChooseLanguage = "CHOOSE_LANGUAGE",
 }
 
@@ -68,6 +69,7 @@ export type ActionData =
   | NavigateActionData
   | ActionDataBase<ActionType.TranslateVoice>
   | ActionDataBase<ActionType.TranslateAudio>
+  | ActionDataBase<ActionType.TranslateVideo>
   | TranslateActionData
   | ChooseLanguageActionData;
 
@@ -155,13 +157,21 @@ export const setActionData = (
   context.session.routers![routerId].actions[actionId] = data;
 };
 
-export const setRouterSession = (
+export const setRouterSessionData = (
   context: BotContext,
   routerId: string,
   key: string,
   data: string
 ) => {
   context.session.routers![routerId].session[key] = data;
+};
+
+export const getRouterSessionData = (
+  context: BotContext,
+  routerId: string,
+  key: string
+) => {
+  return context.session.routers![routerId].session[key];
 };
 
 const encodeActionPayload = (data: ActionPayload) => {

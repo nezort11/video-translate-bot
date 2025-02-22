@@ -20,6 +20,7 @@ translation_in_progress: "⏳ The video is being translated, processing time dep
 dialog_left: "Dialog left"
 voice_faster: "🎙️ Voice (mp3) (faster ⚡️)"
 audio_mp3: "🎧 Audio (mp3)"
+video_mp4_offline: "📺 Video (mp4) (offline)"
 video_mp4: "📺 Video (mp4)"
 translation_language: "Translation language: {{language_flag}}"
 choose_language: "Choose the language to translate this video into"

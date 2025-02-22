@@ -54,6 +54,8 @@ import {
   MOUNT_ROOT_DIR_PATH,
   YDB_ENDPOINT,
   YDB_DATABASE,
+  LAMBDA_TASK_ROOT,
+  WORKER_BOT_SERVER_WEBHOOK_URL,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -91,6 +93,9 @@ import {
   decodeActionPayload,
   getActionData,
   getRouter,
+  getRouterSessionData,
+  setActionData,
+  setRouterSessionData,
 } from "./actions";
 
 // const database = new Database(path.join(STORAGE_DIR_PATH, "db.sqlite"));
@@ -953,6 +958,16 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       type: ActionType.TranslateVoice,
     },
   });
+  const offlineVideoTranslateActionButton = createActionButton(
+    t("video_mp4_offline"),
+    {
+      context,
+      routerId: router.id,
+      data: {
+        type: ActionType.TranslateVideo,
+      },
+    }
+  );
   const translateLanguage = getTranslateLanguage(context);
   const translationLanguageActionButton = createActionButton(
     t("translation_language", {
@@ -977,6 +992,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
         [voiceTranslateActionButton],
+        [offlineVideoTranslateActionButton],
         [translationLanguageActionButton],
       ]).reply_markup,
 
@@ -1139,8 +1155,9 @@ bot.action(/.+/, async (context) => {
   const isFromOwner = context.from?.username === OWNER_USERNAME;
   const actionPayload = decodeActionPayload(context.match[0]);
   const routerId = actionPayload.routerId;
+  const actionId = actionPayload.actionId;
   const router = getRouter(context, actionPayload.routerId);
-  const actionData = getActionData(context, routerId, actionPayload.actionId);
+  const actionData = getActionData(context, routerId, actionId);
   if (!actionData) {
     // Old action messages was cleared than just delete message
     try {
@@ -1265,54 +1282,78 @@ bot.action(/.+/, async (context) => {
     // }, moment.duration({ minutes: 5 }).asMilliseconds());
 
     logger.info("Request translation...");
-    let translationUrl: string; //| undefined;
-    try {
-      // translaform serialized telegram video link to mp4 link
-      if (videoPlatform === VideoPlatform.Telegram) {
-        const videoUrl = new URL(videoLink);
-        const videoMessageId = +videoUrl.pathname.slice(1);
+    let translationUrl: string = getRouterSessionData(
+      context,
+      routerId,
+      "translationUrl"
+    ); //| undefined;
+    console.log("translation url", translationUrl);
+    if (!translationUrl) {
+      try {
+        // translaform serialized telegram video link to mp4 link
+        if (videoPlatform === VideoPlatform.Telegram) {
+          const videoUrl = new URL(videoLink);
+          const videoMessageId = +videoUrl.pathname.slice(1);
 
-        const videoBuffer = await downloadLargeFile(
-          context.chat!.id,
-          videoMessageId
+          const videoBuffer = await downloadLargeFile(
+            context.chat!.id,
+            videoMessageId
+          );
+          const videoFileUrl = await uploadVideo(videoBuffer);
+
+          setRouterSessionData(
+            context,
+            videoFileUrl,
+            "videoLink",
+            videoFileUrl
+          );
+          // set mp4 file url
+          videoLink = videoFileUrl;
+        }
+
+        const videoTranslateData = await translateVideoFinal(
+          videoLink,
+          targetTranslateLanguage
         );
-        const videoFileUrl = await uploadVideo(videoBuffer);
+        translationUrl = videoTranslateData.url;
+      } catch (error) {
+        // if (error instanceof Error) {
+        if (error instanceof TranslateException) {
+          if (error.message) {
+            const YANDEX_TRANSLATE_ERROR_MESSAGE =
+              "Возникла ошибка, попробуйте позже";
+            if (error.message === YANDEX_TRANSLATE_ERROR_MESSAGE) {
+              await replyError(context, t("cannot_translate_video"));
+              return;
+            }
 
-        // set mp4 file url
-        videoLink = videoFileUrl;
-      }
-
-      const videoTranslateData = await translateVideoFinal(
-        videoLink,
-        targetTranslateLanguage
-      );
-      translationUrl = videoTranslateData.url;
-    } catch (error) {
-      // if (error instanceof Error) {
-      if (error instanceof TranslateException) {
-        if (error.message) {
-          const YANDEX_TRANSLATE_ERROR_MESSAGE =
-            "Возникла ошибка, попробуйте позже";
-          if (error.message === YANDEX_TRANSLATE_ERROR_MESSAGE) {
-            await replyError(context, t("cannot_translate_video"));
+            await replyError(
+              context,
+              t("translator_error", {
+                error_message: t("generic_error"),
+              })
+            );
             return;
           }
 
-          await replyError(
-            context,
-            t("translator_error", {
-              error_message: t("generic_error"),
-            })
-          );
+          await replyError(context, t("translation_error"));
           return;
         }
-
-        await replyError(context, t("translation_error"));
-        return;
+        throw error;
       }
-      throw error;
+      logger.info(`Translated: ${translationUrl}`);
     }
-    logger.info(`Translated: ${translationUrl}`);
+
+    if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
+      // if running inside cloud function deletegate translating process to the more performant machine (container)
+      // preserve action data back for container
+      setActionData(context, routerId, actionId, actionData);
+      setRouterSessionData(context, routerId, "translationUrl", translationUrl);
+
+      // proxy update to worker bot server
+      await axios.post(WORKER_BOT_SERVER_WEBHOOK_URL, context.update);
+      return;
+    }
 
     logger.info("Downloading translation...");
     const translateAudioResponse = await axiosInstance.get<ArrayBuffer>(
@@ -1418,25 +1459,25 @@ bot.action(/.+/, async (context) => {
       return;
     }
 
-    const youtubeVideoFormatItag =
-      translateQualityToYoutubeVideoFormatItag[translateAction.quality];
+    // const youtubeVideoFormatItag =
+    //   translateQualityToYoutubeVideoFormatItag[translateAction.quality];
 
-    if (
-      videoInfo.formats?.findIndex(
-        (videoFormat) => videoFormat.itag === youtubeVideoFormatItag.video
-      ) === -1
-    ) {
-      await replyError(context, t("video_format_not_found"));
-      return;
-    }
-    if (
-      videoInfo.formats?.findIndex(
-        (videoFormat) => videoFormat.itag === youtubeVideoFormatItag.audio
-      ) === -1
-    ) {
-      await replyError(context, t("audio_format_not_found"));
-      return;
-    }
+    // if (
+    //   videoInfo.formats?.findIndex(
+    //     (videoFormat) => videoFormat.itag === youtubeVideoFormatItag.video
+    //   ) === -1
+    // ) {
+    //   await replyError(context, t("video_format_not_found"));
+    //   return;
+    // }
+    // if (
+    //   videoInfo.formats?.findIndex(
+    //     (videoFormat) => videoFormat.itag === youtubeVideoFormatItag.audio
+    //   ) === -1
+    // ) {
+    //   await replyError(context, t("audio_format_not_found"));
+    //   return;
+    // }
 
     // logger.log(
     //   `Requesting download stream for quality ${youtubeVideoFormatItag.video} ...`
@@ -1448,12 +1489,25 @@ bot.action(/.+/, async (context) => {
     //   quality: youtubeVideoFormatItag.audio,
     //   agent: ytdlAgent,
     // });
-    logger.info("Downloading youtube video stream...");
-    const videoBuffer = await downloadVideo(videoLink, {
-      quality: 18,
-    });
+    logger.info("Downloading video stream...");
+    let videoBuffer: Buffer;
+    if (videoPlatform === VideoPlatform.Telegram) {
+      const videoDownloadLink = getRouterSessionData(
+        context,
+        routerId,
+        "videoLink"
+      );
+      const videoResponse = await axios.get<Buffer>(videoDownloadLink, {
+        responseType: "arraybuffer",
+      });
+      videoBuffer = videoResponse.data;
+    } else {
+      videoBuffer = await downloadVideo(videoLink, {
+        quality: 18,
+      });
+    }
     // const audioBuffer = await streamToBuffer(audioStream);
-    logger.info(`Youtube video downloaded: ${videoBuffer.length}`);
+    logger.info(`Video downloaded: ${videoBuffer.length}`);
 
     if (!ffmpeg.isLoaded()) {
       logger.info("Loading ffmpeg...");
@@ -1472,6 +1526,10 @@ bot.action(/.+/, async (context) => {
     ffmpeg.FS("writeFile", videoFilePath, videoBuffer);
     // ffmpeg.FS("writeFile", audioFilePath, audioBuffer);
     ffmpeg.FS("writeFile", translateAudioFilePath, translateAudioBuffer);
+
+    if (videoPlatform === VideoPlatform.Telegram) {
+      videoLink = "";
+    }
 
     let fileMessageId = 0;
     await {
@@ -1565,7 +1623,7 @@ bot.action(/.+/, async (context) => {
         //   }
         // );
       },
-      [TranslateType.Video]: async () => {
+      [ActionType.TranslateVideo]: async () => {
         const resultFilePath = "video.mp4";
 
         // prettier-ignore

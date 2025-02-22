@@ -14,6 +14,7 @@ declare global {
 
       YDB_ENDPOINT: string;
       YDB_DATABASE: string;
+      WORKER_BOT_SERVER_WEBHOOK_URL: string;
 
       STORAGE_BUCKET: string;
       YTDL_STORAGE_BUCKET: string;
