@@ -113,7 +113,8 @@ export const createRouter = (
   const router = {
     id: routerId,
     screen: defaultScreen,
-    session: defaultSession,
+    // define empty {} router .session and .actions
+    session: { ...defaultSession },
     actions: {},
   };
   context.session.routers[routerId] = router;

@@ -1301,12 +1301,11 @@ bot.action(/.+/, async (context) => {
           );
           const videoFileUrl = await uploadVideo(videoBuffer);
 
-          setRouterSessionData(
-            context,
-            videoFileUrl,
-            "videoLink",
-            videoFileUrl
-          );
+          if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
+            setActionData(context, routerId, actionId, actionData);
+            setRouterSessionData(context, routerId, "videoLink", videoFileUrl);
+          }
+
           // set mp4 file url
           videoLink = videoFileUrl;
         }
@@ -1347,7 +1346,7 @@ bot.action(/.+/, async (context) => {
     if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
       // if running inside cloud function deletegate translating process to the more performant machine (container)
       // preserve action data back for container
-      setActionData(context, routerId, actionId, actionData);
+      // setActionData(context, routerId, actionId, actionData);
       setRouterSessionData(context, routerId, "translationUrl", translationUrl);
 
       // proxy update to worker bot server
