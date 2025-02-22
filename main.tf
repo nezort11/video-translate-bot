@@ -90,10 +90,6 @@ paths:
 EOF
 }
 
-resource "yandex_message_queue" "video-translate-bot-function-queue" {
-  name   = "video-translate-bot-function-queue"
-}
-
 resource "yandex_function" "video-translate-bot-function" {
   name       = "video-translate-bot-function"
   user_hash  = filebase64sha256("video-translate-bot.zip")
@@ -139,6 +135,10 @@ resource "yandex_function" "video-translate-bot-function" {
       bucket = yandex_storage_bucket.video-translate-bot-storage.bucket
     }
   }
+}
+
+resource "yandex_message_queue" "video-translate-bot-function-queue" {
+  name   = "video-translate-bot-function-queue"
 }
 
 resource "yandex_function_trigger" "video-translate-bot-function-queue-trigger" {
@@ -187,3 +187,47 @@ paths:
           description: "ok"
 EOF
 }
+
+      # Invoking a cloud function using API Gateway extension DOES NOT SUPPORT ASYNCHRONOUS INVOKING
+      # https://github.com/yandex-cloud/docs/issues/905#issuecomment-2671016960
+      # https://yandex.cloud/en/docs/functions/concepts/function-invoke#extension
+
+      # Function can be invoked asynchronously using https://<gateway-domain>/webhook?integration=async
+      # https://yandex.cloud/ru/docs/functions/operations/function/function-invoke-async#invoke
+    #   parameters:
+    #     - name: integration
+    #       in: query
+    #       required: true
+    #       schema:
+    #         type: string
+    #         enum: ["async"]
+
+    #   x-yc-apigateway-integration:
+    #     type: http
+    #     url: "https://functions.yandexcloud.net/${yandex_function.video-translate-bot-function.id}"
+    #     method: POST
+    #     # headers:
+    #     #   Authorization: Bearer ${var.yc_token}
+    #     # query:
+    #     #     integration: async
+    #     # serviceAccountId: "${var.service_account_id}"
+
+    #   x-yc-apigateway-integration:
+    #     type: cloud_functions
+    #     function_id: "${yandex_function.video-translate-bot-function.id}"
+    #     tag: "$latest"
+    #     payload_format_version: "1.0"
+    #     service_account_id: "${var.service_account_id}"
+
+    #   x-yc-apigateway-integration:
+    #     type: cloud_ymq
+    #     action: SendMessage
+    #     queue_url: "${yandex_message_queue.video-translate-bot-function-queue.id}"
+    #     folder_id: "${var.yc_folder_id}"
+    #     service_account_id: "${var.service_account_id}"
+
+    #   x-yc-apigateway-integration:
+    #     type: http
+    #     # don't append /webhook
+    #     url: "https://functions.yandexcloud.net/${yandex_function.video-translate-bot-function.id}?integration=async"
+    #     method: POST
