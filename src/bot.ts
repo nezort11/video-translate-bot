@@ -48,7 +48,6 @@ import { logger } from "./logger";
 import {
   OWNER_USERNAME,
   SENTRY_DSN,
-  STORAGE_CHANNEL_CHAT_ID,
   VIDEO_TRANSLATE_APP_URL,
   APP_ENV,
   STORAGE_DIR_PATH,
@@ -57,6 +56,7 @@ import {
   YDB_DATABASE,
   LAMBDA_TASK_ROOT,
   WORKER_BOT_SERVER_WEBHOOK_URL,
+  LOGGING_CHANNEL_CHAT_ID,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -1429,7 +1429,7 @@ bot.action(/.+/, async (context) => {
           : `${artist} (${originalArtist})`
         : "Unknown artist";
       const fileMessage = await telegramClient.sendFile(
-        STORAGE_CHANNEL_CHAT_ID,
+        LOGGING_CHANNEL_CHAT_ID,
         {
           file: outputBuffer,
           // caption: `${videoLink}`,
@@ -1453,7 +1453,7 @@ bot.action(/.+/, async (context) => {
       );
       await context.telegram.copyMessage(
         context.chat?.id ?? 0,
-        STORAGE_CHANNEL_CHAT_ID,
+        LOGGING_CHANNEL_CHAT_ID,
         fileMessage.id
       );
       return;
@@ -1536,7 +1536,8 @@ bot.action(/.+/, async (context) => {
       videoLink = "";
     }
 
-    let fileMessageId = 0;
+    const telegramClient = await getClient();
+    let translatedFileMessage: Api.Message;
     await {
       [ActionType.TranslateVoice]: async () => {},
       [ActionType.TranslateAudio]: async () => {
@@ -1640,9 +1641,8 @@ bot.action(/.+/, async (context) => {
 
         logger.info("Uploading to telegram channel...");
 
-        const telegramClient = await getClient();
         const fileMessage = await telegramClient.sendFile(
-          STORAGE_CHANNEL_CHAT_ID,
+          LOGGING_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
             // caption: `${videoLink}`,
@@ -1662,7 +1662,7 @@ bot.action(/.+/, async (context) => {
             ],
           }
         );
-        fileMessageId = fileMessage.id;
+        translatedFileMessage = fileMessage;
 
         // const uploadResponse = await axiosInstance.post<UploadResponse>(
         //   UPLOADER_URL,
@@ -1760,9 +1760,8 @@ bot.action(/.+/, async (context) => {
         // const outputBuffer: Buffer | null = Buffer.from(outputFile);
         outputBuffer.name = `${videoTitle}.mp4`;
 
-        const telegramClient = await getClient();
         const fileMessage = await telegramClient.sendFile(
-          STORAGE_CHANNEL_CHAT_ID,
+          LOGGING_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
             caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
@@ -1782,17 +1781,20 @@ bot.action(/.+/, async (context) => {
             ],
           }
         );
-        fileMessageId = fileMessage.id;
+        translatedFileMessage = fileMessage;
       },
       [TranslateType.ChooseVideoQuality]: async () => {},
     }[actionType]();
     logger.info("Uploaded to telegram");
 
-    await context.telegram.copyMessage(
+    await bot.telegram.copyMessage(
       context.chat?.id ?? 0,
-      STORAGE_CHANNEL_CHAT_ID,
-      fileMessageId
+      LOGGING_CHANNEL_CHAT_ID,
+      translatedFileMessage!.id
     );
+    await telegramLoggerContext.reply("<translated video>!");
+    // Delete translated message from the channel (copyrights/privacy)
+    await translatedFileMessage!.delete({ revoke: true });
   } catch (error) {
     throw error;
   } finally {

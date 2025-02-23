@@ -55,7 +55,7 @@ export const downloadLargeFile = async (chatId: number, messageId: number) => {
 
     return fileBuffer;
   } finally {
-    await fileMessage.delete();
+    await fileMessage.delete({ revoke: true });
   }
   // } finally {
   // bot cannot delete messages in channel
