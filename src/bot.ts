@@ -1451,11 +1451,12 @@ bot.action(/.+/, async (context) => {
           ],
         }
       );
-      await context.telegram.copyMessage(
+      await bot.telegram.copyMessage(
         context.chat?.id ?? 0,
         LOGGING_CHANNEL_CHAT_ID,
         fileMessage.id
       );
+      await telegramLoggerContext.reply("<translated audio>");
       return;
     }
 
