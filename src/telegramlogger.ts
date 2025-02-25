@@ -59,10 +59,20 @@ const forwardContextMessage = async (ctx: Context) => {
   }
 
   const fromInfo = ctx.from
-    ? `${ctx.from.first_name} ${ctx.from.last_name} (id ${ctx.from.id})`
+    ? `${ctx.from.first_name} ${ctx.from.last_name} (id ${ctx.from.id}, lang ${ctx.from.language_code})`
     : "";
   // dont forward user-sent videos/files/photos for privacy reasons
-  if ("video" in ctx.message || "video_note" in ctx.message) {
+  if ("text" in ctx.message && ctx.message.text.includes("https")) {
+    // mask user links with plain hostname
+    const maskedMessageText = ctx.message.text.replace(
+      /https?:\/\/([^\s/.]+)\.[^\s]+/g,
+      "<$1>"
+    );
+    await ctx.telegram.sendMessage(
+      LOGGING_CHANNEL_CHAT_ID,
+      `${fromInfo}\n${maskedMessageText}`
+    );
+  } else if ("video" in ctx.message || "video_note" in ctx.message) {
     await ctx.telegram.sendMessage(
       LOGGING_CHANNEL_CHAT_ID,
       `${fromInfo}\n[[video]]`

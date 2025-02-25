@@ -9,7 +9,7 @@ start: |
   🇷🇺 vk.com, ok.ru
   and others.
 translate: "To translate a video, please send a link to the video in this chat. Currently, the bot translates from these languages 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷🇮🇹 to 🇬🇧🇷🇺🇰🇿."
-translate_video: "⚙️ How should I translate [this](link) video?"
+translate_video: "⚙️ How should I translate this video?"
 greeting: "Hello! Welcome to our bot."
 language_changed: "Language changed successfully."
 unknown_language: "Unknown language. Please choose either 'en' or 'ru'."

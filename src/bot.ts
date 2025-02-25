@@ -951,7 +951,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
   const videoPlatform = getVideoPlatform(link);
   logger.log("Video platform:", videoPlatform);
 
-  const translateVideoMessage = t("translate_video").replace("link", link);
+  const translateVideoMessage = t("translate_video"); //.replace("link", link);
   const voiceTranslateActionButton = createActionButton(t("voice_faster"), {
     context,
     routerId: router.id,
