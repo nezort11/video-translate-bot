@@ -59,7 +59,7 @@ const forwardContextMessage = async (ctx: Context) => {
   }
 
   const fromInfo = ctx.from
-    ? `${ctx.from.first_name} ${ctx.from.last_name} (id ${ctx.from.id}, lang ${ctx.from.language_code})`
+    ? `${ctx.from.first_name} ${ctx.from.last_name} (${ctx.from.username}, id ${ctx.from.id}, lang ${ctx.from.language_code})`
     : "";
   // dont forward user-sent videos/files/photos for privacy reasons
   if ("text" in ctx.message && ctx.message.text.includes("https")) {
