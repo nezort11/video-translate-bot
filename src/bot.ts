@@ -959,8 +959,8 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       type: ActionType.TranslateVoice,
     },
   });
-  const offlineVideoTranslateActionButton = createActionButton(
-    t("video_mp4_offline"),
+  const onlineVideoTranslateActionButton = createActionButton(
+    t("video_mp4_online"),
     {
       context,
       routerId: router.id,
@@ -993,7 +993,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
         [voiceTranslateActionButton],
-        [offlineVideoTranslateActionButton],
+        [onlineVideoTranslateActionButton],
         [translationLanguageActionButton],
       ]).reply_markup,
 
