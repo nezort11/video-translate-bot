@@ -16,7 +16,7 @@ import S3Localstorage from "s3-localstorage";
 import {
   DEBUG_ENV,
   LOGGING_CHANNEL_CHAT_ID,
-  STORAGE_CHANNEL_CHAT_ID,
+  // STORAGE_CHANNEL_CHAT_ID,
   YTDL_STORAGE_BUCKET,
 } from "./env";
 import { getClient } from "./telegramclient";

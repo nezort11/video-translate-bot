@@ -2,7 +2,7 @@ import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 // // // @ts-expect-error no types
 // import input from "input";
-import { API_ID, APP_HASH, SESSION, STORAGE_CHANNEL_CHAT_ID } from "./env";
+import { API_ID, APP_HASH, SESSION, LOGGING_CHANNEL_CHAT_ID } from "./env";
 import { bot } from "./botinstance";
 
 const session = new StringSession(SESSION);
@@ -35,7 +35,7 @@ export const getClient = async () => {
 
 export const downloadLargeFile = async (chatId: number, messageId: number) => {
   const forwardedFileMessage = await bot.telegram.forwardMessage(
-    STORAGE_CHANNEL_CHAT_ID,
+    LOGGING_CHANNEL_CHAT_ID,
     chatId,
     messageId
   );
@@ -43,7 +43,7 @@ export const downloadLargeFile = async (chatId: number, messageId: number) => {
   // try {
   const telegramClient = await getClient();
   const [fileMessage] = await telegramClient.getMessages(
-    STORAGE_CHANNEL_CHAT_ID,
+    LOGGING_CHANNEL_CHAT_ID,
     {
       ids: [forwardedFileMessage.message_id],
     }

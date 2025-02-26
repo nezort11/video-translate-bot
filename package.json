@@ -36,8 +36,8 @@
     "npm:pre": "mv ./node_modules ./node_modules_dev && mv ./node_modules_prod ./node_modules 2>/dev/null ; mkdir -p node_modules",
     "npm:post": "mv ./node_modules ./node_modules_prod && mv ./node_modules_dev ./node_modules",
     "npm:reinstall": "pnpm npm:pre && pnpm npm:install && pnpm npm:post",
-    "app:package": "source ./scripts/projectname-env.sh && zip -r ./${PACKAGE_NAME}.zip ./package.json ./node_modules ./build ./locales",
-    "app:upload": "source ./scripts/projectname-env.sh && yc storage s3api put-object --bucket $(terraform output -raw video_translate_bot_code_bucket) --key function.zip --body ./${PACKAGE_NAME}.zip",
+    "app:package": "zip -r ./video-translate-bot.zip ./package.json ./node_modules ./build ./locales",
+    "app:upload": "yc storage s3api put-object --bucket $(terraform output -raw video_translate_bot_code_bucket) --key function.zip --body ./video-translate-bot.zip",
     "app:rebuild": "npm rebuild better-sqlite3 --target_platform=linux --target_arch=x64",
     "app:ci": "pnpm build && pnpm npm:pre && pnpm app:package && pnpm npm:post && pnpm app:upload",
     "app:deploy": "pnpm app:ci && pnpm tf apply -auto-approve",
@@ -114,7 +114,7 @@
     "protobufjs": "7.2.2"
   },
   "dependencies": {
-    "@distube/ytdl-core": "4.16.0",
+    "@distube/ytdl-core": "4.16.4",
     "@ffmpeg/core": "0.11.0",
     "@ffmpeg/ffmpeg": "0.11.6",
     "@iamtraction/google-translate": "2.0.1",
