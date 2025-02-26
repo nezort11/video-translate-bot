@@ -28,6 +28,8 @@ export const EXECUTION_TIMEOUT = +(process.env.EXECUTION_TIMEOUT ?? 120);
 export const APP_ENV = process.env.APP_ENV;
 export const DEBUG_ENV = process.env.DEBUG_ENV;
 
+export const PROXY_SERVER_URI = process.env.PROXY_SERVER_URI;
+
 // export const YC_IAM_TOKEN = process.env.YC_IAM_TOKEN;
 export const YC_API_KEY = process.env.YC_API_KEY;
 export const YC_FOLDER_ID = process.env.YC_FOLDER_ID;

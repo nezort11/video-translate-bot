@@ -12,6 +12,8 @@ declare global {
       DEBUG: string;
       EXECUTION_TIMEOUT: string;
 
+      PROXY_SERVER_URI: string;
+
       YDB_ENDPOINT: string;
       YDB_DATABASE: string;
       WORKER_BOT_SERVER_WEBHOOK_URL: string;

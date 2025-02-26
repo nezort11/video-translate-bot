@@ -4,7 +4,7 @@ import ytdl, { downloadOptions } from "@distube/ytdl-core";
 import { streamToBuffer } from "../core";
 import { importPRetry } from "../utils";
 import { logger } from "../logger";
-import { DOTENV_DIR_PATH } from "../env";
+import { DOTENV_DIR_PATH, PROXY_SERVER_URI } from "../env";
 
 // 1. Install https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc
 // 2. Go to https://youtube.com (feed index page)
@@ -19,10 +19,18 @@ const COOKIES_FILE_PATH = path.join(
   COOKIES_FILENAME
 );
 
-console.log("cookiesFilePath", COOKIES_FILE_PATH);
+// console.log("cookiesFilePath", COOKIES_FILE_PATH);
 
-export const ytdlAgent = ytdl.createAgent(
-  JSON.parse(fs.readFileSync(COOKIES_FILE_PATH, "utf-8"))
+const cookies = JSON.parse(
+  fs.readFileSync(COOKIES_FILE_PATH, "utf-8")
+) as Array<ytdl.Cookie>;
+
+// console.log('cookies loaded', cookies.length)
+
+// https://github.com/distubejs/ytdl-core#rate-limiting
+export const ytdlAgent = ytdl.createProxyAgent(
+  { uri: PROXY_SERVER_URI },
+  cookies
 );
 
 export const downloadVideo = async (
