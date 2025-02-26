@@ -983,6 +983,12 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       },
     }
   );
+  // specify a reply_to_message_id on first message sent
+  const renderScreenReplyParams = context.message?.message_id && {
+    reply_parameters: {
+      message_id: context.message.message_id,
+    },
+  };
 
   if (videoPlatform === VideoPlatform.Telegram) {
     // const url = new URL(link);
@@ -997,12 +1003,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
         [translationLanguageActionButton],
       ]).reply_markup,
 
-      // specify a reply_to_message_id on first message sent
-      ...(context.message?.message_id && {
-        reply_parameters: {
-          message_id: context.message.message_id,
-        },
-      }),
+      ...renderScreenReplyParams,
     });
   }
 
@@ -1045,16 +1046,17 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
         //   ),
         // ],
       ]).reply_markup,
+      ...renderScreenReplyParams,
     });
   }
 
   await renderScreen(context, translateVideoMessage, {
     disable_notification: true,
-    // reply_to_message_id: context.message.message_id,
     reply_markup: Markup.inlineKeyboard([
       [voiceTranslateActionButton],
       [translationLanguageActionButton],
     ]).reply_markup,
+    ...renderScreenReplyParams,
   });
 };
 
