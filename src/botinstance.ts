@@ -11,9 +11,9 @@ import {
 
 // const BOT_TIMEOUT = moment.duration(12, "hours").asMilliseconds(); // 1 hour video for 0.01x might take up to 12 hours
 
-// trigger timeout handler 15 seconds before serverless function/container execution timeout
+// trigger timeout handler 30 seconds before serverless function/container execution timeout
 const BOT_TIMEOUT = moment
-  .duration(EXECUTION_TIMEOUT - 15, "seconds")
+  .duration(EXECUTION_TIMEOUT - 30, "seconds")
   .asMilliseconds();
 
 // extend bot context from action scene and wizard context

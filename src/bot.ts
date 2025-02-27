@@ -1227,43 +1227,43 @@ bot.action(/.+/, async (context) => {
   };
 
   const videoInfo = await getVideoInfo(videoLink);
-  const originalVideoDuration = videoInfo.duration;
+  // const originalVideoDuration = videoInfo.duration;
 
-  let isValidationError = true;
-  if (
-    originalVideoDuration &&
-    originalVideoDuration > moment.duration({ hours: 4 }).asSeconds()
-  ) {
-    await replyError(context, t("video_too_long"), {
-      disable_notification: true,
-    });
-  } else if (
-    translateAction.translateType === TranslateType.Video &&
-    originalVideoDuration &&
-    originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
-  ) {
-    await replyError(context, t("video_processing_slow"), {
-      disable_notification: true,
-    });
-  } else if (
-    translateAction.quality === TranslateQuality.Mp4_720p &&
-    originalVideoDuration &&
-    originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
-  ) {
-    await replyError(context, t("video_quality_too_slow"), {
-      disable_notification: true,
-    });
-  } else if (videoTranslateProgressCount >= 1) {
-    await replyError(context, t("max_videos_processing"));
-  } else {
-    isValidationError = false;
-  }
-  if (isValidationError) {
-    try {
-      await context.deleteMessage();
-    } catch (error) {}
-    return;
-  }
+  // let isValidationError = true;
+  // if (
+  //   originalVideoDuration &&
+  //   originalVideoDuration > moment.duration({ hours: 4 }).asSeconds()
+  // ) {
+  //   await replyError(context, t("video_too_long"), {
+  //     disable_notification: true,
+  //   });
+  // } else if (
+  //   translateAction.translateType === TranslateType.Video &&
+  //   originalVideoDuration &&
+  //   originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
+  // ) {
+  //   await replyError(context, t("video_processing_slow"), {
+  //     disable_notification: true,
+  //   });
+  // } else if (
+  //   translateAction.quality === TranslateQuality.Mp4_720p &&
+  //   originalVideoDuration &&
+  //   originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
+  // ) {
+  //   await replyError(context, t("video_quality_too_slow"), {
+  //     disable_notification: true,
+  //   });
+  // } else if (videoTranslateProgressCount >= 1) {
+  //   await replyError(context, t("max_videos_processing"));
+  // } else {
+  //   isValidationError = false;
+  // }
+  // if (isValidationError) {
+  //   try {
+  //     await context.deleteMessage();
+  //   } catch (error) {}
+  //   return;
+  // }
 
   const translateTransaction = Sentry.startTransaction({
     op: "translate",
@@ -1298,10 +1298,12 @@ bot.action(/.+/, async (context) => {
           const videoUrl = new URL(videoLink);
           const videoMessageId = +videoUrl.pathname.slice(1);
 
+          console.log("Downloading large video file...");
           const videoBuffer = await downloadLargeFile(
             context.chat!.id,
             videoMessageId
           );
+          console.log("Uploading large video file...");
           const videoFileUrl = await uploadVideo(videoBuffer);
 
           if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
@@ -1811,15 +1813,9 @@ bot.action(/.+/, async (context) => {
 });
 
 bot.use(async (context) => {
-  if (context.message && "video" in context.message) {
-    await replyError(context, t("only_youtube_supported_upload"), {
-      disable_notification: true,
-    });
-  } else {
-    await replyError(context, t("only_youtube_supported"), {
-      disable_notification: true,
-    });
-  }
+  await replyError(context, t("only_youtube_supported"), {
+    disable_notification: true,
+  });
 });
 
 export { bot } from "./botinstance";
