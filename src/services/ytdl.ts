@@ -28,9 +28,9 @@ const cookies = JSON.parse(
 // console.log('cookies loaded', cookies.length)
 
 // https://github.com/distubejs/ytdl-core#rate-limiting
-// export const ytdlAgent = ytdl.createProxyAgent(
-export const ytdlAgent = ytdl.createAgent(
-  // { uri: PROXY_SERVER_URI },
+export const ytdlAgent = ytdl.createProxyAgent(
+  // export const ytdlAgent = ytdl.createAgent(
+  { uri: PROXY_SERVER_URI },
   cookies
 );
 
