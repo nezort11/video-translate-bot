@@ -37,6 +37,8 @@ import d from "debug";
 // import { type Update } from "../types/typegram";
 const debug = d("telegraf:webhook");
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 // copy pasted from telegraf/src/core/network/webhook.ts
 export default function generateWebhook(
   filter: (req: http.IncomingMessage) => boolean,
