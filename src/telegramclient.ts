@@ -40,6 +40,9 @@ export const getClient = async () => {
     });
   }
 
+  // Test some client method to check ahead for RPCError: 406: AUTH_KEY_DUPLICATED
+  await _telegramClient.getMe();
+
   return _telegramClient;
 };
 
