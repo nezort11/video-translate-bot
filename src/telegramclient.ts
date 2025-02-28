@@ -1,16 +1,19 @@
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
+import axios from "axios";
+import { importPTimeout } from "./utils";
+import moment from "moment";
 // // // @ts-expect-error no types
 // import input from "input";
 import {
   API_ID,
   APP_HASH,
+  EXECUTION_TIMEOUT,
   SESSION,
   STORAGE_CHANNEL_CHAT_ID,
   WORKER_APP_SERVER_URL,
 } from "./env";
 import { bot } from "./botinstance";
-import axios from "axios";
 
 const session = new StringSession(SESSION);
 export const _telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
@@ -89,15 +92,28 @@ export const delegateDownloadLargeFile = async (
     `tg://video/${channelFileMessage.message_id}`
   );
   try {
-    const videoResponse = await axios.post("/download", null, {
-      params: {
-        url: videoChannelMessageUrl.href,
-      },
-      baseURL: WORKER_APP_SERVER_URL,
-    });
+    console.log("downloading video using worker api...");
+    const { default: pTimeout } = await importPTimeout();
+    const downloadTimeoutMilliseconds = moment
+      .duration(EXECUTION_TIMEOUT - 60, "seconds")
+      .asMilliseconds();
+
+    const videoResponse = await pTimeout(
+      axios.post("/download", null, {
+        params: {
+          url: videoChannelMessageUrl.href,
+        },
+        baseURL: WORKER_APP_SERVER_URL,
+      }),
+      {
+        milliseconds: downloadTimeoutMilliseconds,
+      }
+    );
     const videoFileUrl = videoResponse.data.url;
+    console.log("successfully downloaded video", videoFileUrl);
     return videoFileUrl;
   } finally {
+    console.log("deleting forwarded video message");
     await fileMessage.delete({ revoke: true });
   }
 };
