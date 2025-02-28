@@ -13,7 +13,7 @@ import { bot } from "./botinstance";
 import axios from "axios";
 
 const session = new StringSession(SESSION);
-export const telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
+export const _telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
   connectionRetries: 5,
 });
 
@@ -22,9 +22,9 @@ const mockCredentialNoSession = async () => {
 };
 
 export const getClient = async () => {
-  const isLoggedIn = await telegramClient.isUserAuthorized();
+  const isLoggedIn = await _telegramClient.isUserAuthorized();
   if (!isLoggedIn) {
-    await telegramClient.start({
+    await _telegramClient.start({
       // Set mock credentials and etc. (will produce exception instead of halting) in case session is expired
       phoneNumber: mockCredentialNoSession,
       password: mockCredentialNoSession,
@@ -37,7 +37,7 @@ export const getClient = async () => {
     });
   }
 
-  return telegramClient;
+  return _telegramClient;
 };
 
 export const downloadLargeFile = async (chatId: number, messageId: number) => {
@@ -103,6 +103,7 @@ export const delegateDownloadLargeFile = async (
 };
 
 export const downloadMessageFile = async (messageId: number) => {
+  const telegramClient = await getClient();
   const [fileMessage] = await telegramClient.getMessages(
     STORAGE_CHANNEL_CHAT_ID,
     {
