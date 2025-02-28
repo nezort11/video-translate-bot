@@ -4,7 +4,7 @@ import type { ErrorObject } from "serialize-error";
 import cors from "cors";
 import ytdl, { videoInfo } from "@distube/ytdl-core";
 import { Readable } from "stream";
-import { downloadVideo, ytdlAgent } from "./services/ytdl";
+import { downloadYoutubeVideo, ytdlAgent } from "./services/ytdl";
 import { logger } from "./logger";
 import {
   TranslateException,
@@ -19,9 +19,11 @@ import {
   // STORAGE_CHANNEL_CHAT_ID,
   YTDL_STORAGE_BUCKET,
 } from "./env";
-import { getClient } from "./telegramclient";
+import { downloadMessageFile, getClient } from "./telegramclient";
 import {
+  VideoPlatform,
   getVideoInfo,
+  getVideoPlatform,
   getVideoThumbnail,
   s3Localstorage,
   translateText,
@@ -151,9 +153,8 @@ app.post(
     res
   ) => {
     try {
-      const videoUrl = req.query.url;
-      console.log("videoUrl", videoUrl);
-      const format = parseInt(req.query.format);
+      const videoLink = req.query.url;
+      console.log("videoUrl", videoLink);
 
       // // "https://www.youtube.com/watch?v=5bId3N7QZec"
       // const translateResult = await translateVideo(videoUrl);
@@ -167,11 +168,22 @@ app.post(
       //   format: formats[0],
       // });
 
-      console.log("downloading video streaming to buffer...");
-      const videoBuffer = await downloadVideo(videoUrl, {
-        quality: format,
-      });
-      console.log("video buffer length", videoBuffer.byteLength);
+      const videoPlatform = getVideoPlatform(videoLink);
+      let videoBuffer: Buffer;
+      if (videoPlatform === VideoPlatform.YouTube) {
+        const format = parseInt(req.query.format);
+        console.log("downloading video streaming to buffer...");
+        videoBuffer = await downloadYoutubeVideo(videoLink, {
+          quality: format,
+        });
+        console.log("video buffer length", videoBuffer.byteLength);
+      } else if (videoPlatform === VideoPlatform.Telegram) {
+        const videoUrl = new URL(videoLink);
+        const videoMessageId = +videoUrl.pathname.slice(1);
+        videoBuffer = await downloadMessageFile(videoMessageId);
+      } else {
+        throw new Error("Unsupported video url platform");
+      }
 
       // await s3Localstorage.setItem();
 

@@ -34,7 +34,7 @@ export const ytdlAgent = ytdl.createProxyAgent(
   cookies
 );
 
-export const downloadVideo = async (
+export const downloadYoutubeVideo = async (
   link: string,
   options: downloadOptions = {}
 ): Promise<Buffer> => {

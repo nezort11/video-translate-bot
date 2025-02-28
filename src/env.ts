@@ -46,6 +46,7 @@ export const STORAGE_BUCKET = process.env.STORAGE_BUCKET;
 export const YTDL_STORAGE_BUCKET = process.env.YTDL_STORAGE_BUCKET;
 export const WORKER_BOT_SERVER_WEBHOOK_URL =
   process.env.WORKER_BOT_SERVER_WEBHOOK_URL;
+export const WORKER_APP_SERVER_URL = process.env.WORKER_APP_SERVER_URL;
 
 export const VIDEO_TRANSLATE_APP_URL = process.env.VIDEO_TRANSLATE_APP_URL;
 

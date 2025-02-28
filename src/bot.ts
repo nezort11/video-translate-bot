@@ -42,7 +42,7 @@ import { VideoTranslateResponse } from "../packages/video-translate-server/src/s
 //   TranslateInProgressException,
 //   // translateVideo,
 // } from "./translate";
-import { downloadLargeFile, getClient } from "./telegramclient";
+import { delegateDownloadLargeFile, getClient } from "./telegramclient";
 import { logger } from "./logger";
 
 import {
@@ -82,7 +82,7 @@ import {
   getLinkMatch,
   uploadVideo,
 } from "./core";
-import { downloadVideo, ytdlAgent } from "./services/ytdl";
+import { downloadYoutubeVideo, ytdlAgent } from "./services/ytdl";
 import { translate } from "./services/translate";
 import { updatesTable } from "./schema";
 import {
@@ -913,7 +913,7 @@ bot.command("debug_ytdl_info", async (context) => {
 bot.command("debug_ytdl_download", async (context) => {
   const commandArgs = context.message.text.split(" ").slice(1);
   const quality = parseInt(commandArgs[0] || "18");
-  const videoBuffer = await downloadVideo(mockVideoLink, {
+  const videoBuffer = await downloadYoutubeVideo(mockVideoLink, {
     quality,
   });
 
@@ -1298,13 +1298,17 @@ bot.action(/.+/, async (context) => {
           const videoUrl = new URL(videoLink);
           const videoMessageId = +videoUrl.pathname.slice(1);
 
-          console.log("Downloading large video file...");
-          const videoBuffer = await downloadLargeFile(
+          // console.log("Downloading large video file...");
+          // const videoBuffer = await downloadLargeFile(
+          //   context.chat!.id,
+          //   videoMessageId
+          // );
+          // console.log("Uploading large video file...");
+          // const videoFileUrl = await uploadVideo(videoBuffer);
+          const videoFileUrl = await delegateDownloadLargeFile(
             context.chat!.id,
             videoMessageId
           );
-          console.log("Uploading large video file...");
-          const videoFileUrl = await uploadVideo(videoBuffer);
 
           if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
             setActionData(context, routerId, actionId, actionData);
@@ -1507,7 +1511,7 @@ bot.action(/.+/, async (context) => {
       });
       videoBuffer = videoResponse.data;
     } else {
-      videoBuffer = await downloadVideo(videoLink, {
+      videoBuffer = await downloadYoutubeVideo(videoLink, {
         quality: 18,
       });
     }
