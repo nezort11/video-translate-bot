@@ -1466,6 +1466,9 @@ bot.action(/.+/, async (context) => {
         fileMessage.id
       );
       await telegramLoggerContext.reply("<translated audio>");
+      try {
+        await context.deleteMessage();
+      } catch (error) {}
       return;
     }
 
@@ -1806,14 +1809,19 @@ bot.action(/.+/, async (context) => {
     await telegramLoggerContext.reply("<translated video>!");
     // Delete translated message from the channel (copyrights/privacy)
     await translatedFileMessage!.delete({ revoke: true });
+    // await
+    try {
+      await context.deleteMessage();
+    } catch (error) {}
   } catch (error) {
+    // delete in progress message in case of error
+    try {
+      await context.deleteMessage();
+    } catch (error) {}
     throw error;
   } finally {
     videoTranslateProgressCount -= 1;
     clearInterval(progressInterval);
-    try {
-      await context.deleteMessage();
-    } catch (error) {}
     translateTransaction.finish();
   }
 });
