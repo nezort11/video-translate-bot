@@ -80,8 +80,8 @@ export const delegateDownloadLargeFile = async (
 ) => {
   // 1. Check telegram client before forwarding message
   // 2. Disconnect to prevent 406: AUTH_KEY_DUPLICATED
-  const telegramClient = await getClient();
-  await telegramClient.disconnect();
+  const telegramClient_ = await getClient();
+  await telegramClient_.disconnect();
   const channelFileMessage = await bot.telegram.forwardMessage(
     STORAGE_CHANNEL_CHAT_ID,
     chatId,
@@ -114,7 +114,7 @@ export const delegateDownloadLargeFile = async (
     return videoFileUrl;
   } finally {
     console.log("deleting forwarded video message");
-    const telegramClient2 = await getClient();
+    const telegramClient = await getClient();
     const [fileMessage] = await telegramClient.getMessages(
       STORAGE_CHANNEL_CHAT_ID,
       {
@@ -122,7 +122,7 @@ export const delegateDownloadLargeFile = async (
       }
     );
     await fileMessage.delete({ revoke: true });
-    await telegramClient2.disconnect();
+    await telegramClient.disconnect();
   }
 };
 
@@ -137,6 +137,7 @@ export const downloadMessageFile = async (messageId: number) => {
   const fileBuffer = (await fileMessage.downloadMedia({
     outputFile: undefined,
   })) as Buffer;
+  await telegramClient.disconnect();
 
   return fileBuffer;
 };
