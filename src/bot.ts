@@ -1353,7 +1353,7 @@ bot.action(/.+/, async (context) => {
     }
 
     if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
-      // if running inside cloud function deletegate translating process to the more performant machine (container)
+      // if running inside cloud function delegate translating process to the more performant machine (container)
       // preserve action data back for container
       // setActionData(context, routerId, actionId, actionData);
       setRouterSessionData(context, routerId, "translationUrl", translationUrl);
@@ -1430,12 +1430,12 @@ bot.action(/.+/, async (context) => {
       const outputBuffer = translateAudioBuffer;
       outputBuffer.name = `${videoTitle || "unknown"}.mp3`;
 
-      const telegramClient = await getClient();
       const finalArtist = artist
         ? artist === originalArtist
           ? artist
           : `${artist} (${originalArtist})`
         : "Unknown artist";
+      const telegramClient = await getClient();
       const fileMessage = await telegramClient.sendFile(
         LOGGING_CHANNEL_CHAT_ID,
         {
@@ -1459,6 +1459,7 @@ bot.action(/.+/, async (context) => {
           ],
         }
       );
+      await telegramClient.disconnect();
       await bot.telegram.copyMessage(
         context.chat?.id ?? 0,
         LOGGING_CHANNEL_CHAT_ID,
@@ -1545,7 +1546,6 @@ bot.action(/.+/, async (context) => {
       videoLink = "";
     }
 
-    const telegramClient = await getClient();
     let translatedFileMessage: Api.Message;
     await {
       [ActionType.TranslateVoice]: async () => {},
@@ -1650,6 +1650,7 @@ bot.action(/.+/, async (context) => {
 
         logger.info("Uploading to telegram channel...");
 
+        const telegramClient = await getClient();
         const fileMessage = await telegramClient.sendFile(
           LOGGING_CHANNEL_CHAT_ID,
           {
@@ -1769,6 +1770,7 @@ bot.action(/.+/, async (context) => {
         // const outputBuffer: Buffer | null = Buffer.from(outputFile);
         outputBuffer.name = `${videoTitle}.mp4`;
 
+        const telegramClient = await getClient();
         const fileMessage = await telegramClient.sendFile(
           LOGGING_CHANNEL_CHAT_ID,
           {
