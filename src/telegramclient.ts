@@ -20,23 +20,32 @@ export const _telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
   connectionRetries: 5,
 });
 
-const mockCredentialNoSession = async () => {
-  throw new Error("Telegram client session has been expired!");
-};
-
 export const getClient = async () => {
   const isLoggedIn = await _telegramClient.isUserAuthorized();
   if (!isLoggedIn) {
-    await _telegramClient.start({
-      // Set mock credentials and etc. (will produce exception instead of halting) in case session is expired
-      phoneNumber: mockCredentialNoSession,
-      password: mockCredentialNoSession,
-      phoneCode: mockCredentialNoSession,
-      // phoneNumber: async () => await input.text("Please enter your number: "),
-      // password: async () => await input.text("Please enter your password: "),
-      // phoneCode: async () =>
-      //   await input.text("Please enter the code you received: "),
-      onError: (error) => console.error(error),
+    await new Promise<void>(async (resolve, reject) => {
+      try {
+        const rejectOnSessionExpire = async () => {
+          reject(new Error("Telegram client session has been expired!"));
+          // Set mock credentials and etc. (will produce exception instead of halting) in case session is expired
+          return "";
+        };
+
+        await _telegramClient.start({
+          phoneNumber: rejectOnSessionExpire,
+          password: rejectOnSessionExpire,
+          phoneCode: rejectOnSessionExpire,
+          // phoneNumber: async () => await input.text("Please enter your number: "),
+          // password: async () => await input.text("Please enter your password: "),
+          // phoneCode: async () =>
+          //   await input.text("Please enter the code you received: "),
+          onError: (error) => console.error(error),
+        });
+
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
