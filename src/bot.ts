@@ -423,8 +423,7 @@ bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 // bot.use(s3Session);
 // bot.use(Telegraf.log());
 
-const trackUpdate = async (update: Update) => {
-  try {
+const initUpdatesTable = async () => {
     await driver.queryClient.do({
       fn: async (session) => {
         await session.execute({
@@ -436,9 +435,13 @@ const trackUpdate = async (update: Update) => {
         );
       `,
         });
-        console.log("Table 'updates' created successfully");
       },
     });
+};
+
+const trackUpdate = async (update: Update) => {
+  try {
+    await initUpdatesTable();
     console.log("Table 'updates' is ready");
 
     await driver.tableClient.withSessionRetry(async (session) => {
