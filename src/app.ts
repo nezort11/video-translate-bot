@@ -19,7 +19,7 @@ import {
   // STORAGE_CHANNEL_CHAT_ID,
   YTDL_STORAGE_BUCKET,
 } from "./env";
-import { downloadMessageFile, getClient } from "./telegramclient";
+import { downloadMessageFile, useTelegramClient } from "./telegramclient";
 import {
   VideoPlatform,
   getVideoInfo,
@@ -180,6 +180,10 @@ app.post(
       } else if (videoPlatform === VideoPlatform.Telegram) {
         const videoUrl = new URL(videoLink);
         const videoMessageId = +videoUrl.pathname.slice(1);
+        console.log(
+          "requesting download video with message id",
+          videoMessageId
+        );
         videoBuffer = await downloadMessageFile(videoMessageId);
       } else {
         throw new Error("Unsupported video url platform");
@@ -261,32 +265,34 @@ app.post(
       const outputBuffer: Buffer = await s3Localstorage.getItem(key, null);
       outputBuffer.name = `${videoTitle}.mp4`;
 
-      const telegramClient = await getClient();
-      const fileMessage = await telegramClient.sendFile(
-        // STORAGE_CHANNEL_CHAT_ID,
-        // just use logging channel as a intermediate storage channel
-        LOGGING_CHANNEL_CHAT_ID,
-        {
-          file: outputBuffer,
-          caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
-          parseMode: "html",
-          thumb: thumbnailBuffer,
-          attributes: [
-            new Api.DocumentAttributeVideo({
-              w: 640,
-              h: 360,
-              duration: Math.floor(videoDuration),
-              supportsStreaming: true,
-            }),
-          ],
-        }
-      );
-      const fileMessageId = fileMessage.id;
+      let fileMessageId: number;
+      await useTelegramClient(async (telegramClient) => {
+        const fileMessage = await telegramClient.sendFile(
+          // STORAGE_CHANNEL_CHAT_ID,
+          // just use logging channel as a intermediate storage channel
+          LOGGING_CHANNEL_CHAT_ID,
+          {
+            file: outputBuffer,
+            caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+            parseMode: "html",
+            thumb: thumbnailBuffer,
+            attributes: [
+              new Api.DocumentAttributeVideo({
+                w: 640,
+                h: 360,
+                duration: Math.floor(videoDuration),
+                supportsStreaming: true,
+              }),
+            ],
+          }
+        );
+        fileMessageId = fileMessage.id;
+      });
 
       await bot.telegram.copyMessage(
         chatId,
         LOGGING_CHANNEL_CHAT_ID,
-        fileMessageId
+        fileMessageId!
       );
 
       res.status(200).send();

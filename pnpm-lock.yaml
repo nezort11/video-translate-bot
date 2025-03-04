@@ -118,8 +118,8 @@ importers:
         specifier: 1.0.2
         version: 1.0.2
       telegraf-session-store-ydb:
-        specifier: 1.0.3
-        version: 1.0.3
+        specifier: 1.0.4
+        version: 1.0.4
       telegraf-throttler:
         specifier: 0.6.0
         version: 0.6.0(telegraf@4.16.3)
@@ -8011,8 +8011,8 @@ packages:
       - aws-crt
     dev: false
 
-  /telegraf-session-store-ydb@1.0.3:
-    resolution: {integrity: sha512-QVel3AJBh9QQscx1M93FGYu5tEXeZyXlnfSeMrfKFia0hp3M3tMcHyVpHv/Kkv+CiYtQkR7u+3FZOBBYI7vcig==}
+  /telegraf-session-store-ydb@1.0.4:
+    resolution: {integrity: sha512-MqZ05EmrS6MrBQL0L74jyId7AXdO8O5oh7S1qk2TY22G4gUb+gg07XRteU2WGK3CkoYbnoEY2dQg/IOBqKozdA==}
     dependencies:
       telegraf: 4.16.3
       ydb-sdk: 5.9.1

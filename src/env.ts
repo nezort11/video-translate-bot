@@ -72,9 +72,9 @@ export const LOGGING_CHANNEL_CHAT_ID = getChatId(LOGGING_CHANNEL_ID);
 
 export const API_ID = process.env.APP_ID!;
 export const APP_HASH = process.env.APP_HASH!;
-export const SESSION = (
-  IS_PRODUCTION ? process.env.SESSION_PROD : process.env.SESSION_DEV
-)!;
+// export const SESSION = (
+//   IS_PRODUCTION ? process.env.SESSION_PROD : process.env.SESSION_DEV
+// )!;
 
 export const IMAGE_TRANSLATE_URL = process.env.IMAGE_TRANSLATE_URL!;
 

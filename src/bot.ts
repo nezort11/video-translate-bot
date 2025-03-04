@@ -9,8 +9,7 @@ import { count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { Composer, Context, Markup, TelegramError, session } from "telegraf";
 // import { SQLite } from "@telegraf/session/sqlite";
-import { Driver, getCredentialsFromEnv, TypedValues } from "ydb-sdk";
-import { Ydb } from "telegraf-session-store-ydb";
+
 import { message } from "telegraf/filters";
 import { Stage, WizardScene } from "telegraf/scenes";
 import { KeyedDistinct } from "telegraf/typings/core/helpers/util";
@@ -42,7 +41,12 @@ import { VideoTranslateResponse } from "../packages/video-translate-server/src/s
 //   TranslateInProgressException,
 //   // translateVideo,
 // } from "./translate";
-import { delegateDownloadLargeFile, getClient } from "./telegramclient";
+import {
+  NoOpenTelegramSessionError,
+  delegateDownloadLargeFile,
+  getClient,
+  useTelegramClient,
+} from "./telegramclient";
 import { logger } from "./logger";
 
 import {
@@ -98,6 +102,7 @@ import {
   setActionData,
   setRouterSessionData,
 } from "./actions";
+import { driver, sessionStore, trackUpdate } from "./db";
 
 // const database = new Database(path.join(STORAGE_DIR_PATH, "db.sqlite"));
 // database.pragma("journal_mode = WAL"); // Helps prevent corruption https://chatgpt.com/c/67ab8ae9-bf14-8012-9c4a-3a12d682cb1d
@@ -423,51 +428,6 @@ bot.use(Composer.drop((context) => context.chat?.type !== "private"));
 // bot.use(s3Session);
 // bot.use(Telegraf.log());
 
-const initUpdatesTable = async () => {
-    await driver.queryClient.do({
-      fn: async (session) => {
-        await session.execute({
-          text: `
-        CREATE TABLE IF NOT EXISTS updates (
-          update_id Uint64,
-          update_data Json,
-          PRIMARY KEY (update_id)
-        );
-      `,
-        });
-      },
-    });
-};
-
-const trackUpdate = async (update: Update) => {
-  try {
-    await initUpdatesTable();
-    console.log("Table 'updates' is ready");
-
-    await driver.tableClient.withSessionRetry(async (session) => {
-      await session.executeQuery(
-        `DECLARE $update_id AS Uint64;
-       DECLARE $update_data AS Json;
-       UPSERT INTO updates (update_id, update_data)
-       VALUES ($update_id, $update_data);`,
-        {
-          $update_id: TypedValues.uint64(update.update_id),
-          // Convert your update object to a JSON string
-          $update_data: TypedValues.json(JSON.stringify(update)),
-        }
-      );
-      console.log("Inserted update with ID:", update.update_id);
-    });
-
-    // await db.insert(updatesTable).values({
-    //   updateId: update.update_id,
-    //   updateData: update,
-    // });
-  } catch (error) {
-    handleWarnError("save update error", error);
-  }
-};
-
 // Track all incoming updates (for analytics purposes)
 bot.use(async (context, next) => {
   if (APP_ENV !== "local") {
@@ -484,23 +444,6 @@ bot.use(async (context, next) => {
 // sessionDb.pragma("journal_mode = WAL"); // Helps prevent corruption
 // const sessionStore = SQLite<{}>({ database: sessionDb });
 // bot.use(session({ store: sessionStore }));
-
-process.env.YDB_SERVICE_ACCOUNT_KEY_FILE_CREDENTIALS = path.resolve(
-  MOUNT_ROOT_DIR_PATH,
-  "./env/sakey.json"
-);
-const driver = new Driver({
-  // connectionString does not work for some reason
-  // connectionString: "",
-  endpoint: YDB_ENDPOINT,
-  database: YDB_DATABASE,
-  authService: getCredentialsFromEnv(),
-});
-const sessionStore = Ydb<any>({
-  driver,
-  driverOptions: { enableReadyCheck: true },
-  tableOptions: { shouldCreateTable: false },
-});
 
 bot.use(session({ store: sessionStore }));
 
@@ -525,6 +468,11 @@ const handleError = async (error: unknown, context: Context) => {
     // p-timeout error thrown by telegraf based on `handlerTimeout`
     if ("name" in error && error.name === TimeoutError.name) {
       await replyError(context, t("translation_failed"));
+      return;
+    }
+
+    if (error instanceof NoOpenTelegramSessionError) {
+      await replyError(context, t("system_capacity_reached"));
       return;
     }
   }
@@ -1313,7 +1261,7 @@ bot.action(/.+/, async (context) => {
             videoMessageId
           );
 
-          if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
+          if (actionType === ActionType.TranslateVideo) {
             setActionData(context, routerId, actionId, actionData);
             setRouterSessionData(context, routerId, "videoLink", videoFileUrl);
           }
@@ -1438,10 +1386,10 @@ bot.action(/.+/, async (context) => {
           ? artist
           : `${artist} (${originalArtist})`
         : "Unknown artist";
-      const telegramClient = await getClient();
-      const fileMessage = await telegramClient.sendFile(
-        LOGGING_CHANNEL_CHAT_ID,
-        {
+
+      let fileMessage: Api.Message;
+      await useTelegramClient(async (telegramClient) => {
+        fileMessage = await telegramClient.sendFile(LOGGING_CHANNEL_CHAT_ID, {
           file: outputBuffer,
           // caption: `${videoLink}`,
           caption: `🎧 <b>${videoTitle || "Unknown"}</b>\n— ${finalArtist}\n${
@@ -1460,13 +1408,12 @@ bot.action(/.+/, async (context) => {
             //   fileName: "mqdefault.jpg",
             // }),
           ],
-        }
-      );
-      await telegramClient.disconnect();
+        });
+      });
       await bot.telegram.copyMessage(
         context.chat?.id ?? 0,
         LOGGING_CHANNEL_CHAT_ID,
-        fileMessage.id
+        fileMessage!.id
       );
       await telegramLoggerContext.reply("<translated audio>");
       try {
@@ -1656,29 +1603,30 @@ bot.action(/.+/, async (context) => {
 
         logger.info("Uploading to telegram channel...");
 
-        const telegramClient = await getClient();
-        const fileMessage = await telegramClient.sendFile(
-          LOGGING_CHANNEL_CHAT_ID,
-          {
-            file: outputBuffer,
-            // caption: `${videoLink}`,
-            caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
-            parseMode: "html",
-            thumb: thumbnailBuffer,
+        await useTelegramClient(async (telegramClient) => {
+          const fileMessage = await telegramClient.sendFile(
+            LOGGING_CHANNEL_CHAT_ID,
+            {
+              file: outputBuffer,
+              // caption: `${videoLink}`,
+              caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+              parseMode: "html",
+              thumb: thumbnailBuffer,
 
-            attributes: [
-              new Api.DocumentAttributeAudio({
-                duration: Math.floor(videoDuration),
-                title: videoTitle,
-                performer: `${artist} (${originalArtist})`,
-              }),
-              // new Api.DocumentAttributeFilename({
-              //   fileName: "mqdefault.jpg",
-              // }),
-            ],
-          }
-        );
-        translatedFileMessage = fileMessage;
+              attributes: [
+                new Api.DocumentAttributeAudio({
+                  duration: Math.floor(videoDuration),
+                  title: videoTitle,
+                  performer: `${artist} (${originalArtist})`,
+                }),
+                // new Api.DocumentAttributeFilename({
+                //   fileName: "mqdefault.jpg",
+                // }),
+              ],
+            }
+          );
+          translatedFileMessage = fileMessage;
+        });
 
         // const uploadResponse = await axiosInstance.post<UploadResponse>(
         //   UPLOADER_URL,
@@ -1776,29 +1724,30 @@ bot.action(/.+/, async (context) => {
         // const outputBuffer: Buffer | null = Buffer.from(outputFile);
         outputBuffer.name = `${videoTitle}.mp4`;
 
-        const telegramClient = await getClient();
-        const fileMessage = await telegramClient.sendFile(
-          LOGGING_CHANNEL_CHAT_ID,
-          {
-            file: outputBuffer,
-            caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
-            parseMode: "html",
-            thumb: thumbnailBuffer,
-            attributes: [
-              new Api.DocumentAttributeVideo({
-                // w: 320,
-                // h: 180,
-                // w: 16,
-                // h: 9,
-                w: 640,
-                h: 360,
-                duration: Math.floor(videoDuration),
-                supportsStreaming: true,
-              }),
-            ],
-          }
-        );
-        translatedFileMessage = fileMessage;
+        await useTelegramClient(async (telegramClient) => {
+          const fileMessage = await telegramClient.sendFile(
+            LOGGING_CHANNEL_CHAT_ID,
+            {
+              file: outputBuffer,
+              caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+              parseMode: "html",
+              thumb: thumbnailBuffer,
+              attributes: [
+                new Api.DocumentAttributeVideo({
+                  // w: 320,
+                  // h: 180,
+                  // w: 16,
+                  // h: 9,
+                  w: 640,
+                  h: 360,
+                  duration: Math.floor(videoDuration),
+                  supportsStreaming: true,
+                }),
+              ],
+            }
+          );
+          translatedFileMessage = fileMessage;
+        });
       },
       [TranslateType.ChooseVideoQuality]: async () => {},
     }[actionType]();
@@ -1810,9 +1759,18 @@ bot.action(/.+/, async (context) => {
       translatedFileMessage!.id
     );
     await telegramLoggerContext.reply("<translated video>!");
-    // Delete translated message from the channel (copyrights/privacy)
-    await translatedFileMessage!.delete({ revoke: true });
-    // await
+
+    await useTelegramClient(async (telegramClient) => {
+      // reupdate translated file message with new client
+      [translatedFileMessage] = await telegramClient.getMessages(
+        LOGGING_CHANNEL_CHAT_ID,
+        {
+          ids: [translatedFileMessage!.id],
+        }
+      );
+      // Delete translated message from the channel (copyrights/privacy)
+      await translatedFileMessage.delete({ revoke: true });
+    });
     try {
       await context.deleteMessage();
     } catch (error) {}
