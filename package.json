@@ -115,9 +115,6 @@
   },
   "dependencies": {
     "@distube/ytdl-core": "4.16.4",
-    "@ffmpeg/core": "0.11.0",
-    "@ffmpeg/ffmpeg": "0.11.6",
-    "@iamtraction/google-translate": "2.0.1",
     "@sentry/node": "7.53.1",
     "@telegraf/session": "2.0.0-beta.7",
     "abort-controller": "^3.0.0",
@@ -149,7 +146,6 @@
     "serialize-error": "11.0.3",
     "serverless-http": "3.2.0",
     "telegraf": "4.16.3",
-    "telegraf-session-s33": "1.0.2",
     "telegraf-session-store-ydb": "1.0.4",
     "telegraf-throttler": "0.6.0",
     "telegram": "2.15.15",
@@ -175,6 +171,12 @@
     "tsx": "4.19.2",
     "typescript": "5.4.5",
     "yarnhook": "0.6.0"
+  },
+  "dependenciesComments": {
+    "@ffmpeg/core": "0.11.0",
+    "@ffmpeg/ffmpeg": "0.11.6",
+    "@iamtraction/google-translate": "2.0.1",
+    "telegraf-session-s33": "1.0.2"
   },
   "overrides": {
     "@telegraf/session": {
