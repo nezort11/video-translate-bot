@@ -1724,12 +1724,19 @@ bot.action(/.+/, async (context) => {
         // const outputBuffer: Buffer | null = Buffer.from(outputFile);
         outputBuffer.name = `${videoTitle}.mp4`;
 
+        let videoCaption:
+          | string
+          | undefined = `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`;
+        if (videoPlatform === VideoPlatform.Telegram) {
+          videoCaption = undefined;
+        }
+
         await useTelegramClient(async (telegramClient) => {
           const fileMessage = await telegramClient.sendFile(
             LOGGING_CHANNEL_CHAT_ID,
             {
               file: outputBuffer,
-              caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+              caption: videoCaption,
               parseMode: "html",
               thumb: thumbnailBuffer,
               attributes: [
