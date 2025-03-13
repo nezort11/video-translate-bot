@@ -154,7 +154,7 @@ const createThumbnailBuffer = (data: ArrayBuffer) => {
 
 const handleRequestError = (error: unknown, warning: string) => {
   if (error instanceof AxiosError) {
-    logger.warn(warning, error);
+    logger.warn(warning, error.message);
   } else {
     throw error;
   }

@@ -1357,7 +1357,10 @@ bot.action(/.+/, async (context) => {
         artist = await translateText(artist, targetTranslateLanguage);
         artist = artist.split(" ").map(capitalize).join(" ");
       } catch (error) {
-        logger.warn("Unable to translate video artist:", error);
+        logger.warn(
+          "Unable to translate video artist:",
+          error?.message || error
+        );
       }
     }
 
@@ -1418,7 +1421,20 @@ bot.action(/.+/, async (context) => {
       await telegramLoggerContext.reply("<translated audio>");
       try {
         await context.deleteMessage();
-      } catch (error) {}
+      } catch (error) { }
+      
+
+      await useTelegramClient(async (telegramClient) => {
+        // reupdate translated file message with new client
+        [fileMessage] = await telegramClient.getMessages(
+          LOGGING_CHANNEL_CHAT_ID,
+          {
+            ids: [fileMessage!.id],
+          }
+        );
+        // Delete translated message from the channel (copyrights/privacy)
+        await fileMessage.delete({ revoke: true });
+      });
       return;
     }
 
