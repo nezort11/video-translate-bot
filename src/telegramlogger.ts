@@ -6,6 +6,7 @@ import type { GetUpdateContent } from "telegraf/typings/context";
 import { BOT_TOKEN, LOGGING_CHANNEL_CHAT_ID } from "./env";
 import { logger } from "./logger";
 import { botThrottler } from "./throttler";
+import { formatDuration } from "./utils";
 
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(botThrottler);
@@ -72,10 +73,19 @@ const forwardContextMessage = async (ctx: Context) => {
       LOGGING_CHANNEL_CHAT_ID,
       `${fromInfo}\n${maskedMessageText}`
     );
-  } else if ("video" in ctx.message || "video_note" in ctx.message) {
+  } else if ("video" in ctx.message) {
+    const videoDuration = formatDuration(ctx.message.video.duration);
+    const videoSize = ctx.message.video.file_size;
+    const videoSizeMb = videoSize && videoSize / 1024 / 1024;
     await ctx.telegram.sendMessage(
       LOGGING_CHANNEL_CHAT_ID,
-      `${fromInfo}\n[[video]]`
+      `${fromInfo}\n[[video, ${videoDuration}, ${videoSizeMb}MB]]`
+    );
+  } else if ("video_note" in ctx.message) {
+    const videoDuration = formatDuration(ctx.message.video_note.duration);
+    await ctx.telegram.sendMessage(
+      LOGGING_CHANNEL_CHAT_ID,
+      `${fromInfo}\n[[video, ${videoDuration}]]`
     );
   } else if ("document" in ctx.message) {
     await ctx.telegram.sendMessage(

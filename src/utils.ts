@@ -1,9 +1,16 @@
 import { Response } from "express";
 import type { ErrorObject } from "serialize-error";
 import { DEBUG_ENV } from "./env";
+import moment from "moment";
 
 export const getChatId = (id: string) => {
   return `-100${id}`;
+};
+
+export const formatDuration = (seconds: number) => {
+  return moment
+    .utc(seconds * 1000)
+    .format(seconds >= 3600 ? "H:mm:ss" : "m:ss");
 };
 
 export const escapeHtml = (unsafeHtml: string) => {
