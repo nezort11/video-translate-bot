@@ -7,6 +7,7 @@ import { BOT_TOKEN, LOGGING_CHANNEL_CHAT_ID } from "./env";
 import { logger } from "./logger";
 import { botThrottler } from "./throttler";
 import { formatDuration } from "./utils";
+import { round } from "lodash";
 
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(botThrottler);
@@ -76,7 +77,7 @@ const forwardContextMessage = async (ctx: Context) => {
   } else if ("video" in ctx.message) {
     const videoDuration = formatDuration(ctx.message.video.duration);
     const videoSize = ctx.message.video.file_size;
-    const videoSizeMb = videoSize && videoSize / 1024 / 1024;
+    const videoSizeMb = videoSize && round(videoSize / 1024 / 1024, 2);
     await ctx.telegram.sendMessage(
       LOGGING_CHANNEL_CHAT_ID,
       `${fromInfo}\n[[video, ${videoDuration}, ${videoSizeMb}MB]]`

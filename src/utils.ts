@@ -8,9 +8,7 @@ export const getChatId = (id: string) => {
 };
 
 export const formatDuration = (seconds: number) => {
-  return moment
-    .utc(seconds * 1000)
-    .format(seconds >= 3600 ? "H:mm:ss" : "m:ss");
+  return moment.utc(seconds * 1000).format("H:mm:ss");
 };
 
 export const escapeHtml = (unsafeHtml: string) => {
