@@ -91,6 +91,7 @@ export type SceneActionSession = WizardSession<WizardSessionData> & {
   routers?: Record<string, Router>;
 
   translateLanguage?: string;
+  translationStartedAt?: string; // ISO 8601 date
 };
 
 export type SceneActionContext = Omit<SceneContext, "session"> & {

@@ -16,6 +16,8 @@ unknown_language: "Unknown language. Please choose either 'en' or 'ru'."
 translation_failed: "Failed to translate the video as it takes too much ⏳ time."
 error_retry: "Error! Try again 🔁 or a little later (✉️ error information has already been sent)."
 translation_in_progress: "⏳ The video is being translated, processing time depends on the video duration..."
+concurrent_translations_limit: "Too many concurrent translations is not allowed. ⏳ Please wait for one to finish..."
+
 dialog_left: "Dialog left"
 voice_faster: "🎙️ Voice (mp3) (faster ⚡️)"
 audio_mp3: "🎧 Audio (mp3)"
