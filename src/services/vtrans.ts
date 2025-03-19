@@ -13,6 +13,8 @@ const YANDEX_VIDEO_TRANSLATE_URL =
 const YANDEX_BROWSER_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 YaBrowser/24.1.0.0 Safari/537.36";
 
+export const YANDEX_VIDEO_TRANSLATE_LANGUAGES = ["ru", "en", "kk"];
+
 const VideoTranslationHelpObjectProto = new protobuf.Type(
   "VideoTranslationHelpObject"
 )
@@ -36,7 +38,7 @@ const VideoTranslateRequestProto = new protobuf.Type("VideoTranslationRequest")
       "repeated"
     )
   ) // array for translation assistance ([0] -> {2: link to video, 1: "video_file_url"}, [1] -> {2: link to subtitles, 1: "subtitles_file_url"})
-  .add(new protobuf.Field("responseLanguage", 14, "string"))
+  .add(new protobuf.Field("responseLanguage", 14, "string")) // YANDEX_VIDEO_TRANSLATE_LANGUAGES
   .add(new protobuf.Field("unknown5", 15, "int32")) // 0
   .add(new protobuf.Field("unknown6", 16, "int32")) // 1
   .add(new protobuf.Field("bypassCache", 17, "bool")); // they have some kind of limiter on requests from one IP - because after one such request it stops working
@@ -98,7 +100,7 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
             },
           ]
         : [],
-    responseLanguage: opts.targetLanguage,
+    responseLanguage: opts.targetLanguage, // YANDEX_VIDEO_TRANSLATE_LANGUAGES
     // bypassCache: true,
   }).finish();
 };

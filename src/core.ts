@@ -77,7 +77,10 @@ const findMaxJpgYoutubeThumbnail = (thumbnails: thumbnail[]) => {
   let thumb: null | string = null;
   let maxThumbnailWidth = 0;
   for (const thumbnail of thumbnails) {
-    if (thumbnail.url.includes(".jpg") && thumbnail.width > maxThumbnailWidth) {
+    if (
+      // thumbnail.url.includes(".jpg") &&
+      thumbnail.width > maxThumbnailWidth
+    ) {
       thumb = thumbnail.url;
       maxThumbnailWidth = thumbnail.width;
     }
@@ -130,11 +133,11 @@ export const getVideoInfo = async (link: string) => {
     const linkPreview = await getLinkPreview(link, {
       followRedirects: "follow",
     });
-  const images = "images" in linkPreview ? linkPreview.images : [];
-  return {
-    title: "title" in linkPreview ? linkPreview.title : undefined,
-    thumbnail: images[0],
-  };
+    const images = "images" in linkPreview ? linkPreview.images : [];
+    return {
+      title: "title" in linkPreview ? linkPreview.title : undefined,
+      thumbnail: images[0],
+    };
   } catch (error) {
     if (error instanceof Error && error.message === "Request timeout") {
       console.warn(error);

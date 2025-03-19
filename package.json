@@ -40,7 +40,7 @@
     "app:upload": "yc storage s3api put-object --bucket $(terraform output -raw video_translate_bot_code_bucket) --key function.zip --body ./video-translate-bot.zip",
     "app:rebuild": "npm rebuild better-sqlite3 --target_platform=linux --target_arch=x64",
     "app:ci": "pnpm build && pnpm npm:pre && pnpm app:package && pnpm npm:post && pnpm app:upload",
-    "app:deploy": "pnpm app:ci && pnpm tf apply -auto-approve",
+    "app:cd": "pnpm app:ci && pnpm tf apply -auto-approve",
     "webhook:info": "source ./env/.env && pnpm telegraf -m getWebhookInfo -t $BOT_TOKEN_PROD",
     "webhook:set": "source ./env/.env && pnpm telegraf -m setWebhook -t $BOT_TOKEN_PROD -D \"{ \\\"url\\\": \\\"https://$(terraform output -raw video_translate_bot_gateway_domain)/webhook\\\", \\\"drop_pending_updates\\\": \\\"True\\\" }\"",
     "webhook:delete": "source ./env/.env && pnpm telegraf -m deleteWebhook -t $BOT_TOKEN_PROD"
@@ -115,6 +115,7 @@
   },
   "dependencies": {
     "@distube/ytdl-core": "4.16.4",
+    "@google-cloud/text-to-speech": "5.8.1",
     "@sentry/node": "7.53.1",
     "@telegraf/session": "2.0.0-beta.7",
     "abort-controller": "^3.0.0",

@@ -22,7 +22,7 @@ import fs from "fs/promises";
 import fss from "fs";
 import ytdl from "@distube/ytdl-core";
 // import { createFFmpeg } from "@ffmpeg/ffmpeg";
-import ffmpeg from "fluent-ffmpeg";
+import ffmpeg, { FfprobeData } from "fluent-ffmpeg";
 import http from "http";
 import https from "https";
 import { Api } from "telegram";
@@ -34,7 +34,8 @@ import { inspect } from "util";
 import _ from "lodash";
 const { capitalize } = _;
 // @ts-ignore
-import { VideoTranslateResponse } from "../packages/video-translate-server/src/services/vtrans";
+import { VideoTranslateResponse } from "./services/vtrans";
+import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 
 // import {
 //   TranslateException,
@@ -69,10 +70,11 @@ import {
 } from "./telegramlogger";
 // import { botThrottler, translateThrottler } from "./throttler";
 import { escapeHtml, importPTimeout } from "./utils";
-import { Message, Update } from "telegraf/types";
+import { InlineKeyboardButton, Message, Update } from "telegraf/types";
 import {
   TranslateException,
   TranslateInProgressException,
+  YANDEX_VIDEO_TRANSLATE_LANGUAGES,
   translateVideo,
 } from "./services/vtrans";
 import {
@@ -103,6 +105,11 @@ import {
   setRouterSessionData,
 } from "./actions";
 import { driver, sessionStore, trackUpdate } from "./db";
+import { PassThrough, Readable } from "stream";
+
+type Hideable<B> = B & { hide: boolean };
+
+const client = new TextToSpeechClient();
 
 // const database = new Database(path.join(STORAGE_DIR_PATH, "db.sqlite"));
 // database.pragma("journal_mode = WAL"); // Helps prevent corruption https://chatgpt.com/c/67ab8ae9-bf14-8012-9c4a-3a12d682cb1d
@@ -217,18 +224,60 @@ const TRANSLATE_PULLING_INTERVAL = moment
 //   );
 // };
 
+const languageToFlag = {
+  ru: "🇷🇺", // Russian - Russia
+  en: "🇺🇸", // English - United States
+  ir: "🇮🇷", // Persian - Iran
+  uz: "🇺🇿", // Uzbek - Uzbekistan
+  id: "🇮🇩", // Indonesian - Indonesia
+  es: "🇪🇸", // Spanish - Spain
+  de: "🇩🇪", // German - Germany
+  it: "🇮🇹", // Italian - Italy
+  fr: "🇫🇷", // French - France
+  pt: "🇵🇹", // Portuguese - Portugal
+  pt_br: "🇧🇷", // Portuguese - Brazil
+  uk: "🇺🇦", // Ukrainian - Ukraine
+  tr: "🇹🇷", // Turkish - Turkey
+  pl: "🇵🇱", // Polish - Poland
+  nl: "🇳🇱", // Dutch - Netherlands
+  ja: "🇯🇵", // Japanese - Japan
+  zh: "🇨🇳", // Chinese - China (Simplified)
+  zh_hant: "🇹🇼", // Chinese - Taiwan (Traditional)
+  ar: "🇸🇦", // Arabic - Saudi Arabia
+  he: "🇮🇱", // Hebrew - Israel
+  hi: "🇮🇳", // Hindi - India
+  ko: "🇰🇷", // Korean - South Korea
+  sv: "🇸🇪", // Swedish - Sweden
+  fi: "🇫🇮", // Finnish - Finland
+  no: "🇳🇴", // Norwegian - Norway
+  da: "🇩🇰", // Danish - Denmark
+  cs: "🇨🇿", // Czech - Czech Republic
+  el: "🇬🇷", // Greek - Greece
+  ro: "🇷🇴", // Romanian - Romania
+  hu: "🇭🇺", // Hungarian - Hungary
+  th: "🇹🇭", // Thai - Thailand
+  my: "🇲🇲", // Burmese - Myanmar
+  bd: "🇧🇩", // Bengali - Bangladesh
+  pk: "🇵🇰", // Urdu - Pakistan
+  eg: "🇪🇬", // Arabic - Egypt
+  ph: "🇵🇭", // Filipino - Philippines
+  vn: "🇻🇳", // Vietnamese - Vietnam
+  tg: "🇹🇯", // Tajik - Tajikistan
+  kk: "🇰🇿", // Kazakh - Kazakhstan
+  kg: "🇰🇬", // Kyrgyz - Kyrgyzstan
+} as const;
+
+const SUPPORTED_TRANSLATE_LANGUAGES = Object.keys(languageToFlag);
+
 const getTranslateLanguage = (context: BotContext) => {
   if (context.session.translateLanguage) {
     return context.session.translateLanguage;
   }
 
   const lang = context.from?.language_code;
-  switch (lang) {
-    case "en":
-    case "ru":
-    case "kk":
+  if (lang && SUPPORTED_TRANSLATE_LANGUAGES.includes(lang)) {
       return lang;
-    default:
+  } else {
       return "en";
   }
 };
@@ -261,6 +310,105 @@ const translateVideoFinal = async (
     }
     throw error;
   }
+};
+type TranscribeResult = {
+  segments: {
+    text: string;
+  }[];
+};
+
+const transcribe = async (fileBlob: Blob, fileName: string) => {
+  const data = new FormData();
+  data.append("file", fileBlob, fileName);
+  data.append("model", "whisper-1");
+  data.append("response_format", "verbose_json");
+
+  const transcriptionResponse = await axios.request<TranscribeResult>({
+    method: "post",
+    baseURL: OPENAI_API_BASE_URL,
+    url: "/v1/audio/transcriptions",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "multipart/form-data",
+    },
+    data: data,
+    responseType: "json",
+  });
+  const transcription = transcriptionResponse.data;
+  return transcription;
+};
+
+const joinSsml = (segments: string[]) => {
+  const escapeText = (text: string): string => {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  };
+
+  let ssml = "<speak>";
+
+  // segments.forEach((segment: any) => {
+  for (const segment of segments) {
+    // <break time='${(segment.end - segment.start).toFixed(
+    //   2
+    // )}s'/>
+    console.log("trans segment", segment);
+    ssml += `<p>${escapeText(
+      segment
+      // .text
+    )}</p>`;
+  }
+
+  ssml += "</speak>";
+  return ssml;
+};
+
+const translateAnyVideo = async (url: string, targetLanguage: string) => {
+  console.log("downloading url", url);
+  const videoResponse = await fetch(url);
+  const videoBlob = await videoResponse.blob();
+  console.log("video blob", videoBlob.size);
+
+  const videoUrl = new URL(url);
+  const videoFileName = videoUrl.pathname.split("/").pop();
+
+  const transcription = await transcribe(videoBlob, videoFileName!);
+  console.log("video file transcribed", transcription.segments.length);
+
+  const translatedSegments = await translate(
+    transcription.segments.map((segment) => segment.text),
+    targetLanguage
+  );
+
+  console.log("requesting speak srt...");
+  const transcriptionSsml = joinSsml(
+    translatedSegments.translations.map((transSegment) => transSegment.text)
+  );
+  console.log("transcription ssml", transcriptionSsml);
+  const [synthesizedSpeechResponse] = await client.synthesizeSpeech({
+    input: { ssml: transcriptionSsml },
+    voice: {
+      languageCode: targetLanguage,
+      ssmlGender: "NEUTRAL", // Adjust the voice gender if needed (e.g., 'MALE' or 'FEMALE')
+    },
+    audioConfig: {
+      audioEncoding: "MP3",
+    },
+  });
+
+  const translatedTranscriptionAudio =
+    synthesizedSpeechResponse.audioContent as Buffer;
+  console.log(
+    "translatedTranscriptionAudio length",
+    translatedTranscriptionAudio.byteLength
+  );
+  fss.writeFileSync("./temptest.mp3", translatedTranscriptionAudio);
+
+  return translatedTranscriptionAudio;
+
 };
 
 function toArrayBuffer(buffer: Buffer) {
@@ -923,7 +1071,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
   const translateLanguage = getTranslateLanguage(context);
   const translationLanguageActionButton = createActionButton(
     t("translation_language", {
-      language_flag: mapLanguageCodeToFlag[translateLanguage],
+      language_flag: languageToFlag[translateLanguage],
     }),
     {
       context,
@@ -1016,35 +1164,30 @@ const renderChooseTranslateLanguage = async (
   router: Router
 ) => {
   const routerId = router.id;
+
+  const languageButtonRows: Hideable<InlineKeyboardButton.CallbackButton>[][] =
+    [];
+  const languages = Object.entries(languageToFlag);
+  const LANGUAGES_PER_ROW = 5;
+  for (let index = 0; index < languages.length; index += LANGUAGES_PER_ROW) {
+    const row = languages
+      .slice(index, index + LANGUAGES_PER_ROW)
+      .map(([langCode, flag]) =>
+        createActionButton(flag, {
+          context,
+          routerId,
+          data: {
+            type: ActionType.ChooseLanguage,
+            language: langCode,
+          },
+        })
+      );
+    languageButtonRows.push(row);
+  }
+
   await renderScreen(context, t("choose_language"), {
     reply_markup: Markup.inlineKeyboard([
-      [
-        createActionButton("🇬🇧", {
-          context,
-          routerId,
-          data: {
-            type: ActionType.ChooseLanguage,
-            language: "en",
-            // previousData,
-          },
-        }),
-        createActionButton("🇷🇺", {
-          context,
-          routerId,
-          data: {
-            type: ActionType.ChooseLanguage,
-            language: "ru",
-          },
-        }),
-        createActionButton("🇰🇿", {
-          context,
-          routerId,
-          data: {
-            type: ActionType.ChooseLanguage,
-            language: "kk",
-          },
-        }),
-      ],
+      ...languageButtonRows,
       [
         createActionButton(t("back"), {
           context,
@@ -1241,6 +1384,7 @@ bot.action(/.+/, async (context) => {
       routerId,
       "translationUrl"
     ); //| undefined;
+    let translationAudio: Buffer | undefined = undefined;
     console.log("translation url", translationUrl);
     if (!translationUrl) {
       try {
@@ -1270,11 +1414,20 @@ bot.action(/.+/, async (context) => {
           videoLink = videoFileUrl;
         }
 
+        if (
+          YANDEX_VIDEO_TRANSLATE_LANGUAGES.includes(targetTranslateLanguage)
+        ) {
         const videoTranslateData = await translateVideoFinal(
           videoLink,
           targetTranslateLanguage
         );
         translationUrl = videoTranslateData.url;
+        } else {
+          translationAudio = await translateAnyVideo(
+            videoLink,
+            targetTranslateLanguage
+          );
+        }
       } catch (error) {
         // if (error instanceof Error) {
         if (error instanceof TranslateException) {
@@ -1314,6 +1467,8 @@ bot.action(/.+/, async (context) => {
       return;
     }
 
+    let translateAudioBuffer: Buffer;
+    if (!translationAudio) {
     logger.info("Downloading translation...");
     const translateAudioResponse = await axiosInstance.get<ArrayBuffer>(
       translationUrl,
@@ -1322,8 +1477,11 @@ bot.action(/.+/, async (context) => {
         // responseType: "stream",
       }
     );
-    const translateAudioBuffer = Buffer.from(translateAudioResponse.data);
+      translateAudioBuffer = Buffer.from(translateAudioResponse.data);
     logger.info(`Downloaded translation: ${translateAudioBuffer.length}`);
+    } else {
+      translateAudioBuffer = translationAudio;
+    }
 
     let videoTitle = videoInfo.title;
     if (videoTitle) {
@@ -1366,16 +1524,70 @@ bot.action(/.+/, async (context) => {
 
     logger.info(`Author name: ${artist}`);
 
-    let videoDuration = videoInfo.duration;
+    let videoDuration: number | undefined = undefined;
     // polyfill if duration is not known initially
     if (!videoDuration) {
       const temporaryAudioFilePath = "./temp.mp3";
       await fs.writeFile(temporaryAudioFilePath, translateAudioBuffer);
-      const audioDuration = await getAudioDurationInSeconds(
-        temporaryAudioFilePath
-      ); // ffprobe-based
+
+      const ffprobeData = await new Promise<FfprobeData>((resolve, reject) =>
+        // Only works with file path (no steams)
+        ffmpeg.ffprobe(temporaryAudioFilePath, (error, data) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(data);
+          }
+        })
+      );
+      // const audioDuration = await getAudioDurationInSeconds(
+      //   temporaryAudioFilePath
+      // ); // ffprobe-based
+      const audioDuration = ffprobeData.format.duration;
+
+      if (
+        videoInfo.duration &&
+        audioDuration
+        // syntesized speech can be either faster or slower than original speech
+        // audioDuration > videoInfo.duration
+      ) {
+        // const speedFactor = videoInfo.duration / audioDuration;
+        const speedFactor = audioDuration / videoInfo.duration;
+
+        console.log(
+          `Speeding up audio duration: original: ${videoInfo.duration}, current: ${audioDuration}, factor: ${speedFactor}`
+        );
+        const resultStream = new PassThrough();
+        const streamChunks: Uint8Array[] = [];
+        resultStream.on("data", (chunk) => streamChunks.push(chunk));
+
+        await new Promise((resolve, reject) =>
+          ffmpeg(temporaryAudioFilePath)
+            .audioFilters(`atempo=${Math.min(speedFactor, 2)}`)
+            .format("mp3")
+            .on("progress", (progress) => {
+              console.log(`Processing: ${progress.percent}% done`);
+            })
+            .on("error", (error) => {
+              console.error("Failed to process", error);
+              reject(error);
+            })
+            .on("end", (data) => {
+              console.log("Finished processing");
+              resolve(data);
+            })
+            .pipe(resultStream, { end: true })
+        );
+
+        console.log("streamChunks length", streamChunks.length);
+        const resultBuffer = Buffer.concat(streamChunks);
+        console.log("speedup result buffer bytes", resultBuffer.byteLength);
+
+        translateAudioBuffer = resultBuffer;
+      }
+
       await fs.rm(temporaryAudioFilePath);
-      logger.info(`Duration: ${audioDuration}`);
+      logger.info(`Audio duration: ${audioDuration}`);
       videoDuration = audioDuration as number;
     }
 
@@ -1421,8 +1633,7 @@ bot.action(/.+/, async (context) => {
       await telegramLoggerContext.reply("<translated audio>");
       try {
         await context.deleteMessage();
-      } catch (error) { }
-      
+      } catch (error) {}
 
       await useTelegramClient(async (telegramClient) => {
         // reupdate translated file message with new client
