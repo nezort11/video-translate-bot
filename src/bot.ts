@@ -1310,6 +1310,9 @@ bot.action(/.+/, async (context) => {
     return;
   }
 
+  // Video translation actions start from here
+  //
+
   // const translateAction = decodeTranslateAction(actionData);
   // const videoLink = translateAction.url;
   let videoLink = router.session.link as string;
@@ -1359,11 +1362,22 @@ bot.action(/.+/, async (context) => {
   //   return;
   // }
 
+  // const CONCURRENT_VIDEO_TRANSLATE_LIMIT = 1;
+
+  if (context.session.translationStartedAt) {
+    if (
+      moment().diff(context.session.translationStartedAt, "seconds") <
+      EXECUTION_TIMEOUT
+    ) {
+      return await replyError(context, t("concurrent_translations_limit"));
+    }
+  }
+
+  context.session.translationStartedAt = new Date().toISOString();
   const translateTransaction = Sentry.startTransaction({
     op: "translate",
     name: "Translate Transaction",
   });
-
   let progressInterval: NodeJS.Timer | undefined;
   let ffmpegProgress = 0;
   videoTranslateProgressCount += 1;
@@ -2015,6 +2029,7 @@ bot.action(/.+/, async (context) => {
     } catch (error) {}
     throw error;
   } finally {
+    context.session.translationStartedAt = undefined;
     videoTranslateProgressCount -= 1;
     clearInterval(progressInterval);
     translateTransaction.finish();
