@@ -62,6 +62,9 @@ import {
   LAMBDA_TASK_ROOT,
   WORKER_BOT_SERVER_WEBHOOK_URL,
   LOGGING_CHANNEL_CHAT_ID,
+  OPENAI_API_BASE_URL,
+  OPENAI_API_KEY,
+  EXECUTION_TIMEOUT,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -69,7 +72,7 @@ import {
   telegramLoggerOutgoingMiddleware,
 } from "./telegramlogger";
 // import { botThrottler, translateThrottler } from "./throttler";
-import { escapeHtml, importPTimeout } from "./utils";
+import { escapeHtml, formatDuration, importPTimeout } from "./utils";
 import { InlineKeyboardButton, Message, Update } from "telegraf/types";
 import {
   TranslateException,
@@ -98,6 +101,7 @@ import {
   createActionButton,
   createRouter,
   decodeActionPayload,
+  encodeActionPayload,
   getActionData,
   getRouter,
   getRouterSessionData,
@@ -276,9 +280,9 @@ const getTranslateLanguage = (context: BotContext) => {
 
   const lang = context.from?.language_code;
   if (lang && SUPPORTED_TRANSLATE_LANGUAGES.includes(lang)) {
-      return lang;
+    return lang;
   } else {
-      return "en";
+    return "en";
   }
 };
 
@@ -414,7 +418,6 @@ const translateAnyVideo = async (url: string, targetLanguage: string) => {
   fss.writeFileSync("./temptest.mp3", translatedTranscriptionAudio);
 
   return translatedTranscriptionAudio;
-
 };
 
 function toArrayBuffer(buffer: Buffer) {
@@ -694,9 +697,9 @@ bot.use(async (context, next) => {
   if (context.updateType === "pre_checkout_query") {
     await next();
   } else {
-  await context.persistentChatAction("typing", async () => {
-    await next();
-  });
+    await context.persistentChatAction("typing", async () => {
+      await next();
+    });
   }
 
   // let typingInterval: NodeJS.Timer | undefined;
@@ -1464,24 +1467,24 @@ bot.action(/.+/, async (context) => {
     await replyError(context, t("video_too_long"), {
       disable_notification: true,
     });
-  // } else if (
+    // } else if (
     // translateAction.translateType === TranslateType.Video &&
     // originalVideoDuration &&
     // originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
-  // ) {
-  //   await replyError(context, t("video_processing_slow"), {
-  //     disable_notification: true,
-  //   });
-  // } else if (
-  //   translateAction.quality === TranslateQuality.Mp4_720p &&
-  //   originalVideoDuration &&
-  //   originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
-  // ) {
-  //   await replyError(context, t("video_quality_too_slow"), {
-  //     disable_notification: true,
-  //   });
-  // } else if (videoTranslateProgressCount >= 1) {
-  //   await replyError(context, t("max_videos_processing"));
+    // ) {
+    //   await replyError(context, t("video_processing_slow"), {
+    //     disable_notification: true,
+    //   });
+    // } else if (
+    //   translateAction.quality === TranslateQuality.Mp4_720p &&
+    //   originalVideoDuration &&
+    //   originalVideoDuration > moment.duration({ minutes: 30 }).asSeconds()
+    // ) {
+    //   await replyError(context, t("video_quality_too_slow"), {
+    //     disable_notification: true,
+    //   });
+    // } else if (videoTranslateProgressCount >= 1) {
+    //   await replyError(context, t("max_videos_processing"));
   } else {
     isValidationError = false;
   }
@@ -1561,11 +1564,11 @@ bot.action(/.+/, async (context) => {
         if (
           YANDEX_VIDEO_TRANSLATE_LANGUAGES.includes(targetTranslateLanguage)
         ) {
-        const videoTranslateData = await translateVideoFinal(
-          videoLink,
-          targetTranslateLanguage
-        );
-        translationUrl = videoTranslateData.url;
+          const videoTranslateData = await translateVideoFinal(
+            videoLink,
+            targetTranslateLanguage
+          );
+          translationUrl = videoTranslateData.url;
         } else {
           translationAudio = await translateAnyVideo(
             videoLink,
@@ -1613,16 +1616,16 @@ bot.action(/.+/, async (context) => {
 
     let translateAudioBuffer: Buffer;
     if (!translationAudio) {
-    logger.info("Downloading translation...");
-    const translateAudioResponse = await axiosInstance.get<ArrayBuffer>(
-      translationUrl,
-      {
-        responseType: "arraybuffer",
-        // responseType: "stream",
-      }
-    );
+      logger.info("Downloading translation...");
+      const translateAudioResponse = await axiosInstance.get<ArrayBuffer>(
+        translationUrl,
+        {
+          responseType: "arraybuffer",
+          // responseType: "stream",
+        }
+      );
       translateAudioBuffer = Buffer.from(translateAudioResponse.data);
-    logger.info(`Downloaded translation: ${translateAudioBuffer.length}`);
+      logger.info(`Downloaded translation: ${translateAudioBuffer.length}`);
     } else {
       translateAudioBuffer = translationAudio;
     }
