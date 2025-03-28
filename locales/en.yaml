@@ -12,6 +12,14 @@ translate_video: "⚙️ How should I translate this video?"
 greeting: "Hello! Welcome to our bot."
 language_changed: "Language changed successfully."
 unknown_language: "Unknown language. Please choose either 'en' or 'ru'."
+balance: |
+  Your current balance is <b>{balance} credits</b> ⏳ (1 credit = 1 minute of video translation).
+
+  To 🔝💰 top-up your balance of credits please purchase one of the following options
+purchase_50: "60 credits for $1 (⭐️50)"
+purchase_150: "225 credits for $3 (⭐️150) (25% discount)"
+purchase_500: "875 credits for $10 (⭐️500) (45% discount)"
+success_payment: "✅ Successfully purchsed {credits} credits. Your current balance is {balance} credits ⏳"
 
 translation_failed: "Failed to translate the video as it takes too much ⏳ time."
 error_retry: "Error! Try again 🔁 or a little later (✉️ error information has already been sent)."

@@ -92,6 +92,7 @@ export type SceneActionSession = WizardSession<WizardSessionData> & {
 
   translateLanguage?: string;
   translationStartedAt?: string; // ISO 8601 date
+  balance?: number;
 };
 
 export type SceneActionContext = Omit<SceneContext, "session"> & {
@@ -176,7 +177,7 @@ export const getRouterSessionData = (
   return context.session.routers![routerId].session[key];
 };
 
-const encodeActionPayload = (data: ActionPayload) => {
+export const encodeActionPayload = (data: ActionPayload) => {
   return `${data.routerId},${data.actionId}`;
 };
 

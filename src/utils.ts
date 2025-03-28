@@ -2,6 +2,7 @@ import { Response } from "express";
 import type { ErrorObject } from "serialize-error";
 import { DEBUG_ENV } from "./env";
 import moment from "moment";
+import { round } from "lodash";
 
 export const getChatId = (id: string) => {
   return `-100${id}`;
@@ -9,6 +10,10 @@ export const getChatId = (id: string) => {
 
 export const formatDuration = (seconds: number) => {
   return moment.utc(seconds * 1000).format("H:mm:ss");
+};
+
+export const formatFileSize = (fileSize: number) => {
+  return round(fileSize / 1024 / 1024, 2);
 };
 
 export const escapeHtml = (unsafeHtml: string) => {

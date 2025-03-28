@@ -282,6 +282,12 @@ const getTranslateLanguage = (context: BotContext) => {
   }
 };
 
+const DEFAULT_CREDITS_BALANCE = 15;
+
+const getCurrentBalance = (context: BotContext) => {
+  return (context.session.balance ?? 0) + DEFAULT_CREDITS_BALANCE;
+};
+
 const translateVideoFinal = async (
   url: string,
   targetLanguage?: string
@@ -569,7 +575,12 @@ const handleWarnError = (message: string, error: unknown) => {
 };
 
 // Disable bot in group and channel chats (group can be disabled in botfather)
-bot.use(Composer.drop((context) => context.chat?.type !== "private"));
+// NOTE: context.chat is not always present in the update (e.g. pre_checkout_query)
+bot.use(
+  Composer.drop(
+    (context) => (context.chat && context.chat.type !== "private") ?? false
+  )
+);
 
 // const s3Session = new S3Session(STORAGE_BUCKET);
 
@@ -679,9 +690,14 @@ const handleTranslateInProgress = async (
 // );
 
 bot.use(async (context, next) => {
+  // Telegraf: "sendChatAction" isn't available for "pre_checkout_query"
+  if (context.updateType === "pre_checkout_query") {
+    await next();
+  } else {
   await context.persistentChatAction("typing", async () => {
     await next();
   });
+  }
 
   // let typingInterval: NodeJS.Timer | undefined;
   // try {
@@ -771,6 +787,48 @@ bot.command("cancel", async (context) => {
 
 bot.command("translate", async (context) => {
   await context.reply(t("translate"));
+});
+
+const starsAmountToOptionMap = {
+  50: {
+    credits: 60,
+    discount: 0,
+  },
+  150: {
+    credits: 225,
+    discount: 25,
+  },
+  500: {
+    credits: 875,
+    discount: 45,
+  },
+};
+
+bot.command("balance", async (context) => {
+  const balance = getCurrentBalance(context);
+  await context.replyWithHTML(
+    t("balance").replace("{balance}", `${balance}`),
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          t("purchase_50"),
+          encodeActionPayload({ routerId: "TOPUP", actionId: "50" })
+        ),
+      ],
+      [
+        Markup.button.callback(
+          t("purchase_150"),
+          encodeActionPayload({ routerId: "TOPUP", actionId: "150" })
+        ),
+      ],
+      [
+        Markup.button.callback(
+          t("purchase_500"),
+          encodeActionPayload({ routerId: "TOPUP", actionId: "500" })
+        ),
+      ],
+    ])
+  );
 });
 
 const videoSearchWizard = new WizardScene<BotContext>(
@@ -1097,7 +1155,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       disable_notification: true,
       // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
-        [voiceTranslateActionButton],
+        // [voiceTranslateActionButton],
         [onlineVideoTranslateActionButton],
         [translationLanguageActionButton],
       ]).reply_markup,
@@ -1247,12 +1305,69 @@ bot.on(message("video"), async (context) => {
   await route(context, router.id);
 });
 
+const preCheckoutQueryUpdate = (
+  update: Update
+): update is Update.PreCheckoutQueryUpdate => {
+  if (!("pre_checkout_query" in update)) return false;
+  return true;
+};
+
+bot.on(preCheckoutQueryUpdate, async (context) => {
+  console.log("pre checkout query update", context.update);
+  await context.answerPreCheckoutQuery(true);
+});
+
+bot.on(message("successful_payment"), async (context, next) => {
+  console.log("succesful payment update", context.update);
+
+  const starsAmountPaid = context.message.successful_payment
+    .total_amount as keyof typeof starsAmountToOptionMap;
+  const creditsOptionPurchased = starsAmountToOptionMap[starsAmountPaid];
+
+  context.session.balance =
+    (context.session.balance ?? 0) + creditsOptionPurchased.credits;
+
+  // the successful payment update should be stored in the updates table
+
+  const balance = getCurrentBalance(context);
+  await context.reply(
+    t("success_payment")
+      .replace("{credits}", `${creditsOptionPurchased.credits}`)
+      .replace("{balance}", `${balance}`)
+  );
+});
+
 let videoTranslateProgressCount = 0;
 bot.action(/.+/, async (context) => {
   const isFromOwner = context.from?.username === OWNER_USERNAME;
-  const actionPayload = decodeActionPayload(context.match[0]);
+  const payload = context.match[0];
+  const actionPayload = decodeActionPayload(payload);
   const routerId = actionPayload.routerId;
   const actionId = actionPayload.actionId;
+
+  if (routerId === "TOPUP") {
+    const startsTopupAmount = parseInt(
+      actionId
+    ) as keyof typeof starsAmountToOptionMap;
+
+    const option = starsAmountToOptionMap[startsTopupAmount];
+
+    return await context.replyWithInvoice({
+      title: `${option.credits} video translation credits`,
+      description: `Purchase ${option.credits} credits used for video translation (1 credit = 1 minute of video)`,
+      payload: payload,
+      prices: [
+        {
+          label: `${option.credits} Credits`,
+          // price of the X number of credits in Stars
+          amount: startsTopupAmount,
+        },
+      ],
+      currency: "XTR", // Telegram Stars
+      provider_token: "",
+    });
+  }
+
   const router = getRouter(context, actionPayload.routerId);
   const actionData = getActionData(context, routerId, actionId);
   if (!actionData) {
@@ -1326,18 +1441,33 @@ bot.action(/.+/, async (context) => {
   const videoInfo = await getVideoInfo(videoLink);
   // const originalVideoDuration = videoInfo.duration;
 
-  // let isValidationError = true;
-  // if (
-  //   originalVideoDuration &&
-  //   originalVideoDuration > moment.duration({ hours: 4 }).asSeconds()
-  // ) {
-  //   await replyError(context, t("video_too_long"), {
-  //     disable_notification: true,
-  //   });
+  const currentCreditsBalance = getCurrentBalance(context);
+  const videoDuration =
+    videoInfo.duration ?? moment.duration({ minutes: 30 }).asSeconds();
+
+  let isValidationError = true;
+  if (
+    videoDuration >
+    moment.duration({ minutes: currentCreditsBalance }).asSeconds()
+  ) {
+    await replyError(
+      context,
+      "You dont have enough video translation credits to perform this translate, please topup your credits balance first /balance",
+      {
+        disable_notification: true,
+      }
+    );
+  } else if (
+    videoInfo.duration &&
+    videoInfo.duration > moment.duration({ hours: 1 }).asSeconds()
+  ) {
+    await replyError(context, t("video_too_long"), {
+      disable_notification: true,
+    });
   // } else if (
-  //   translateAction.translateType === TranslateType.Video &&
-  //   originalVideoDuration &&
-  //   originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
+    // translateAction.translateType === TranslateType.Video &&
+    // originalVideoDuration &&
+    // originalVideoDuration > moment.duration({ hours: 1.5 }).asSeconds()
   // ) {
   //   await replyError(context, t("video_processing_slow"), {
   //     disable_notification: true,
@@ -1352,15 +1482,15 @@ bot.action(/.+/, async (context) => {
   //   });
   // } else if (videoTranslateProgressCount >= 1) {
   //   await replyError(context, t("max_videos_processing"));
-  // } else {
-  //   isValidationError = false;
-  // }
-  // if (isValidationError) {
-  //   try {
-  //     await context.deleteMessage();
-  //   } catch (error) {}
-  //   return;
-  // }
+  } else {
+    isValidationError = false;
+  }
+  if (isValidationError) {
+    try {
+      await context.deleteMessage();
+    } catch (error) {}
+    return;
+  }
 
   // const CONCURRENT_VIDEO_TRANSLATE_LIMIT = 1;
 
@@ -2006,7 +2136,10 @@ bot.action(/.+/, async (context) => {
       LOGGING_CHANNEL_CHAT_ID,
       translatedFileMessage!.id
     );
-    await telegramLoggerContext.reply("<translated video>!");
+    const videoDurationFormatted = formatDuration(videoDuration);
+    await telegramLoggerContext.reply(
+      `<translated video, ${videoDurationFormatted}>!`
+    );
 
     await useTelegramClient(async (telegramClient) => {
       // reupdate translated file message with new client
@@ -2019,6 +2152,14 @@ bot.action(/.+/, async (context) => {
       // Delete translated message from the channel (copyrights/privacy)
       await translatedFileMessage.delete({ revoke: true });
     });
+
+    // Decrease amount of video translation credits based on video duration
+    const videoDurationCredits = Math.ceil(
+      moment.duration({ seconds: videoDuration }).asMinutes()
+    );
+    context.session.balance =
+      (context.session.balance ?? 0) - videoDurationCredits;
+
     try {
       await context.deleteMessage();
     } catch (error) {}
