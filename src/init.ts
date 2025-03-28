@@ -8,13 +8,13 @@ export const createDescription = (icon: string, description: string) =>
   )}${description}`;
 
 const commands = [
-  {
-    command: "translate",
-    description: {
-      ru: createDescription("🌍", "Перевести видео на другой язык"),
-      en: createDescription("🌍", "Translate video to another language"),
-    },
-  },
+  // {
+  //   command: "translate",
+  //   description: {
+  //     ru: createDescription("🌍", "Перевести видео на другой язык"),
+  //     en: createDescription("🌍", "Translate video to another language"),
+  //   },
+  // },
   {
     command: "search",
     description: {
