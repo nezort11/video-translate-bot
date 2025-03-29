@@ -1,12 +1,14 @@
 start: |
   👋 Hi, send me a 🎥 mp4 video or a 🔗 link to the video, and I'll try to 🚧 translate it.
 
-  I support full 📺 video translation from the video platform 🌐 youtube.com
-  as well as 🎤 voice translation for:
-  🌐 instagram.com, tiktok.com, x.com
-  🇨🇳 bilibili.com, youku.com, v.qq.com, iqiyi.com
-  🇷🇺 vk.com, ok.ru
-  and others.
+  /balance - 💰 Current balance of video translation credits
+
+# I support full 📺 video translation from the video platform 🌐 youtube.com
+# as well as 🎤 voice translation for:
+# 🌐 instagram.com, tiktok.com, x.com
+# 🇨🇳 bilibili.com, youku.com, v.qq.com, iqiyi.com
+# 🇷🇺 vk.com, ok.ru
+# and others.
 translate: "To translate a video, please send a link to the video in this chat. Currently, the bot translates from these languages 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷🇮🇹 to 🇬🇧🇷🇺🇰🇿."
 translate_video: "⚙️ How should I translate this video?"
 greeting: "Hello! Welcome to our bot."
