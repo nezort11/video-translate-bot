@@ -1,6 +1,7 @@
 name: Build and deploy bot backend to Yandex Cloud Serverless Containers
 
 on:
+  workflow_dispatch: # Enables manual trigger from GitHub UI
   push:
     branches:
       - main
