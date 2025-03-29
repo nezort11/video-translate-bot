@@ -3,8 +3,8 @@ name: Build and deploy bot backend to Yandex Cloud Serverless Containers
 on:
   push:
     branches:
-      # - main
-      - "*"
+      - main
+      - "feature/**"
     # Ignore video translate frontend app changes
     paths-ignore:
       - "packages/video-translate-app/**"
