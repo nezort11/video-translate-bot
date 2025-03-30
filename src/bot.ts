@@ -376,6 +376,8 @@ const joinSsml = (segments: string[]) => {
   return ssml;
 };
 
+const TEMP_DIR_PATH = "/tmp";
+
 const translateAnyVideo = async (url: string, targetLanguage: string) => {
   console.log("downloading url", url);
   const videoResponse = await fetch(url);
@@ -415,7 +417,10 @@ const translateAnyVideo = async (url: string, targetLanguage: string) => {
     "translatedTranscriptionAudio length",
     translatedTranscriptionAudio.byteLength
   );
-  fss.writeFileSync("./temptest.mp3", translatedTranscriptionAudio);
+  fss.writeFileSync(
+    path.join(TEMP_DIR_PATH, "temptest.mp3"),
+    translatedTranscriptionAudio
+  );
 
   return translatedTranscriptionAudio;
 };
@@ -1680,7 +1685,7 @@ bot.action(/.+/, async (context) => {
     let videoDuration: number | undefined = undefined;
     // polyfill if duration is not known initially
     if (!videoDuration) {
-      const temporaryAudioFilePath = "./temp.mp3";
+      const temporaryAudioFilePath = path.join(TEMP_DIR_PATH, "temp.mp3");
       await fs.writeFile(temporaryAudioFilePath, translateAudioBuffer);
 
       const ffprobeData = await new Promise<FfprobeData>((resolve, reject) =>
@@ -1865,9 +1870,8 @@ bot.action(/.+/, async (context) => {
     // const videoFilePath = "source.mp4";
     // const audioFilePath = "source2.mp3";
     // const translateAudioFilePath = "source3.mp3";
-    const tempDir = "/tmp";
-    const videoFilePath = path.join(tempDir, "source.mp4");
-    const translateAudioFilePath = path.join(tempDir, "source3.mp3");
+    const videoFilePath = path.join(TEMP_DIR_PATH, "source.mp4");
+    const translateAudioFilePath = path.join(TEMP_DIR_PATH, "source3.mp3");
 
     // ffmpeg.FS("writeFile", videoFilePath, videoBuffer);
     // // ffmpeg.FS("writeFile", audioFilePath, audioBuffer);
@@ -2027,7 +2031,7 @@ bot.action(/.+/, async (context) => {
       },
       [ActionType.TranslateVideo]: async () => {
         // const resultFilePath = "video.mp4";
-        const resultFilePath = path.join(tempDir, "video.mp4");
+        const resultFilePath = path.join(TEMP_DIR_PATH, "video.mp4");
 
         // // prettier-ignore
         // await ffmpeg.run(
