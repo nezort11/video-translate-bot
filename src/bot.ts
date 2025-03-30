@@ -607,7 +607,13 @@ bot.use(async (context, next) => {
 // const sessionStore = SQLite<{}>({ database: sessionDb });
 // bot.use(session({ store: sessionStore }));
 
-bot.use(session({ store: sessionStore }));
+bot.use(
+  session({
+    store: sessionStore,
+    // make sure session is never undefined
+    defaultSession: () => ({}),
+  })
+);
 
 const replyError = (
   context: Context,
