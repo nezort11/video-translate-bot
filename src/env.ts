@@ -16,6 +16,14 @@ export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT ? "../storage/" : "./";
 export const DOTENV_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./env");
 export const STORAGE_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./storage");
 
+const GOOGLE_APPLICATION_CREDENTIALS_PATH = path.join(
+  DOTENV_DIR_PATH,
+  "gcp-universal-sa.json"
+);
+// "/app/env/gcp-universal-sa.json";
+process.env.GOOGLE_APPLICATION_CREDENTIALS =
+  GOOGLE_APPLICATION_CREDENTIALS_PATH;
+
 // either load env file directly or
 // otherwise loaded automatically by docker (.evn will not exist, checkout .dockerignore)
 // if (process.env.ENV_FILE_LOADED !== "true") {
