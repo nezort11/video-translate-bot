@@ -12,9 +12,23 @@ export const setIsPublic = (isPublic: boolean) => (IS_PUBLIC = isPublic);
 
 export const LAMBDA_TASK_ROOT = process.env.LAMBDA_TASK_ROOT;
 // env directory path relative to package.json
-// /function/storage from /function/code
-export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT ? "../storage/" : "./";
-export const DOTENV_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./env");
+
+// Yandex Cloud Function fs:
+// /function/core - app code
+// /function/storage/env - env bucket
+// /function/storage/storage - storage bucket
+
+// Docker fs:
+// /app - app core
+// /app/env - env bucket
+// /app/storage - storage bucket
+
+// export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT ? "../storage/" : "./";
+export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT
+  ? path.resolve(__dirname, "../storage")
+  : path.resolve(__dirname, ".");
+// export const DOTENV_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./env");
+export const DOTENV_DIR_PATH = path.resolve(MOUNT_ROOT_DIR_PATH, "env");
 export const STORAGE_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./storage");
 
 console.log("logging all files in env directory...", DOTENV_DIR_PATH);
@@ -23,9 +37,17 @@ files.forEach((file) => {
   console.log("dotenv dir file", file);
 });
 
-const GOOGLE_APPLICATION_CREDENTIALS_PATH = path.join(
+// const GOOGLE_APPLICATION_CREDENTIALS_PATH = path.join(
+//   DOTENV_DIR_PATH,
+//   "gcp-universal-sa.json"
+// );
+const GOOGLE_APPLICATION_CREDENTIALS_PATH = path.resolve(
   DOTENV_DIR_PATH,
   "gcp-universal-sa.json"
+);
+console.log(
+  "GOOGLE_APPLICATION_CREDENTIALS_PATH",
+  GOOGLE_APPLICATION_CREDENTIALS_PATH
 );
 // "/app/env/gcp-universal-sa.json";
 process.env.GOOGLE_APPLICATION_CREDENTIALS =
