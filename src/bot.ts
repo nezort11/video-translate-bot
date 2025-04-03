@@ -113,8 +113,6 @@ import { PassThrough, Readable } from "stream";
 
 type Hideable<B> = B & { hide: boolean };
 
-const client = new TextToSpeechClient();
-
 // const database = new Database(path.join(STORAGE_DIR_PATH, "db.sqlite"));
 // database.pragma("journal_mode = WAL"); // Helps prevent corruption https://chatgpt.com/c/67ab8ae9-bf14-8012-9c4a-3a12d682cb1d
 
@@ -400,6 +398,7 @@ const translateAnyVideo = async (url: string, targetLanguage: string) => {
     translatedSegments.translations.map((transSegment) => transSegment.text)
   );
   console.log("transcription ssml", transcriptionSsml);
+  const client = new TextToSpeechClient();
   const [synthesizedSpeechResponse] = await client.synthesizeSpeech({
     input: { ssml: transcriptionSsml },
     voice: {
@@ -1581,10 +1580,12 @@ bot.action(/.+/, async (context) => {
           );
           translationUrl = videoTranslateData.url;
         } else {
-          translationAudio = await translateAnyVideo(
-            videoLink,
-            targetTranslateLanguage
-          );
+          if (!LAMBDA_TASK_ROOT) {
+            translationAudio = await translateAnyVideo(
+              videoLink,
+              targetTranslateLanguage
+            );
+          }
         }
       } catch (error) {
         // if (error instanceof Error) {
@@ -1618,7 +1619,14 @@ bot.action(/.+/, async (context) => {
       // if running inside cloud function delegate translating process to the more performant machine (container)
       // preserve action data back for container
       // setActionData(context, routerId, actionId, actionData);
-      setRouterSessionData(context, routerId, "translationUrl", translationUrl);
+      if (translationUrl) {
+        setRouterSessionData(
+          context,
+          routerId,
+          "translationUrl",
+          translationUrl
+        );
+      }
 
       // proxy update to worker bot server
       await axios.post(WORKER_BOT_SERVER_WEBHOOK_URL, context.update);
