@@ -14,19 +14,22 @@ export const LAMBDA_TASK_ROOT = process.env.LAMBDA_TASK_ROOT;
 // env directory path relative to package.json
 
 // Yandex Cloud Function fs:
-// /function/core - app code
+// /function/code - root
 // /function/storage/env - env bucket
 // /function/storage/storage - storage bucket
 
 // Docker fs:
-// /app - app core
+// /app - root
+// /app/build - app code
 // /app/env - env bucket
 // /app/storage - storage bucket
 
+export const ROOT_DIR_PATH = path.resolve(__dirname, "..");
+
 // export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT ? "../storage/" : "./";
 export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT
-  ? path.resolve(__dirname, "../storage")
-  : path.resolve(__dirname, ".");
+  ? path.resolve(ROOT_DIR_PATH, "../storage")
+  : path.resolve(ROOT_DIR_PATH, ".");
 // export const DOTENV_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./env");
 export const DOTENV_DIR_PATH = path.resolve(MOUNT_ROOT_DIR_PATH, "env");
 export const STORAGE_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./storage");
