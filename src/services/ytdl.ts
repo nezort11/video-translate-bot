@@ -13,8 +13,8 @@ import { DOTENV_DIR_PATH, PROXY_SERVER_URI } from "../env";
 const COOKIES_FILENAME = "cookies.json";
 // cookies.json file path relative to this file
 const COOKIES_FILE_PATH = path.join(
-  __dirname,
-  "../..", // resolve to package.json
+  // __dirname,
+  // "../..", // resolve to package.json
   DOTENV_DIR_PATH,
   COOKIES_FILENAME
 );
