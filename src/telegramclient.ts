@@ -39,8 +39,6 @@ const TELEGRAM_SESSIONS_KEY_NAME = "telegram_sessions";
 const TELEGRAM_SESSIONS_FILENAME = `${TELEGRAM_SESSIONS_KEY_NAME}.json`;
 // cookies.json file path relative to this file
 const TELEGRAM_SESSIONS_FILE_PATH = path.join(
-  __dirname,
-  "..", // resolve to package.json
   DOTENV_DIR_PATH,
   TELEGRAM_SESSIONS_FILENAME
 );

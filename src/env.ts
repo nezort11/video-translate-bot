@@ -27,11 +27,14 @@ export const LAMBDA_TASK_ROOT = process.env.LAMBDA_TASK_ROOT;
 export const ROOT_DIR_PATH = path.resolve(__dirname, "..");
 
 // export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT ? "../storage/" : "./";
-export const MOUNT_ROOT_DIR_PATH = LAMBDA_TASK_ROOT
-  ? path.resolve(ROOT_DIR_PATH, "../storage")
-  : path.resolve(ROOT_DIR_PATH, ".");
+export const MOUNT_ROOT_DIR_PATH = path.resolve(
+  ROOT_DIR_PATH,
+  LAMBDA_TASK_ROOT ? "../storage" : "."
+);
 // export const DOTENV_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./env");
+console.log("MOUNT_ROOT_DIR_PATH", MOUNT_ROOT_DIR_PATH);
 export const DOTENV_DIR_PATH = path.resolve(MOUNT_ROOT_DIR_PATH, "env");
+console.log("DOTENV_DIR_PATH", DOTENV_DIR_PATH);
 export const STORAGE_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./storage");
 
 console.log("logging all files in env directory...", DOTENV_DIR_PATH);
