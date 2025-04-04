@@ -11,6 +11,7 @@ export let IS_PUBLIC = true;
 export const setIsPublic = (isPublic: boolean) => (IS_PUBLIC = isPublic);
 
 export const LAMBDA_TASK_ROOT = process.env.LAMBDA_TASK_ROOT;
+console.log("LAMBDA_TASK_ROOT", LAMBDA_TASK_ROOT);
 // env directory path relative to package.json
 
 // Yandex Cloud Function fs:
