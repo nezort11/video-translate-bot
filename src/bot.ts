@@ -1580,6 +1580,10 @@ bot.action(/.+/, async (context) => {
           );
           translationUrl = videoTranslateData.url;
         } else {
+          console.log(
+            "requesting video translate... !LAMBDA_TASK_ROOT",
+            !LAMBDA_TASK_ROOT
+          );
           if (!LAMBDA_TASK_ROOT) {
             translationAudio = await translateAnyVideo(
               videoLink,
