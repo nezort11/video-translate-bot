@@ -51,3 +51,4 @@ audio_format_not_found: "The selected audio format for translation was not found
 only_youtube_supported: "Currently, only 🎥 mp4 videos and some 🔗 video platforms are supported, please send it for translation"
 
 system_capacity_reached: "System is currently at full capacity. 🕔 Please try again later..."
+link_not_working: "Unfortunately, only mp4 file translation works at the moment, please download the video and send it here."

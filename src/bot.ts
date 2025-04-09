@@ -1286,6 +1286,8 @@ const route = async (context: BotContext, routerId: string) => {
 };
 
 bot.on(messageTextNotCommand, async (context, next) => {
+  return await replyError(context, t("link_not_working"));
+
   const text = context.message.text;
 
   const linkMatch = getLinkMatch(text);
