@@ -4,7 +4,12 @@ import type { ErrorObject } from "serialize-error";
 import cors from "cors";
 import ytdl, { videoInfo } from "@distube/ytdl-core";
 import { Readable } from "stream";
-import { downloadYoutubeVideo, ytdlAgent } from "./services/ytdl";
+import {
+  downloadVideo,
+  getVideoInfo,
+  // downloadYoutubeVideo,
+  // ytdlAgent,
+} from "./services/ytdl";
 import { logger } from "./logger";
 import {
   TranslateException,
@@ -22,7 +27,6 @@ import {
 import { downloadMessageFile, useTelegramClient } from "./telegramclient";
 import {
   VideoPlatform,
-  getVideoInfo,
   getVideoPlatform,
   getVideoThumbnail,
   s3Localstorage,
@@ -138,7 +142,9 @@ app.get(
       // const translateResult = await translateVideo(videoUrl);
       // res.json(translateResult);
 
-      const videoInfo = await ytdl.getBasicInfo(videoUrl, { agent: ytdlAgent });
+      // const videoInfo = await ytdl.getBasicInfo(videoUrl, { agent: ytdlAgent });
+      // res.json(videoInfo);
+      const videoInfo = await getVideoInfo(videoUrl);
       res.json(videoInfo);
     } catch (error) {
       await handleInternalErrorExpress(error, res);
@@ -169,14 +175,17 @@ app.post(
       // });
 
       const videoPlatform = getVideoPlatform(videoLink);
-      let videoBuffer: Buffer;
+      let videoFileUrl: string;
+      // let videoBuffer: Buffer;
       if (videoPlatform === VideoPlatform.YouTube) {
         const format = parseInt(req.query.format);
-        console.log("downloading video streaming to buffer...");
-        videoBuffer = await downloadYoutubeVideo(videoLink, {
-          quality: format,
-        });
-        console.log("video buffer length", videoBuffer.byteLength);
+        // console.log("downloading video streaming to buffer...");
+        // videoBuffer = await downloadYoutubeVideo(videoLink, {
+        //   quality: format,
+        // });
+        console.log("Downloading video using ytdl microservice to url...");
+        videoFileUrl = await downloadVideo(videoLink, format);
+        // console.log("video buffer length", videoBuffer.byteLength);
       } else if (videoPlatform === VideoPlatform.Telegram) {
         const videoUrl = new URL(videoLink);
         const videoMessageId = +videoUrl.pathname.slice(1);
@@ -184,7 +193,12 @@ app.post(
           "requesting download video with message id",
           videoMessageId
         );
-        videoBuffer = await downloadMessageFile(videoMessageId);
+        const videoBuffer = await downloadMessageFile(videoMessageId);
+        console.log(
+          "downloaded video from telegram buffer",
+          videoBuffer.byteLength
+        );
+        videoFileUrl = await uploadVideo(videoBuffer);
       } else {
         throw new Error("Unsupported video url platform");
       }
@@ -202,8 +216,13 @@ app.post(
       // videoInfo.formats;
       // res.json(videoInfo);
 
-      const videoFileUrl = await uploadVideo(videoBuffer);
-      res.json({ url: videoFileUrl, byteLength: videoBuffer.byteLength });
+      console.log("video file url", videoFileUrl);
+
+      res.json({
+        url: videoFileUrl,
+        // byteLength: videoBuffer.byteLength
+        byteLength: 0,
+      });
     } catch (error) {
       await handleInternalErrorExpress(error, res);
     }

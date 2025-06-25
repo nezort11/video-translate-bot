@@ -126,3 +126,5 @@ export const APP_HASH = process.env.APP_HASH!;
 export const IMAGE_TRANSLATE_URL = process.env.IMAGE_TRANSLATE_URL!;
 
 export const DEBUG_USER_CHAT_ID = process.env.DEBUG_USER_CHAT_ID!;
+
+export const YTDL_API_BASE_URL = process.env.YTDL_API_BASE_URL;

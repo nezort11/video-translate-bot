@@ -91,7 +91,11 @@ import {
   getLinkMatch,
   uploadVideo,
 } from "./core";
-import { downloadYoutubeVideo, ytdlAgent } from "./services/ytdl";
+import {
+  downloadVideo,
+  // downloadYoutubeVideo,
+  // ytdlAgent,
+} from "./services/ytdl";
 import { translate } from "./services/translate";
 import { updatesTable } from "./schema";
 import {
@@ -1074,20 +1078,20 @@ bot.command("debug_vtrans", async (context) => {
 });
 
 bot.command("debug_ytdl_info", async (context) => {
-  const videoInfo = await ytdl.getBasicInfo(mockVideoLink, {
-    agent: ytdlAgent,
-  });
-  await context.reply(`Got basic ytdl info: ${Object.keys(videoInfo)}`);
+  // const videoInfo = await ytdl.getBasicInfo(mockVideoLink, {
+  //   agent: ytdlAgent,
+  // });
+  // await context.reply(`Got basic ytdl info: ${Object.keys(videoInfo)}`);
 });
 
 bot.command("debug_ytdl_download", async (context) => {
   const commandArgs = context.message.text.split(" ").slice(1);
   const quality = parseInt(commandArgs[0] || "18");
-  const videoBuffer = await downloadYoutubeVideo(mockVideoLink, {
-    quality,
-  });
+  // const videoBuffer = await downloadYoutubeVideo(mockVideoLink, {
+  //   quality,
+  // });
 
-  await context.reply(`Downloaded video buffer: ${videoBuffer.byteLength}`);
+  // await context.reply(`Downloaded video buffer: ${videoBuffer.byteLength}`);
 });
 
 bot.command("debug_timeout", async (context) => {
@@ -1207,6 +1211,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
           //   )
           // ),
         ],
+        [onlineVideoTranslateActionButton],
         [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
         [translationLanguageActionButton],
         // [
@@ -1286,7 +1291,7 @@ const route = async (context: BotContext, routerId: string) => {
 };
 
 bot.on(messageTextNotCommand, async (context, next) => {
-  return await replyError(context, t("link_not_working"));
+  // return await replyError(context, t("link_not_working"));
 
   const text = context.message.text;
 
@@ -1864,9 +1869,14 @@ bot.action(/.+/, async (context) => {
       });
       videoBuffer = videoResponse.data;
     } else {
-      videoBuffer = await downloadYoutubeVideo(videoLink, {
-        quality: 18,
+      // videoBuffer = await downloadYoutubeVideo(videoLink, {
+      //   quality: 18,
+      // });
+      const videoUrl = await downloadVideo(videoLink, 18);
+      const videoResponse = await axios.get<ArrayBuffer>(videoUrl, {
+        responseType: "arraybuffer",
       });
+      videoBuffer = Buffer.from(videoResponse.data);
     }
     // const audioBuffer = await streamToBuffer(audioStream);
     logger.info(`Video downloaded: ${videoBuffer.length}`);

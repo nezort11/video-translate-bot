@@ -3,7 +3,7 @@ import { Readable } from "stream";
 import { logger } from "./logger";
 import { IMAGE_TRANSLATE_URL, YTDL_STORAGE_BUCKET } from "./env";
 import ytdl, { thumbnail } from "@distube/ytdl-core";
-import { ytdlAgent } from "./services/ytdl";
+// import { ytdlAgent } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
 import { importNanoid, importPTimeout } from "./utils";
 import { translate } from "./services/translate";
