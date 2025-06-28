@@ -1546,14 +1546,14 @@ bot.action(/.+/, async (context) => {
     //   }
     // }, moment.duration({ minutes: 5 }).asMilliseconds());
 
-    logger.info("Request translation...");
+    logger.info("Requesting translation...");
     let translationUrl: string = getRouterSessionData(
       context,
       routerId,
       "translationUrl"
     ); //| undefined;
     let translationAudio: Buffer | undefined = undefined;
-    console.log("translation url", translationUrl);
+    console.log("Translation url:", translationUrl);
     if (!translationUrl) {
       try {
         // translaform serialized telegram video link to mp4 link
@@ -2204,13 +2204,16 @@ bot.action(/.+/, async (context) => {
       (context.session.balance ?? 0) - videoDurationCredits;
 
     try {
+      console.log("Deleting in-progress message on the end...");
       await context.deleteMessage();
-    } catch (error) {}
+    } catch (_) {}
   } catch (error) {
+    console.log("Catched action error:", error);
     // delete in progress message in case of error
     try {
+      console.log("Deleting in-progress message on error...");
       await context.deleteMessage();
-    } catch (error) {}
+    } catch (_) {}
     throw error;
   } finally {
     context.session.translationStartedAt = undefined;

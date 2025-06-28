@@ -266,10 +266,10 @@ export const delegateDownloadLargeFile = async (
       videoFileUrl = videoResponse.data.url;
     }
 
-    console.log("successfully downloaded video", videoFileUrl);
+    console.log("Downloaded video:", videoFileUrl);
     return videoFileUrl;
   } finally {
-    console.log("deleting forwarded video message");
+    console.log("Deleting forwarded video message...");
     await useTelegramClient(async (telegramClient) => {
       const [fileMessage] = await telegramClient.getMessages(
         STORAGE_CHANNEL_CHAT_ID,
@@ -278,6 +278,7 @@ export const delegateDownloadLargeFile = async (
         }
       );
       await fileMessage.delete({ revoke: true });
+      console.log("Deleted forwarded video message");
       await telegramClient.disconnect();
     });
   }
