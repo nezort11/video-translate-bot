@@ -1393,8 +1393,9 @@ bot.action(/.+/, async (context) => {
   if (!actionData) {
     // Old action messages was cleared than just delete message
     try {
+      console.log("Deleting current message on NO action data found...");
       await context.deleteMessage();
-    } catch (error) {}
+    } catch (_) {}
     // throw new Error("Action data is undefined");
     return;
   }
@@ -1511,8 +1512,9 @@ bot.action(/.+/, async (context) => {
   }
   if (isValidationError) {
     try {
+      console.log("Deleting current message on validation error...");
       await context.deleteMessage();
-    } catch (error) {}
+    } catch (_) {}
     return;
   }
 
@@ -1813,8 +1815,11 @@ bot.action(/.+/, async (context) => {
       );
       await telegramLoggerContext.reply("<translated audio>");
       try {
+        console.log(
+          "Deleting current message on finish after sending translated audio..."
+        );
         await context.deleteMessage();
-      } catch (error) {}
+      } catch (_) {}
 
       await useTelegramClient(async (telegramClient) => {
         // reupdate translated file message with new client
@@ -2184,6 +2189,7 @@ bot.action(/.+/, async (context) => {
       `<translated video, ${videoDurationFormatted}>!`
     );
 
+    console.log("Deleting original video after sent translated video...");
     await useTelegramClient(async (telegramClient) => {
       // reupdate translated file message with new client
       [translatedFileMessage] = await telegramClient.getMessages(
