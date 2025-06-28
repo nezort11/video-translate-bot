@@ -1212,7 +1212,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
           // ),
         ],
         [onlineVideoTranslateActionButton],
-        [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
+        // [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
         [translationLanguageActionButton],
         // [
         //   Markup.button.callback(
@@ -1452,6 +1452,10 @@ bot.action(/.+/, async (context) => {
   // const videoLink = translateAction.url;
   let videoLink = router.session.link as string;
   const videoPlatform = getVideoPlatform(videoLink);
+  if (videoPlatform === VideoPlatform.YouTube) {
+    const videoId = getYoutubeVideoId(videoLink);
+    videoLink = shortenYoutubeLink(videoId);
+  }
   const targetTranslateLanguage = getTranslateLanguage(context);
   const translateAction = {
     translateType: null,
@@ -1932,6 +1936,7 @@ bot.action(/.+/, async (context) => {
         //   resultFilePath,
         // );
         // ffmpeg -i input.mp4 -f null /dev/null
+        logger.log("Starting ffmpeg process...");
         await new Promise((resolve, reject) =>
           ffmpeg()
             // add first input (video with its original audio)
@@ -1962,7 +1967,7 @@ bot.action(/.+/, async (context) => {
                   inputs: ["a", "b"],
                   outputs: "mixed",
                 },
-              ],
+              ]
               // "mixed"
             )
             // Set audio output options: bitrate and channels
@@ -2010,7 +2015,6 @@ bot.action(/.+/, async (context) => {
         // await fs.writeFile("./thumb.jpg", thumbnailBuffer);
 
         logger.info("Uploading to telegram channel...");
-
         await useTelegramClient(async (telegramClient) => {
           const fileMessage = await telegramClient.sendFile(
             LOGGING_CHANNEL_CHAT_ID,
@@ -2075,6 +2079,7 @@ bot.action(/.+/, async (context) => {
 
         //   resultFilePath,
         // );
+        logger.log("Starting ffmpeg process...");
         await new Promise((resolve, reject) => {
           ffmpeg()
             .input(videoFilePath)
@@ -2139,6 +2144,7 @@ bot.action(/.+/, async (context) => {
           videoCaption = undefined;
         }
 
+        logger.info("Uploading to telegram channel...");
         await useTelegramClient(async (telegramClient) => {
           const fileMessage = await telegramClient.sendFile(
             LOGGING_CHANNEL_CHAT_ID,
@@ -2166,7 +2172,7 @@ bot.action(/.+/, async (context) => {
       },
       [TranslateType.ChooseVideoQuality]: async () => {},
     }[actionType]();
-    logger.info("Uploaded to telegram");
+    logger.info("Uploaded to telegram message id:", translatedFileMessage!?.id);
 
     await bot.telegram.copyMessage(
       context.chat?.id ?? 0,

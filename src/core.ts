@@ -4,6 +4,7 @@ import { logger } from "./logger";
 import { IMAGE_TRANSLATE_URL, YTDL_STORAGE_BUCKET } from "./env";
 import ytdl, { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
+import { getVideoInfo as getVideoInfoYtdl } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
 import { importNanoid, importPTimeout } from "./utils";
 import { translate } from "./services/translate";
@@ -78,6 +79,7 @@ const findMaxJpgYoutubeThumbnail = (thumbnails: thumbnail[]) => {
   let maxThumbnailWidth = 0;
   for (const thumbnail of thumbnails) {
     if (
+      thumbnail.width &&
       // thumbnail.url.includes(".jpg") &&
       thumbnail.width > maxThumbnailWidth
     ) {
@@ -116,14 +118,20 @@ export const getVideoInfo = async (link: string) => {
     //   params: { url: link },
     // });
     // const videoInfo = videoInfoResponse.data;
-    const videoInfo = await ytdl.getBasicInfo(link, { agent: ytdlAgent });
+    // const videoInfo = await ytdl.getBasicInfo(link, { agent: ytdlAgent });
+    // const videoInfo = await getVideoInfo(link);
+    const videoInfo = await getVideoInfoYtdl(link);
     const videoThumbnail = findMaxJpgYoutubeThumbnail(
-      videoInfo.videoDetails.thumbnails
+      // videoInfo.videoDetails.thumbnails
+      videoInfo.thumbnails
     );
     return {
-      title: videoInfo.videoDetails.title,
-      artist: videoInfo.videoDetails.author.name,
-      duration: +videoInfo.videoDetails.lengthSeconds,
+      // title: videoInfo.videoDetails.title,
+      title: videoInfo.title,
+      // artist: videoInfo.videoDetails.author.name,
+      artist: videoInfo.channel,
+      // duration: +videoInfo.videoDetails.lengthSeconds,
+      duration: videoInfo.duration,
       thumbnail: videoThumbnail,
       formats: videoInfo.formats,
     };
