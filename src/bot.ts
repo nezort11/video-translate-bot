@@ -1388,7 +1388,10 @@ bot.action(/.+/, async (context) => {
     });
   }
 
-  const router = getRouter(context, actionPayload.routerId);
+  const router = getRouter(context, routerId);
+  console.log(
+    `Getting action data for router: ${routerId} and action: ${actionId}`
+  );
   const actionData = getActionData(context, routerId, actionId);
   if (!actionData) {
     // Old action messages was cleared than just delete message
@@ -1576,6 +1579,9 @@ bot.action(/.+/, async (context) => {
           );
 
           if (actionType === ActionType.TranslateVideo) {
+            console.log(
+              `Setting action data for router: ${routerId}, action: ${actionId}`
+            );
             setActionData(context, routerId, actionId, actionData);
             setRouterSessionData(context, routerId, "videoLink", videoFileUrl);
           }
