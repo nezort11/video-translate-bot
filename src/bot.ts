@@ -1641,7 +1641,7 @@ bot.action(/.+/, async (context) => {
     if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
       // if running inside cloud function delegate translating process to the more performant machine (container)
       // preserve action data back for container
-      // setActionData(context, routerId, actionId, actionData);
+      setActionData(context, routerId, actionId, actionData);
       if (translationUrl) {
         setRouterSessionData(
           context,
