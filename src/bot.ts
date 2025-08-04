@@ -23,8 +23,6 @@ import fss from "fs";
 import ytdl from "@distube/ytdl-core";
 // import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import ffmpeg, { FfprobeData } from "fluent-ffmpeg";
-import http from "http";
-import https from "https";
 import { Api } from "telegram";
 // import translate from "@iamtraction/google-translate";
 import * as Sentry from "@sentry/node";
@@ -72,7 +70,7 @@ import {
   telegramLoggerOutgoingMiddleware,
 } from "./telegramlogger";
 // import { botThrottler, translateThrottler } from "./throttler";
-import { escapeHtml, formatDuration, importPTimeout } from "./utils";
+import { escapeHtml, formatDuration, importPTimeout, percent } from "./utils";
 import { InlineKeyboardButton, Message, Update } from "telegraf/types";
 import {
   TranslateException,
@@ -90,6 +88,10 @@ import {
   isValidUrl,
   getLinkMatch,
   uploadVideo,
+  translateVideoFinal,
+  axiosInstance,
+  TEMP_DIR_PATH,
+  mixTranslatedVideo,
 } from "./core";
 import {
   downloadVideo,
@@ -127,8 +129,6 @@ const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
 // const ytdl: any = {};
 
-const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
-
 const messageTextNotCommand = (
   update: Update
 ): update is Update.MessageUpdate<KeyedDistinct<Message, "text">> => {
@@ -139,18 +139,6 @@ const messageTextNotCommand = (
 
   return true;
 };
-
-const axiosInstance = axios.create({
-  timeout: AXIOS_REQUEST_TIMEOUT,
-  httpAgent: new http.Agent({
-    keepAlive: true,
-    timeout: AXIOS_REQUEST_TIMEOUT,
-  }),
-  httpsAgent: new https.Agent({
-    keepAlive: true,
-    timeout: AXIOS_REQUEST_TIMEOUT,
-  }),
-});
 
 Sentry.init({
   dsn: SENTRY_DSN,
@@ -214,13 +202,6 @@ const buildYoutubeSearchUrl = (query: string) => {
   youtubeSearchUrl.searchParams.set("search_query", query);
   return youtubeSearchUrl.href;
 };
-
-const delay = (milliseconds: number) =>
-  new Promise((resolve) => setTimeout((_) => resolve(undefined), milliseconds));
-
-const TRANSLATE_PULLING_INTERVAL = moment
-  .duration(15, "seconds")
-  .asMilliseconds();
 
 // const translateVideo = async (url: string) => {
 //   return await axios.post<VideoTranslateResponse>(
@@ -294,35 +275,6 @@ const getCurrentBalance = (context: BotContext) => {
   return (context.session.balance ?? 0) + DEFAULT_CREDITS_BALANCE;
 };
 
-const translateVideoFinal = async (
-  url: string,
-  targetLanguage?: string
-): Promise<VideoTranslateResponse> => {
-  try {
-    return await translateVideo(url, { targetLanguage });
-    // const videoTranslateResponse = await translateVideo(url);
-    // return videoTranslateResponse.data;
-  } catch (error) {
-    // if (axios.isAxiosError(error)) {
-    //   const errorData = error.response?.data;
-    //   if (errorData.name === "TranslateInProgressException") {
-    //     await delay(TRANSLATE_PULLING_INTERVAL);
-    //     logger.info("Rerequesting translation...");
-    //     return await translateVideoFinal(url);
-    //   }
-    //   if (errorData.name === "Error") {
-    //     throw new Error(errorData.message, { cause: error });
-    //   }
-    // }
-    // throw error;
-    if (error instanceof TranslateInProgressException) {
-      await delay(TRANSLATE_PULLING_INTERVAL);
-      logger.info("Rerequesting translation...");
-      return await translateVideoFinal(url);
-    }
-    throw error;
-  }
-};
 type TranscribeResult = {
   segments: {
     text: string;
@@ -377,8 +329,6 @@ const joinSsml = (segments: string[]) => {
   ssml += "</speak>";
   return ssml;
 };
-
-const TEMP_DIR_PATH = "/tmp";
 
 const translateAnyVideo = async (url: string, targetLanguage: string) => {
   console.log("downloading url", url);
@@ -436,8 +386,6 @@ function toArrayBuffer(buffer: Buffer) {
   }
   return arrayBuffer;
 }
-
-const percent = (percent: number) => percent / 100;
 
 enum TranslateType {
   Voice = "o",
@@ -2091,57 +2039,11 @@ bot.action(/.+/, async (context) => {
         //   resultFilePath,
         // );
         logger.log("Starting ffmpeg process...");
-        await new Promise((resolve, reject) => {
-          ffmpeg()
-            .input(videoFilePath)
-            .input(translateAudioFilePath)
-            .complexFilter([
-              {
-                filter: "volume",
-                options: percent(10), // 10% volume for first audio input
-                inputs: "0:a",
-                outputs: "a",
-              },
-              {
-                filter: "volume",
-                options: percent(100), // 100% volume for second audio input
-                inputs: "1:a",
-                outputs: "b",
-              },
-              {
-                filter: "amix",
-                options: { inputs: 2, dropout_transition: 0 },
-                inputs: ["a", "b"],
-                outputs: "mixed",
-              },
-            ])
-            // .outputOptions(["-map 0:v", "-map [out]"])
-            .outputOptions([
-              "-map 0:v", // video from first input
-              "-map [mixed]", // our processed audio
-              "-c:v copy", // copy video without re-encoding
-              "-c:a aac", // encode audio using AAC
-            ])
-            .save(resultFilePath)
-            .on("progress", (progress) => {
-              console.log(`Processing: ${progress.percent}% done`);
-            })
-            .on("end", () => {
-              console.log("Processing finished");
-              // const outputBuffer_ = await fs.readFile(resultFilePath);
-              // // await Promise.all([
-              // //   fs.unlink(videoFilePath),
-              // //   fs.unlink(translateAudioFilePath),
-              // //   fs.unlink(resultFilePath),
-              // // ]);
-              // resolve(outputBuffer_);
-              resolve(undefined);
-            })
-            .on("error", (err) => {
-              console.error("FFmpeg error:", err);
-              reject(err);
-            });
-        });
+        await mixTranslatedVideo(
+          videoFilePath,
+          translateAudioFilePath,
+          resultFilePath
+        );
         const outputBuffer = await fs.readFile(resultFilePath);
 
         // const outputFile = ffmpeg.FS("readFile", resultFilePath);

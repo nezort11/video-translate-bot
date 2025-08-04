@@ -6,10 +6,19 @@ import ytdl, { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
 import { getVideoInfo as getVideoInfoYtdl } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
-import { importNanoid, importPTimeout } from "./utils";
+import { delay, importNanoid, importPTimeout, percent } from "./utils";
 import { translate } from "./services/translate";
 import { bot } from "./botinstance";
 import S3LocalStorage from "s3-localstorage";
+import {
+  TranslateInProgressException,
+  VideoTranslateResponse,
+  translateVideo,
+} from "./services/vtrans";
+import moment from "moment";
+import http from "http";
+import https from "https";
+import ffmpeg from "fluent-ffmpeg";
 
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
@@ -228,4 +237,112 @@ export const uploadVideo = async (videoBuffer: Buffer) => {
   await s3Localstorage.setItem(storageKey, videoBuffer);
   const videoObjectUrl = await s3Localstorage.getItemPublicLink(storageKey);
   return videoObjectUrl!;
+};
+
+const TRANSLATE_PULLING_INTERVAL = moment
+  .duration(15, "seconds")
+  .asMilliseconds();
+
+export const translateVideoFinal = async (
+  url: string,
+  targetLanguage?: string
+): Promise<VideoTranslateResponse> => {
+  try {
+    return await translateVideo(url, { targetLanguage });
+    // const videoTranslateResponse = await translateVideo(url);
+    // return videoTranslateResponse.data;
+  } catch (error) {
+    // if (axios.isAxiosError(error)) {
+    //   const errorData = error.response?.data;
+    //   if (errorData.name === "TranslateInProgressException") {
+    //     await delay(TRANSLATE_PULLING_INTERVAL);
+    //     logger.info("Rerequesting translation...");
+    //     return await translateVideoFinal(url);
+    //   }
+    //   if (errorData.name === "Error") {
+    //     throw new Error(errorData.message, { cause: error });
+    //   }
+    // }
+    // throw error;
+    if (error instanceof TranslateInProgressException) {
+      await delay(TRANSLATE_PULLING_INTERVAL);
+      logger.info("Rerequesting translation...");
+      return await translateVideoFinal(url);
+    }
+    throw error;
+  }
+};
+
+const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
+
+export const axiosInstance = axios.create({
+  timeout: AXIOS_REQUEST_TIMEOUT,
+  httpAgent: new http.Agent({
+    keepAlive: true,
+    timeout: AXIOS_REQUEST_TIMEOUT,
+  }),
+  httpsAgent: new https.Agent({
+    keepAlive: true,
+    timeout: AXIOS_REQUEST_TIMEOUT,
+  }),
+});
+
+export const TEMP_DIR_PATH = "/tmp";
+
+export const mixTranslatedVideo = (
+  videoFilePath: string,
+  translatedAudioFilePath: string,
+  resultFilePath: string
+) => {
+  return new Promise((resolve, reject) => {
+    ffmpeg()
+      .input(videoFilePath)
+      .input(translatedAudioFilePath)
+      .complexFilter([
+        {
+          filter: "volume",
+          options: percent(10), // 10% volume for first audio input
+          inputs: "0:a",
+          outputs: "a",
+        },
+        {
+          filter: "volume",
+          options: percent(100), // 100% volume for second audio input
+          inputs: "1:a",
+          outputs: "b",
+        },
+        {
+          filter: "amix",
+          options: { inputs: 2, dropout_transition: 0 },
+          inputs: ["a", "b"],
+          outputs: "mixed",
+        },
+      ])
+      // .outputOptions(["-map 0:v", "-map [out]"])
+      .outputOptions([
+        "-map 0:v", // video from first input
+        "-map [mixed]", // our processed audio
+        "-c:v copy", // copy video without re-encoding
+        "-c:a aac", // encode audio using AAC
+      ])
+      .save(resultFilePath)
+      .on("progress", (progress) => {
+        console.log(`Processing: ${progress.percent}% done`);
+      })
+      .on("end", () => {
+        console.log("Processing finished");
+        // const outputBuffer_ = await fs.readFile(resultFilePath);
+        // // await Promise.all([
+        // //   fs.unlink(videoFilePath),
+        // //   fs.unlink(translateAudioFilePath),
+        // //   fs.unlink(resultFilePath),
+        // // ]);
+        // resolve(outputBuffer_);
+        resolve(undefined);
+      })
+      .on("error", (err) => {
+        console.error("FFmpeg error:", err);
+        reject(err);
+      });
+  });
 };

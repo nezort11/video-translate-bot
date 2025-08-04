@@ -26,14 +26,20 @@ import {
 } from "./env";
 import { downloadMessageFile, useTelegramClient } from "./telegramclient";
 import {
+  TEMP_DIR_PATH,
   VideoPlatform,
+  axiosInstance,
+  mixTranslatedVideo,
   getVideoPlatform,
   getVideoThumbnail,
   s3Localstorage,
   translateText,
+  translateVideoFinal,
   uploadVideo,
 } from "./core";
 // import bot instance with logger middlewares attached
+import path from "path";
+import fs from "fs/promises";
 import { bot } from "./bot";
 import {
   handleInternalErrorExpress,
@@ -110,6 +116,87 @@ app.post(
         subtitlesFileUrl,
       });
       res.json(translateResult);
+    } catch (error: unknown) {
+      if (error instanceof TranslateException) {
+        const serializedTranslateError = await serializeErrorAsync(error);
+
+        if (error instanceof TranslateInProgressException) {
+          // Translate in progress is not error just a expected exception
+          delete serializedTranslateError.stack;
+          res.status(202).json(serializedTranslateError);
+        } else {
+          res.status(400).json(serializedTranslateError);
+        }
+      } else {
+        await handleInternalErrorExpress(error, res);
+      }
+    }
+  }
+);
+
+type FullVideoTranslateParams = {
+  url: string;
+  videoUrl: string;
+  lang?: string;
+  subtitlesUrl?: string;
+};
+
+app.post(
+  "/translate/full",
+  async (
+    req: Request<
+      {},
+      VideoTranslateResponse | ErrorObject,
+      null,
+      FullVideoTranslateParams
+    >,
+    res
+  ) => {
+    try {
+      const videoUrl = req.query.url;
+      const targetLanguageCode = req.query.lang;
+      const videoFileUrl = req.query.videoUrl;
+      // const subtitlesFileUrl = req.query.subtitlesUrl;
+      console.log("videoUrl", videoUrl);
+      console.log("languageCode", targetLanguageCode);
+
+      // "https://www.youtube.com/watch?v=5bId3N7QZec"
+      const videoTranslateData = await translateVideoFinal(videoUrl);
+      const translationUrl = videoTranslateData.url;
+
+      logger.info("Downloading translation...");
+      const translateAudioResponse = await axiosInstance.get<ArrayBuffer>(
+        translationUrl,
+        {
+          responseType: "arraybuffer",
+        }
+      );
+      const translateAudioBuffer = Buffer.from(translateAudioResponse.data);
+      logger.info(`Downloaded translation: ${translateAudioBuffer.length}`);
+
+      logger.info("Downloading video...");
+      const videoResponse = await axiosInstance.get<ArrayBuffer>(videoFileUrl, {
+        responseType: "arraybuffer",
+      });
+      const videoBuffer = Buffer.from(videoResponse.data);
+      logger.info(`Downloaded video: ${videoBuffer.length}`);
+
+      const videoFilePath = path.join(TEMP_DIR_PATH, "source.mp4");
+      const translatedAudioFilePath = path.join(TEMP_DIR_PATH, "source3.mp3");
+      await fs.writeFile(videoFilePath, videoBuffer);
+      await fs.writeFile(translatedAudioFilePath, translateAudioBuffer);
+
+      const resultFilePath = path.join(TEMP_DIR_PATH, "video.mp4");
+      await mixTranslatedVideo(
+        videoFilePath,
+        translatedAudioFilePath,
+        resultFilePath
+      );
+      const outputBuffer = await fs.readFile(resultFilePath);
+
+      const resultVideoUrl = await uploadVideo(outputBuffer);
+
+      res.json({ url: resultVideoUrl });
     } catch (error: unknown) {
       if (error instanceof TranslateException) {
         const serializedTranslateError = await serializeErrorAsync(error);

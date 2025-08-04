@@ -62,3 +62,8 @@ export const handleInternalErrorExpress = async (
   const serializedError = await serializeErrorAsync(error);
   res.status(500).json(serializedError);
 };
+
+export const delay = (milliseconds: number) =>
+  new Promise((resolve) => setTimeout((_) => resolve(undefined), milliseconds));
+
+export const percent = (percent: number) => percent / 100;
