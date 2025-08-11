@@ -256,6 +256,7 @@ export const translateVideo = async (
     ...opts,
     url,
   });
+  console.log("Decoding video translate response...");
   const videoTranslateResponseData = decodeVideoTranslateResponse(
     videoTranslateResponse
   );

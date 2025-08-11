@@ -198,6 +198,7 @@ app.post(
 
       res.json({ url: resultVideoUrl });
     } catch (error: unknown) {
+      console.log("Handling full translate exception error...");
       if (error instanceof TranslateException) {
         const serializedTranslateError = await serializeErrorAsync(error);
 

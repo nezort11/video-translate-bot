@@ -248,6 +248,7 @@ export const translateVideoFinal = async (
   targetLanguage?: string
 ): Promise<VideoTranslateResponse> => {
   try {
+    console.log("Requesting video translate...");
     return await translateVideo(url, { targetLanguage });
     // const videoTranslateResponse = await translateVideo(url);
     // return videoTranslateResponse.data;
