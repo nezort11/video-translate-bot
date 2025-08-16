@@ -141,6 +141,14 @@ type FullVideoTranslateParams = {
   subtitlesUrl?: string;
 };
 
+class MissingParameterError extends TranslateException {
+  constructor(params: string[]) {
+    super(`Missing required parameter(s): ${params.join(", ")}`);
+    this.name = MissingParameterError.constructor.name;
+  }
+}
+
+// https://console.yandex.cloud/folders/b1gjh7irh9poadr6llcg/storage/buckets/ytdl-service
 app.post(
   "/translate/full",
   async (
@@ -161,6 +169,17 @@ app.post(
       console.log("languageCode", targetLanguageCode);
 
       // "https://www.youtube.com/watch?v=5bId3N7QZec"
+      if (!videoUrl || !videoFileUrl) {
+        const missingParams: string[] = [];
+        if (!videoUrl) {
+          missingParams.push("url");
+        }
+        if (!videoFileUrl) {
+          missingParams.push("videoUrl");
+        }
+        throw new MissingParameterError(missingParams);
+      }
+
       const videoTranslateData = await translateVideoFinal(videoUrl);
       const translationUrl = videoTranslateData.url;
 
