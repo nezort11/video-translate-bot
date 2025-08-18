@@ -110,7 +110,7 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
         : [],
     responseLanguage: opts.targetLanguage, // YANDEX_VIDEO_TRANSLATE_LANGUAGES
     // bypassCache: true,
-    useNewModel: true,
+    // useNewModel: true,
   }).finish();
 };
 
