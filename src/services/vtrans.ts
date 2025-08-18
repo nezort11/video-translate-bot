@@ -27,8 +27,12 @@ const VideoTranslateRequestProto = new protobuf.Type("VideoTranslationRequest")
   .add(new protobuf.Field("firstRequest", 5, "bool")) // true for the first request, false for subsequent ones
   .add(new protobuf.Field("duration", 6, "double"))
   .add(new protobuf.Field("unknown2", 7, "int32")) // 1 1
-  .add(new protobuf.Field("language", 8, "string")) // source language code
-  .add(new protobuf.Field("unknown3", 9, "int32")) // 0 - without translationHelp | 1 - with translationHelp (??? But it works without it)
+  // source language code
+  .add(new protobuf.Field("language", 8, "string"))
+  // forceSourceLang
+  // 0 - auto detected by yabrowser, 1 - user set his (own lang by dropdown)
+  // 0 - without translationHelp | 1 - with translationHelp (??? But it works without it)
+  .add(new protobuf.Field("unknown3", 9, "int32"))
   .add(new protobuf.Field("unknown4", 10, "int32")) // 0 0
   .add(
     new protobuf.Field(
@@ -41,7 +45,11 @@ const VideoTranslateRequestProto = new protobuf.Type("VideoTranslationRequest")
   .add(new protobuf.Field("responseLanguage", 14, "string")) // YANDEX_VIDEO_TRANSLATE_LANGUAGES
   .add(new protobuf.Field("unknown5", 15, "int32")) // 0
   .add(new protobuf.Field("unknown6", 16, "int32")) // 1
-  .add(new protobuf.Field("bypassCache", 17, "bool")); // they have some kind of limiter on requests from one IP - because after one such request it stops working
+  // they have some kind of limiter on requests from one IP - because after one such request it stops working
+  .add(new protobuf.Field("bypassCache", 17, "bool"))
+  // translates videos with higher-quality voices, but sometimes the voice of one person can constantly change
+  // https://github.com/ilyhalight/voice-over-translation/issues/897
+  .add(new protobuf.Field("useNewModel", 18, "bool"));
 
 const VideoTranslateResponseProto = new protobuf.Type(
   "VideoTranslationResponse"
@@ -102,6 +110,7 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
         : [],
     responseLanguage: opts.targetLanguage, // YANDEX_VIDEO_TRANSLATE_LANGUAGES
     // bypassCache: true,
+    useNewModel: true,
   }).finish();
 };
 
