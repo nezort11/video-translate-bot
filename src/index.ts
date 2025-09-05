@@ -9,6 +9,18 @@ import {
   APP_ENV,
 } from "./env";
 
+// Suppress NODE_TLS_REJECT_UNAUTHORIZED warning before imports
+const originalEmit = process.emitWarning;
+process.emitWarning = (warning, ...args) => {
+  if (
+    typeof warning === "string" &&
+    warning.includes("NODE_TLS_REJECT_UNAUTHORIZED")
+  ) {
+    return; // suppress this warning
+  }
+  return originalEmit.call(process, warning, ...args);
+};
+
 // import http from "http";
 import * as http from "http";
 // Package subpath './src/core/network/webhook' is not defined by "exports" in /function/code/node_modules/telegraf/package.json
