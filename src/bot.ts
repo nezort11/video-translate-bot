@@ -1661,8 +1661,9 @@ bot.action(/.+/, async (context) => {
 
     logger.info(`Author name: ${artist}`);
 
-    let videoDuration: number | undefined = undefined;
+    let videoDuration: number | undefined = videoInfo.duration;
     // polyfill if duration is not known initially
+    // TODO: this must not be executed on thin client, only on worker server
     if (!videoDuration) {
       const temporaryAudioFilePath = path.join(TEMP_DIR_PATH, "temp.mp3");
       await fs.writeFile(temporaryAudioFilePath, translateAudioBuffer);
