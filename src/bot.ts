@@ -2098,7 +2098,7 @@ bot.action(/.+/, async (context) => {
       `<translated video, ${videoDurationFormatted}>!`
     );
 
-    console.log("Deleting original video after sent translated video...");
+    console.log("Deleting result translated video...");
     await useTelegramClient(async (telegramClient) => {
       // reupdate translated file message with new client
       [translatedFileMessage] = await telegramClient.getMessages(
@@ -2107,7 +2107,7 @@ bot.action(/.+/, async (context) => {
           ids: [translatedFileMessage!.id],
         }
       );
-      // Delete translated message from the channel (copyrights/privacy)
+      // Delete translated video message from the channel (for copyrights/privacy reasons)
       await translatedFileMessage.delete({ revoke: true });
     });
 

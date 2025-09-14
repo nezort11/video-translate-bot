@@ -277,8 +277,56 @@ export const delegateDownloadLargeFile = async (
           ids: [channelFileMessage.message_id],
         }
       );
+      // Deleting original user message for copyright/privacy reasons
       await fileMessage.delete({ revoke: true });
       console.log("Deleted forwarded video message");
+
+      // Cleanup: delete all messages in the storage channel older than 1 hour
+      console.log("Cleaning up old storage channel messages...");
+      try {
+        const cutoffTime = moment().subtract(1, "hour");
+        const messagesToDelete: number[] = [];
+
+        for await (const message of (telegramClient as any).iterMessages(
+          STORAGE_CHANNEL_CHAT_ID
+        )) {
+          // Skip pinned or service messages without a valid date
+          // GramJS Message objects have `date` and optional `pinned`
+          const messageDate = message?.date ? moment(message.date) : null;
+          if (!messageDate || !messageDate.isValid()) {
+            continue;
+          }
+          if (message.pinned) {
+            continue;
+          }
+
+          if (messageDate.isBefore(cutoffTime)) {
+            messagesToDelete.push(message.id);
+
+            // Batch delete to avoid large single-request payloads
+            if (messagesToDelete.length >= 100) {
+              await (telegramClient as any).deleteMessages(
+                STORAGE_CHANNEL_CHAT_ID,
+                messagesToDelete,
+                { revoke: true }
+              );
+              messagesToDelete.length = 0;
+            }
+          }
+        }
+
+        if (messagesToDelete.length > 0) {
+          await (telegramClient as any).deleteMessages(
+            STORAGE_CHANNEL_CHAT_ID,
+            messagesToDelete,
+            { revoke: true }
+          );
+        }
+        console.log("Cleaned up messages older than 1 hour in storage channel");
+      } catch (error) {
+        console.warn("Failed to cleanup old storage channel messages", error);
+      }
+
       await telegramClient.disconnect();
     });
   }
