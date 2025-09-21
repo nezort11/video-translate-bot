@@ -18,7 +18,7 @@ import {
 import { bot } from "./botinstance";
 import { store } from "./db";
 import path from "path";
-import { uploadVideo } from "./core";
+import { cleanupOldChannelMessages, uploadVideo } from "./core";
 import { RPCError } from "telegram/errors";
 
 export class CorruptedSessionStringError extends Error {
@@ -281,47 +281,13 @@ export const delegateDownloadLargeFile = async (
       await fileMessage.delete({ revoke: true });
       console.log("Deleted forwarded video message");
 
-      // Cleanup: delete all messages in the storage channel older than 1 hour
+      // Cleanup: delete old messages in the storage channel
       console.log("Cleaning up old storage channel messages...");
       try {
-        const cutoffTime = moment().subtract(1, "hour");
-        const messagesToDelete: number[] = [];
-
-        for await (const message of (telegramClient as any).iterMessages(
+        await cleanupOldChannelMessages(
+          telegramClient,
           STORAGE_CHANNEL_CHAT_ID
-        )) {
-          // Skip pinned or service messages without a valid date
-          // GramJS Message objects have `date` and optional `pinned`
-          const messageDate = message?.date ? moment(message.date) : null;
-          if (!messageDate || !messageDate.isValid()) {
-            continue;
-          }
-          if (message.pinned) {
-            continue;
-          }
-
-          if (messageDate.isBefore(cutoffTime)) {
-            messagesToDelete.push(message.id);
-
-            // Batch delete to avoid large single-request payloads
-            if (messagesToDelete.length >= 100) {
-              await (telegramClient as any).deleteMessages(
-                STORAGE_CHANNEL_CHAT_ID,
-                messagesToDelete,
-                { revoke: true }
-              );
-              messagesToDelete.length = 0;
-            }
-          }
-        }
-
-        if (messagesToDelete.length > 0) {
-          await (telegramClient as any).deleteMessages(
-            STORAGE_CHANNEL_CHAT_ID,
-            messagesToDelete,
-            { revoke: true }
-          );
-        }
+        );
         console.log("Cleaned up messages older than 1 hour in storage channel");
       } catch (error) {
         console.warn("Failed to cleanup old storage channel messages", error);

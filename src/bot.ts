@@ -92,6 +92,7 @@ import {
   axiosInstance,
   TEMP_DIR_PATH,
   mixTranslatedVideo,
+  cleanupOldChannelMessages,
 } from "./core";
 import {
   downloadVideo,
@@ -2109,6 +2110,17 @@ bot.action(/.+/, async (context) => {
       );
       // Delete translated video message from the channel (for copyrights/privacy reasons)
       await translatedFileMessage.delete({ revoke: true });
+      // Cleanup: delete old messages in the logging channel
+      console.log("Cleaning up old logging channel messages...");
+      try {
+        await cleanupOldChannelMessages(
+          telegramClient,
+          LOGGING_CHANNEL_CHAT_ID
+        );
+        console.log("Cleaned up messages older than 1 hour in logging channel");
+      } catch (error) {
+        console.warn("Failed to cleanup old logging channel messages", error);
+      }
     });
 
     // Decrease amount of video translation credits based on video duration

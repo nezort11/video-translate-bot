@@ -19,6 +19,8 @@ import moment from "moment";
 import http from "http";
 import https from "https";
 import ffmpeg from "fluent-ffmpeg";
+// type-only import to avoid runtime dependency
+import type { TelegramClient } from "telegram";
 
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
@@ -346,4 +348,45 @@ export const mixTranslatedVideo = (
         reject(err);
       });
   });
+};
+
+export const cleanupOldChannelMessages = async (
+  telegramClient: TelegramClient | any,
+  channelId: string,
+  options?: { hours?: number; batchSize?: number }
+) => {
+  const hours = options?.hours ?? 1;
+  const batchSize = options?.batchSize ?? 100;
+
+  const cutoffTime = moment().subtract(hours, "hour");
+  const messagesToDelete: number[] = [];
+
+  for await (const message of (telegramClient as any).iterMessages(channelId)) {
+    const messageDate = message?.date ? moment(message.date) : null;
+    if (!messageDate || !messageDate.isValid()) {
+      continue;
+    }
+    if (message.pinned) {
+      continue;
+    }
+
+    if (messageDate.isBefore(cutoffTime)) {
+      messagesToDelete.push(message.id);
+
+      if (messagesToDelete.length >= batchSize) {
+        await (telegramClient as any).deleteMessages(
+          channelId,
+          messagesToDelete,
+          { revoke: true }
+        );
+        messagesToDelete.length = 0;
+      }
+    }
+  }
+
+  if (messagesToDelete.length > 0) {
+    await (telegramClient as any).deleteMessages(channelId, messagesToDelete, {
+      revoke: true,
+    });
+  }
 };
