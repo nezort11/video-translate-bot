@@ -46,8 +46,8 @@ jobs:
           revision-image-url: ${{ env.IMAGE_NAME }}
           container-name: ${{ vars.CONTAINER_NAME }}
           folder-id: ${{ vars.FOLDER_ID }}
-          revision-cores: 1
-          revision-memory: 2048Mb
+          revision-cores: 2
+          revision-memory: 3072Mb
           # revision-core-fraction: 100
           revision-concurrency: 3
           # sync with the EXECUTION_TIMEOUT env variable
