@@ -1905,57 +1905,67 @@ bot.action(/.+/, async (context) => {
         // );
         // ffmpeg -i input.mp4 -f null /dev/null
         logger.log("Starting ffmpeg process...");
-        await new Promise((resolve, reject) =>
-          ffmpeg()
-            // add first input (video with its original audio)
-            .input(videoFilePath)
-            // add second input (voice-over audio)
-            .input(translateAudioFilePath)
-            // Create a complex filter chain:
-            //   - Reduce the volume of the first audio stream to 10%
-            //   - Use the full volume for the second audio stream
-            //   - Mix them using amix without dropping any inputs
-            .complexFilter(
-              [
-                {
-                  filter: "volume",
-                  options: percent(10), // 10% volume
-                  inputs: "0:a",
-                  outputs: "a",
-                },
-                {
-                  filter: "volume",
-                  options: percent(100), // 100% volume
-                  inputs: "1:a",
-                  outputs: "b",
-                },
-                {
-                  filter: "amix",
-                  options: { inputs: 2, dropout_transition: 0 },
-                  inputs: ["a", "b"],
-                  outputs: "mixed",
-                },
-              ]
-              // "mixed"
-            )
-            // Set audio output options: bitrate and channels
-            .outputOptions([
-              "-b:a 64k", // set audio bitrate to 64kbps
-              "-ac 1", // force mono audio output
-            ])
-            // Copy video stream without re-encoding (if desired, you can add "-c:v copy")
-            .save(resultFilePath)
-            .on("progress", (progress) => {
-              console.log(`Processing: ${progress.percent}% done`);
-            })
-            .on("end", () => {
-              console.log("Processing finished successfully.");
-              resolve(undefined);
-            })
-            .on("error", (err) => {
-              console.error("An error occurred:", err.message);
-              reject(err);
-            })
+        // await new Promise((resolve, reject) =>
+        //   ffmpeg()
+        //     // add first input (video with its original audio)
+        //     .input(videoFilePath)
+        //     // add second input (voice-over audio)
+        //     .input(translateAudioFilePath)
+        //     // Create a complex filter chain:
+        //     //   - Reduce the volume of the first audio stream to 10%
+        //     //   - Use the full volume for the second audio stream
+        //     //   - Mix them using amix without dropping any inputs
+        //     .complexFilter(
+        //       [
+        //         {
+        //           filter: "volume",
+        //           options: percent(10), // 10% volume
+        //           inputs: "0:a",
+        //           outputs: "a",
+        //         },
+        //         {
+        //           filter: "volume",
+        //           options: percent(100), // 100% volume
+        //           inputs: "1:a",
+        //           outputs: "b",
+        //         },
+        //         {
+        //           filter: "amix",
+        //           options: { inputs: 2, dropout_transition: 0 },
+        //           inputs: ["a", "b"],
+        //           outputs: "mixed",
+        //         },
+        //       ]
+        //       // "mixed"
+        //     )
+        //     // Map mixed audio to output, disable video, set codec/bitrate/channels
+        //     .outputOptions([
+        //       // "-map [mixed]", // use the mixed audio from filtergraph
+        //       // "-vn", // ensure no video is included in mp3 output
+        //       // "-c:a libmp3lame", // encode as mp3
+        //       "-b:a 64k", // set audio bitrate to 64kbps
+        //       "-ac 1", // force mono audio output
+        //     ])
+        //     // Copy video stream without re-encoding (if desired, you can add "-c:v copy")
+        //     .save(resultFilePath)
+        //     .on("progress", (progress) => {
+        //       console.log(`Processing: ${progress.percent}% done`);
+        //     })
+        //     .on("end", () => {
+        //       console.log("Processing finished successfully.");
+        //       resolve(undefined);
+        //     })
+        //     .on("error", (err) => {
+        //       console.error("An error occurred:", err.message);
+        //       reject(err);
+        //     })
+        // );
+
+        await mixTranslatedVideo(
+          videoFilePath,
+          translateAudioFilePath,
+          resultFilePath,
+          "mp3"
         );
 
         logger.info("Getting ffmpeg output in node environment");
@@ -2051,8 +2061,10 @@ bot.action(/.+/, async (context) => {
         await mixTranslatedVideo(
           videoFilePath,
           translateAudioFilePath,
-          resultFilePath
+          resultFilePath,
+          "mp4"
         );
+        logger.log("Reading ffmpeg output result file...", resultFilePath);
         const outputBuffer = await fs.readFile(resultFilePath);
 
         // const outputFile = ffmpeg.FS("readFile", resultFilePath);

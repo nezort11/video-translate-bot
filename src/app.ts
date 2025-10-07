@@ -209,7 +209,8 @@ app.post(
       await mixTranslatedVideo(
         videoFilePath,
         translatedAudioFilePath,
-        resultFilePath
+        resultFilePath,
+        "mp4"
       );
       const outputBuffer = await fs.readFile(resultFilePath);
 

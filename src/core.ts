@@ -295,10 +295,11 @@ export const TEMP_DIR_PATH = "/tmp";
 export const mixTranslatedVideo = (
   videoFilePath: string,
   translatedAudioFilePath: string,
-  resultFilePath: string
+  resultFilePath: string,
+  resultFormat: "mp4" | "mp3"
 ) => {
   return new Promise((resolve, reject) => {
-    ffmpeg()
+    const command = ffmpeg()
       .input(videoFilePath)
       .input(translatedAudioFilePath)
       .complexFilter([
@@ -320,17 +321,31 @@ export const mixTranslatedVideo = (
           inputs: ["a", "b"],
           outputs: "mixed",
         },
-      ])
-      // .outputOptions(["-map 0:v", "-map [out]"])
-      .outputOptions([
+      ]);
+
+    if (resultFormat === "mp4") {
+      command.outputOptions([
         "-map 0:v", // video from first input
         "-map [mixed]", // our processed audio
         "-c:v copy", // copy video without re-encoding
         "-c:a aac", // encode audio using AAC
-      ])
+        "-movflags +faststart", // optimize for web playback
+      ]);
+    } else if (resultFormat === "mp3") {
+      command
+        .noVideo() // drop video from the output
+        .outputOptions([
+          "-map [mixed]", // only output the mixed audio
+          // "-c:a libmp3lame",
+          "-b:a 64k", // set audio bitrate to 64kbps
+          "-ac 1", // force mono audio output
+        ]);
+    }
+
+    command
       .save(resultFilePath)
       .on("progress", (progress) => {
-        console.log(`Processing: ${progress.percent}% done`);
+        console.log(`Ffmpeg progress: ${progress.percent}% done`);
       })
       .on("end", () => {
         console.log("Processing finished");
