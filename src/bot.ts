@@ -1527,7 +1527,10 @@ bot.action(/.+/, async (context) => {
             videoMessageId
           );
 
-          if (actionType === ActionType.TranslateVideo) {
+          if (
+            actionType === ActionType.TranslateVideo ||
+            actionType === ActionType.TranslateAudio
+          ) {
             console.log(
               `Setting action data for router: ${routerId}, action: ${actionId}`
             );
@@ -1587,8 +1590,12 @@ bot.action(/.+/, async (context) => {
       logger.info(`Translated: ${translationUrl}`);
     }
 
-    if (actionType === ActionType.TranslateVideo && LAMBDA_TASK_ROOT) {
-      // if running inside cloud function delegate translating process to the more performant machine (container)
+    if (
+      (actionType === ActionType.TranslateVideo ||
+        actionType === ActionType.TranslateAudio) &&
+      LAMBDA_TASK_ROOT
+    ) {
+      // if running inside cloud function delegate translating process to the more performant machine (docker container worker)
       // preserve action data back for container
       setActionData(context, routerId, actionId, actionData);
       if (translationUrl) {
@@ -1600,7 +1607,7 @@ bot.action(/.+/, async (context) => {
         );
       }
 
-      // proxy update to worker bot server
+      // proxy/delegate update to worker bot server queue
       await axios.post(WORKER_BOT_SERVER_WEBHOOK_URL, context.update);
       return;
     }
