@@ -50,7 +50,8 @@ jobs:
           revision-memory: 3072Mb
           # revision-core-fraction: 100
           revision-concurrency: 3
-          # sync with the EXECUTION_TIMEOUT env variable
+          # Sync in GitHub Actions variables with the EXECUTION_TIMEOUT env variable
+          # https://github.com/nezort11/video-translate-bot/settings/variables/actions
           revision-execution-timeout: ${{ vars.EXECUTION_TIMEOUT }} # seconds
           revision-env: |
             EXECUTION_TIMEOUT=${{ vars.EXECUTION_TIMEOUT }}
