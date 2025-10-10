@@ -99,7 +99,7 @@ resource "yandex_function" "video-translate-bot-function" {
 
   memory = 512 # required for voice downloading, translating and uploading
   # Sync value with EXECUTION_TIMEOUT environment variable
-  execution_timeout = 1200
+  execution_timeout = 1800
   concurrency = 5
 
   # Configure function when invoking asynchronously (with ?integration=async)
