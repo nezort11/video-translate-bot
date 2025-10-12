@@ -38,7 +38,7 @@ jobs:
       - name: Deploy Serverless Container
         id: deploy-sls-container
         # https://yandex.cloud/en/docs/cli/cli-ref/serverless/cli-ref/container/revision/deploy
-        uses: yc-actions/yc-sls-container-deploy@v2
+        uses: yc-actions/yc-sls-container-deploy@v4.2.0
         # https://github.com/yc-actions/yc-sls-container-deploy/blob/main/action.yml
         with:
           yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
@@ -48,7 +48,8 @@ jobs:
           folder-id: ${{ vars.FOLDER_ID }}
           revision-cores: 2
           # Configure to not get memory exception [Error: ENOSPC: no space left on device, write]
-          revision-memory: 5120Mb
+          # /tmp still has 512Mb limit https://yandex.cloud/en/docs/serverless-containers/concepts/limits#serverless-containers-limits
+          revision-memory: 4096Mb
           # revision-core-fraction: 100
           revision-concurrency: 3
           # Sync in GitHub Actions variables with the EXECUTION_TIMEOUT env variable
@@ -60,6 +61,8 @@ jobs:
           revision-storage-mounts: |
             ${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only
             ${{ vars.STORAGE_BUCKET_NAME }}:/app/storage:read-write
+          revision-ephemeral-mounts: |
+            /app/tmp:2048Mb:rw
 
     # steps:
     #   - name: Connect to remote server via SSH

@@ -290,7 +290,10 @@ export const axiosInstance = axios.create({
   }),
 });
 
-export const TEMP_DIR_PATH = "/tmp";
+// Prefer mounted storage or ephemeral disk for large temporary files.
+// Fallback to /tmp (512MB limit in Yandex Serverless Containers) if no mounted path is available.
+export const TEMP_DIR_PATH = "/app/tmp";
+// process.env.TEMP_DIR_PATH || STORAGE_DIR_PATH || "/tmp";
 
 export const mixTranslatedVideo = (
   videoFilePath: string,
