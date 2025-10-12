@@ -152,7 +152,7 @@
     "telegraf-throttler": "0.6.0",
     "telegram": "2.15.15",
     "undici": "7.3.0",
-    "ydb-sdk": "5.9.1"
+    "ydb-sdk": "5.11.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.12",
