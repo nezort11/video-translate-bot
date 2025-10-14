@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { Readable } from "stream";
 import { logger } from "./logger";
-import { IMAGE_TRANSLATE_URL, YTDL_STORAGE_BUCKET } from "./env";
+import { APP_ENV, IMAGE_TRANSLATE_URL, YTDL_STORAGE_BUCKET } from "./env";
 import ytdl, { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
 import { getVideoInfo as getVideoInfoYtdl } from "./services/ytdl";
@@ -292,7 +292,7 @@ export const axiosInstance = axios.create({
 
 // Prefer mounted storage or ephemeral disk for large temporary files.
 // Fallback to /tmp (512MB limit in Yandex Serverless Containers) if no mounted path is available.
-export const TEMP_DIR_PATH = "/app/tmp";
+export const TEMP_DIR_PATH = APP_ENV === "local" ? "/tmp" : "/app/tmp";
 // process.env.TEMP_DIR_PATH || STORAGE_DIR_PATH || "/tmp";
 
 export const mixTranslatedVideo = (
