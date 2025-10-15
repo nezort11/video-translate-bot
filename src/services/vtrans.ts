@@ -113,7 +113,7 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
     unknown2: 1,
     unknown3: 2,
     bypassCache: false,
-    useLivelyVoice: true,
+    useLivelyVoice: false,
     videoTitle: "",
   }).finish();
 };
