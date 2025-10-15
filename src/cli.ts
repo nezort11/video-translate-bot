@@ -2,7 +2,10 @@
   Video translate command-line utility
 */
 import { fileURLToPath } from "url";
-import { TranslateInProgressException, translateVideo } from "./services/vtrans";
+import {
+  TranslateInProgressException,
+  translateVideoPreferLiveVoices,
+} from "./services/vtrans";
 import { getLinkPreview } from "link-preview-js";
 
 const main = async () => {
@@ -20,7 +23,7 @@ const main = async () => {
   }
 
   try {
-    const translatedUrl = await translateVideo(translateUrl);
+    const translatedUrl = await translateVideoPreferLiveVoices(translateUrl);
     console.log(`🎉 Translated url: ${translatedUrl}`);
   } catch (error) {
     if (error instanceof TranslateInProgressException) {

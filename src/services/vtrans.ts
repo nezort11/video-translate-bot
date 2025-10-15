@@ -82,6 +82,7 @@ type VideoTranslateOptions = {
 
   videoFileUrl?: string;
   subtitlesFileUrl?: string;
+  useLivelyVoice?: boolean;
 };
 
 const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
@@ -113,7 +114,7 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
     unknown2: 1,
     unknown3: 2,
     bypassCache: false,
-    useLivelyVoice: false,
+    useLivelyVoice: opts.useLivelyVoice ?? false,
     videoTitle: "",
   }).finish();
 };
@@ -298,5 +299,22 @@ export const translateVideo = async (
         "Unknown translation error",
         translateErrorOptions
       );
+  }
+};
+
+// Try translating with live voices first. If it fails with a non-progress error,
+// fall back to old voices. If it's in progress, propagate that status to caller.
+export const translateVideoPreferLiveVoices = async (
+  url: string,
+  opts?: Omit<VideoTranslateOptions, "url">
+) => {
+  try {
+    return await translateVideo(url, { ...opts, useLivelyVoice: true });
+  } catch (error) {
+    if (error instanceof TranslateInProgressException) {
+      throw error;
+    }
+    // Fallback to old voices
+    return await translateVideo(url, { ...opts, useLivelyVoice: false });
   }
 };

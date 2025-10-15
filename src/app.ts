@@ -15,7 +15,7 @@ import {
   TranslateException,
   TranslateInProgressException,
   VideoTranslateResponse,
-  translateVideo,
+  translateVideoPreferLiveVoices,
 } from "./services/vtrans";
 import S3Localstorage from "s3-localstorage";
 import {
@@ -110,7 +110,7 @@ app.post(
       console.log("languageCode", targetLanguageCode);
 
       // "https://www.youtube.com/watch?v=5bId3N7QZec"
-      const translateResult = await translateVideo(videoUrl, {
+      const translateResult = await translateVideoPreferLiveVoices(videoUrl, {
         targetLanguage: targetLanguageCode,
         videoFileUrl,
         subtitlesFileUrl,

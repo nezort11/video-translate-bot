@@ -247,30 +247,45 @@ const TRANSLATE_PULLING_INTERVAL = moment
 
 export const translateVideoFinal = async (
   url: string,
-  targetLanguage?: string
+  targetLanguage?: string,
+  // internal: sticky selection for retries
+  chosenUseLivelyVoice?: boolean
 ): Promise<VideoTranslateResponse> => {
   try {
     console.log("Requesting video translate...");
-    return await translateVideo(url, { targetLanguage });
-    // const videoTranslateResponse = await translateVideo(url);
-    // return videoTranslateResponse.data;
+    if (chosenUseLivelyVoice === undefined) {
+      // First attempt: try live voices; if it fails (non-progress), fallback once and stick
+      try {
+        const res = await translateVideo(url, {
+          targetLanguage,
+          useLivelyVoice: true,
+        });
+        return res;
+      } catch (firstError) {
+        if (firstError instanceof TranslateInProgressException) {
+          await delay(TRANSLATE_PULLING_INTERVAL);
+          logger.info("Rerequesting translation...");
+          return await translateVideoFinal(url, targetLanguage, true);
+        }
+        // fallback and stick to old voices for all next retries
+        return await translateVideoFinal(url, targetLanguage, false);
+      }
+    }
+
+    // Subsequent attempts: stick to the chosen mode
+    return await translateVideo(url, {
+      targetLanguage,
+      useLivelyVoice: chosenUseLivelyVoice,
+    });
   } catch (error) {
-    // if (axios.isAxiosError(error)) {
-    //   const errorData = error.response?.data;
-    //   if (errorData.name === "TranslateInProgressException") {
-    //     await delay(TRANSLATE_PULLING_INTERVAL);
-    //     logger.info("Rerequesting translation...");
-    //     return await translateVideoFinal(url);
-    //   }
-    //   if (errorData.name === "Error") {
-    //     throw new Error(errorData.message, { cause: error });
-    //   }
-    // }
-    // throw error;
     if (error instanceof TranslateInProgressException) {
       await delay(TRANSLATE_PULLING_INTERVAL);
       logger.info("Rerequesting translation...");
-      return await translateVideoFinal(url);
+      return await translateVideoFinal(
+        url,
+        targetLanguage,
+        chosenUseLivelyVoice
+      );
     }
     throw error;
   }
