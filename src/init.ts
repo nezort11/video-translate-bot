@@ -22,13 +22,13 @@ const commands = [
       en: createDescription("🔍", "Search for videos on another language"),
     },
   },
-  {
-    command: "help",
-    description: {
-      ru: createDescription("💡", "Помощь по работе с ботом"),
-      en: createDescription("💡", "Help about the bot"),
-    },
-  },
+  // {
+  //   command: "help",
+  //   description: {
+  //     ru: createDescription("💡", "Помощь по работе с ботом"),
+  //     en: createDescription("💡", "Help about the bot"),
+  //   },
+  // },
   {
     command: "cancel",
     description: {
@@ -40,29 +40,29 @@ const commands = [
 
 const main = async () => {
   await Promise.all([
-    bot.telegram.setMyName(
-      "Video Translator 🤖: voice-over 🔄 video translation 🇬🇧🇨🇳🇷🇺"
-    ),
-    bot.telegram.setMyName(
-      "Видео Переводчик 🤖: закадровый 🔄 перевод видео с 🇬🇧🇨🇳🇯🇵🇰🇷",
-      "ru"
-    ),
+    // bot.telegram.setMyName(
+    //   "Video Translator 🤖: voice-over 🔄 video translation 🇬🇧🇨🇳🇷🇺"
+    // ),
+    // bot.telegram.setMyName(
+    //   "Видео Переводчик 🤖: закадровый 🔄 перевод видео с 🇬🇧🇨🇳🇯🇵🇰🇷",
+    //   "ru"
+    // ),
 
-    bot.telegram.setMyShortDescription(
-      "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @nezort11"
-    ),
-    bot.telegram.setMyShortDescription(
-      "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @nezort11",
-      "ru"
-    ),
+    // bot.telegram.setMyShortDescription(
+    //   "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @nezort11"
+    // ),
+    // bot.telegram.setMyShortDescription(
+    //   "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @nezort11",
+    //   "ru"
+    // ),
 
-    bot.telegram.setMyDescription(
-      "[Beta🏗] 🤖 a bot for voice-over 🔄 video translation from 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ Online 24/7 . 💬 feeback/contact @nezort11"
-    ),
-    bot.telegram.setMyDescription(
-      "[Beta🏗] 🤖 Бот для озвученного 🔄 перевода видео с 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷 на 🇬🇧🇷🇺🇰🇿. ✅ Онлайн 24/7. 💬 Обратная связь/контакт @nezort11",
-      "ru"
-    ),
+    // bot.telegram.setMyDescription(
+    //   "[Beta🏗] 🤖 a bot for voice-over 🔄 video translation from 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ Online 24/7 . 💬 feeback/contact @nezort11"
+    // ),
+    // bot.telegram.setMyDescription(
+    //   "[Beta🏗] 🤖 Бот для озвученного 🔄 перевода видео с 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷 на 🇬🇧🇷🇺🇰🇿. ✅ Онлайн 24/7. 💬 Обратная связь/контакт @nezort11",
+    //   "ru"
+    // ),
 
     bot.telegram.setMyCommands(
       commands.map((command) => ({
