@@ -5,8 +5,8 @@ import i18next, { TFunction } from "i18next";
 import Backend from "i18next-fs-backend";
 import yaml from "js-yaml";
 // import Database from "better-sqlite3";
-import { count } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+// import { count } from "drizzle-orm";
+// import { drizzle } from "drizzle-orm/better-sqlite3";
 import { Composer, Context, Markup, TelegramError, session } from "telegraf";
 // import { SQLite } from "@telegraf/session/sqlite";
 
@@ -33,7 +33,7 @@ import _ from "lodash";
 const { capitalize } = _;
 // @ts-ignore
 import { VideoTranslateResponse } from "./services/vtrans";
-import { TextToSpeechClient } from "@google-cloud/text-to-speech";
+// import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 
 // import {
 //   TranslateException,
@@ -100,7 +100,7 @@ import {
   // ytdlAgent,
 } from "./services/ytdl";
 import { translate } from "./services/translate";
-import { updatesTable } from "./schema";
+// import { updatesTable } from "./schema";
 import {
   ActionType,
   Router,
@@ -353,30 +353,30 @@ const translateAnyVideo = async (url: string, targetLanguage: string) => {
     translatedSegments.translations.map((transSegment) => transSegment.text)
   );
   console.log("transcription ssml", transcriptionSsml);
-  const client = new TextToSpeechClient();
-  const [synthesizedSpeechResponse] = await client.synthesizeSpeech({
-    input: { ssml: transcriptionSsml },
-    voice: {
-      languageCode: targetLanguage,
-      ssmlGender: "NEUTRAL", // Adjust the voice gender if needed (e.g., 'MALE' or 'FEMALE')
-    },
-    audioConfig: {
-      audioEncoding: "MP3",
-    },
-  });
+  // const client = new TextToSpeechClient();
+  // const [synthesizedSpeechResponse] = await client.synthesizeSpeech({
+  //   input: { ssml: transcriptionSsml },
+  //   voice: {
+  //     languageCode: targetLanguage,
+  //     ssmlGender: "NEUTRAL", // Adjust the voice gender if needed (e.g., 'MALE' or 'FEMALE')
+  //   },
+  //   audioConfig: {
+  //     audioEncoding: "MP3",
+  //   },
+  // });
 
-  const translatedTranscriptionAudio =
-    synthesizedSpeechResponse.audioContent as Buffer;
-  console.log(
-    "translatedTranscriptionAudio length",
-    translatedTranscriptionAudio.byteLength
-  );
-  fss.writeFileSync(
-    path.join(TEMP_DIR_PATH, "temptest.mp3"),
-    translatedTranscriptionAudio
-  );
+  // const translatedTranscriptionAudio =
+  //   synthesizedSpeechResponse.audioContent as Buffer;
+  // console.log(
+  //   "translatedTranscriptionAudio length",
+  //   translatedTranscriptionAudio.byteLength
+  // );
+  // fss.writeFileSync(
+  //   path.join(TEMP_DIR_PATH, "temptest.mp3"),
+  //   translatedTranscriptionAudio
+  // );
 
-  return translatedTranscriptionAudio;
+  // return translatedTranscriptionAudio;
 };
 
 function toArrayBuffer(buffer: Buffer) {
@@ -1551,16 +1551,20 @@ bot.action(/.+/, async (context) => {
           );
           translationUrl = videoTranslateData.url;
         } else {
-          console.log(
-            "requesting video translate... !LAMBDA_TASK_ROOT",
-            !LAMBDA_TASK_ROOT
+          console.warn(
+            "Cannot translate video to target language",
+            targetTranslateLanguage
           );
-          if (!LAMBDA_TASK_ROOT) {
-            translationAudio = await translateAnyVideo(
-              videoLink,
-              targetTranslateLanguage
-            );
-          }
+          // console.log(
+          //   "requesting video translate... !LAMBDA_TASK_ROOT",
+          //   !LAMBDA_TASK_ROOT
+          // );
+          // if (!LAMBDA_TASK_ROOT) {
+          //   translationAudio = await translateAnyVideo(
+          //     videoLink,
+          //     targetTranslateLanguage
+          //   );
+          // }
         }
       } catch (error) {
         // if (error instanceof Error) {

@@ -343,9 +343,13 @@ app.post("/upload", async (req, res) => {
     const videoId = nanoid();
     const videoKey = `${videoId}.mp4`;
     // https://docs.aws.amazon.com/AmazonS3/latest/API/s3_example_s3_Scenario_PresignedUrl_section.html
-    const presignedVideoObjectUrl = await s3Localstorage.getItemLink(videoKey, {
-      expiresIn: 60 * 60,
-    });
+    const presignedVideoObjectUrl = await s3Localstorage.getItemLink(
+      videoKey,
+      "PUT",
+      {
+        expiresIn: 60 * 60,
+      }
+    );
 
     res.json({ url: presignedVideoObjectUrl });
   } catch (error) {
