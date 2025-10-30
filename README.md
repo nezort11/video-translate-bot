@@ -62,4 +62,5 @@ sudo bash ./run.sh docker:restart
 
 ```sh
 url='https://youtu.be/x8J3a5ty3zw' pnpm cli
+NODE_ENV=development pnpm tsx ./src/cli.ts 'https://youtu.be/x8J3a5ty3zw'
 ```

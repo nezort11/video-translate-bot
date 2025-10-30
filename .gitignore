@@ -18,3 +18,5 @@ node_modules*
 *.tfstate*
 
 *.zip
+
+*.local.md
