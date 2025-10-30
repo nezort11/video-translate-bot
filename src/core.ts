@@ -384,7 +384,7 @@ export const mixTranslatedVideo = (
 };
 
 export const cleanupOldChannelMessages = async (
-  telegramClient: TelegramClient | any,
+  telegramClient: TelegramClient,
   channelId: string,
   options?: { hours?: number; batchSize?: number }
 ) => {
@@ -394,7 +394,7 @@ export const cleanupOldChannelMessages = async (
   const cutoffTime = moment().subtract(hours, "hour");
   const messagesToDelete: number[] = [];
 
-  for await (const message of (telegramClient as any).iterMessages(channelId)) {
+  for await (const message of telegramClient.iterMessages(channelId)) {
     const messageDate = message?.date ? moment(message.date) : null;
     if (!messageDate || !messageDate.isValid()) {
       continue;
@@ -403,7 +403,30 @@ export const cleanupOldChannelMessages = async (
       continue;
     }
 
-    if (messageDate.isBefore(cutoffTime)) {
+    // Determine if the message contains a video
+    const media = message?.media;
+    const document = media && "document" in media ? media?.document : undefined;
+    const mimeType =
+      document && "mimeType" in document ? document?.mimeType : document;
+    const docAttributes =
+      document && "attributes" in document ? document?.attributes : undefined;
+    const hasVideoMime =
+      typeof mimeType === "string" && mimeType.startsWith("video/");
+    const hasVideoAttr =
+      Array.isArray(docAttributes) &&
+      docAttributes.some((attr) => {
+        // GramJS uses className to identify attribute types
+        const className = attr?.className;
+        return className === "DocumentAttributeVideo";
+      });
+    // Some environments may expose convenience flags
+    const hasVideoFlag = Boolean(message.video || (media && "video" in media));
+
+    const isVideoMessage = Boolean(
+      hasVideoMime || hasVideoAttr || hasVideoFlag
+    );
+
+    if (isVideoMessage && messageDate.isBefore(cutoffTime)) {
       messagesToDelete.push(message.id);
 
       if (messagesToDelete.length >= batchSize) {

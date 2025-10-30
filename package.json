@@ -129,6 +129,7 @@
     "i18next": "24.2.2",
     "i18next-fs-backend": "2.6.0",
     "js-yaml": "4.1.0",
+    "cors": "2.8.5",
     "link-preview-js": "3.0.5",
     "lodash": "4.17.21",
     "moment": "2.29.4",
@@ -171,7 +172,6 @@
     "abort-controller": "^3.0.0"
   },
   "dependenciesComments": {
-    "cors": "2.8.5",
     "kysely": "0.27.5",
     "drizzle-orm": "0.39.1",
     "better-sqlite3": "11.8.1",
