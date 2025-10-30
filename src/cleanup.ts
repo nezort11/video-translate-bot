@@ -133,11 +133,14 @@ async function deleteOlderThanMinutes(
       const delResp = await s3Localstorage.s3Client.send(
         new DeleteObjectsCommand({
           Bucket: bucket,
-          Delete: { Objects: chunkObjects, Quiet: true },
+          Delete: { Objects: chunkObjects },
         })
       );
 
-      const deletedNow = delResp.Deleted?.length || 0;
+      const deletedNow =
+        (delResp.Deleted && delResp.Deleted.length) !== undefined
+          ? (delResp.Deleted?.length as number)
+          : Math.max(0, chunk.length - (delResp.Errors?.length || 0));
       deleted += deletedNow;
       console.log(
         `[DEBUG] Delete response: ${deletedNow} objects deleted in this chunk`
