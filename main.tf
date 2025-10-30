@@ -137,6 +137,53 @@ resource "yandex_function" "video-translate-bot-function" {
   }
 }
 
+resource "yandex_function" "ytdl-storage-cleanup" {
+  name       = "ytdl-storage-cleanup"
+  user_hash  = filebase64sha256("video-translate-bot.zip")
+  runtime    = "nodejs18"
+  entrypoint = "build/cleanup.handler"
+  service_account_id = var.service_account_id
+
+  memory = 128
+  execution_timeout = 60
+
+  package {
+    bucket_name = yandex_storage_bucket.video-translate-bot-code.id
+    object_name = "function.zip"
+  }
+
+  mounts {
+    name = "env" # /function/storage/env
+    mode = "ro"
+    object_storage {
+      bucket = yandex_storage_bucket.video-translate-bot-env.bucket
+    }
+  }
+
+  environment = {
+    CLEANUP_MINUTES      = "60"
+    YTDL_STORAGE_BUCKET  = var.ytdl_storage_bucket_name
+    S3_ENDPOINT          = "https://storage.yandexcloud.net"
+    S3_REGION            = var.yc_zone
+    S3_FORCE_PATH_STYLE  = "true"
+  }
+}
+
+resource "yandex_function_trigger" "ytdl-storage-cleanup-hourly" {
+  name        = "ytdl-storage-cleanup-hourly"
+  description = "Run cleanup every hour"
+
+  timer {
+    # Every hour at minute 0
+    cron_expression = "0 * * * ? *"
+  }
+
+  function {
+    id = yandex_function.ytdl-storage-cleanup.id
+    service_account_id = var.service_account_id
+  }
+}
+
 resource "yandex_message_queue" "video-translate-bot-function-queue" {
   name   = "video-translate-bot-function-queue"
 }

@@ -39,3 +39,8 @@ variable "container_id" {
   description = "Serverless Container ID"
   type        = string
 }
+
+variable "ytdl_storage_bucket_name" {
+  description = "Bucket name used by YTDL service for temporary storage"
+  type        = string
+}

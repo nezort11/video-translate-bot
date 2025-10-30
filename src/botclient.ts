@@ -2,7 +2,7 @@ import { Telegraf, TelegramError } from "telegraf";
 import ApiClient from "telegraf/typings/core/network/client";
 import type { Update } from "telegraf/types";
 import type { UpdateType } from "telegraf/typings/telegram-types";
-import AbortController from "abort-controller";
+import type { AbortSignal } from "abort-controller";
 import storage from "node-persist";
 import d from "debug";
 import { promisify } from "util";
@@ -69,7 +69,8 @@ export class BotPolling {
             offset: this.offset,
             allowed_updates: this.allowedUpdates,
           },
-          this.abortController
+          // this.abortController
+          { signal: this.abortController.signal as AbortSignal }
         );
 
         const first = updates[0];
