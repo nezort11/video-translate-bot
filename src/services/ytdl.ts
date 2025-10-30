@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import axios from "axios";
-import ytdl, { downloadOptions } from "@distube/ytdl-core";
+// import ytdl, { downloadOptions } from "@distube/ytdl-core";
 import { streamToBuffer } from "../core";
 import { importPRetry } from "../utils";
 import { logger } from "../logger";

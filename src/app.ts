@@ -2,7 +2,7 @@ import express, { Request, Response } from "express";
 import { Api } from "telegram";
 import type { ErrorObject } from "serialize-error";
 import cors from "cors";
-import ytdl, { videoInfo } from "@distube/ytdl-core";
+import type { videoInfo } from "@distube/ytdl-core";
 import { Readable } from "stream";
 import {
   downloadVideo,

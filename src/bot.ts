@@ -20,7 +20,7 @@ import { load } from "cheerio";
 import path from "path";
 import fs from "fs/promises";
 import fss from "fs";
-import ytdl from "@distube/ytdl-core";
+// import ytdl from "@distube/ytdl-core";
 // import { createFFmpeg } from "@ffmpeg/ffmpeg";
 import ffmpeg, { FfprobeData } from "fluent-ffmpeg";
 import { Api } from "telegram";

@@ -2,7 +2,7 @@ import axios, { AxiosError } from "axios";
 import { Readable } from "stream";
 import { logger } from "./logger";
 import { APP_ENV, IMAGE_TRANSLATE_URL, YTDL_STORAGE_BUCKET } from "./env";
-import ytdl, { thumbnail } from "@distube/ytdl-core";
+import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
 import { getVideoInfo as getVideoInfoYtdl } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
