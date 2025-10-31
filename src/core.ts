@@ -5,7 +5,7 @@ import { APP_ENV, IMAGE_TRANSLATE_URL, YTDL_STORAGE_BUCKET } from "./env";
 import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
 import { getVideoInfo as getVideoInfoYtdl } from "./services/ytdl";
-import { getLinkPreview } from "link-preview-js";
+// import { getLinkPreview } from "link-preview-js";
 import { delay, importNanoid, importPTimeout, percent } from "./utils";
 import { translate } from "./services/translate";
 import { bot } from "./botinstance";
@@ -149,6 +149,7 @@ export const getVideoInfo = async (link: string) => {
   }
 
   try {
+    // @ts-ignore currently uninstalled link-preview-js package
     const linkPreview = await getLinkPreview(link, {
       followRedirects: "follow",
     });

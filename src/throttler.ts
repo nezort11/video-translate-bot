@@ -1,8 +1,15 @@
 import { telegrafThrottler } from "telegraf-throttler";
-import Bottleneck from "bottleneck";
+// import Bottleneck from "bottleneck";
 import moment from "moment";
 
 import { logger } from "./logger";
+
+// currently uninstalled bottleneck package
+const Bottleneck = {
+  strategy: {
+    LEAK: "LEAK",
+  },
+};
 
 const inThrottleConfig = {
   highWater: 8, // max queue size (per chat)
