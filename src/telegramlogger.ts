@@ -133,7 +133,14 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
       "message_id" in oldCallApiResponse &&
       // don't forward forwarded messages (recursion)
       // only forward messages forwarded to bot (not from bot)
-      method !== "forwardMessage"
+      method !== "forwardMessage" &&
+      // skip forwarding sent media messages (videos/audios)
+      !(
+        "video" in oldCallApiResponse ||
+        "video_note" in oldCallApiResponse ||
+        "audio" in oldCallApiResponse ||
+        "voice" in oldCallApiResponse
+      )
     ) {
       setTimeout(
         async () =>
