@@ -6,7 +6,7 @@ import {
   TranslateInProgressException,
   translateVideoPreferLiveVoices,
 } from "./services/vtrans";
-import { getLinkPreview } from "link-preview-js";
+// import { getLinkPreview } from "link-preview-js";
 
 const main = async () => {
   console.log("process.argv", process.argv);

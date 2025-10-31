@@ -119,7 +119,6 @@
     "@sentry/node": "7.53.1",
     "@telegraf/session": "2.0.0-beta.7",
     "axios": "1.3.4",
-    "cheerio": "1.0.0-rc.12",
     "debug": "^4.3.4",
     "dotenv": "16.0.3",
     "express": "4.18.2",
@@ -144,11 +143,11 @@
     "telegraf-throttler": "0.6.0",
     "telegram": "2.15.15",
     "undici": "7.3.0",
-    "ydb-sdk": "5.11.1"
+    "ydb-sdk": "5.11.1",
+    "link-preview-js": "3.0.5"
   },
   "devDependencies": {
     "bottleneck": "^2.19.5",
-    "link-preview-js": "3.0.5",
     "@distube/ytdl-core": "4.16.4",
     "@types/better-sqlite3": "7.6.12",
     "@types/debug": "^4.1.12",
@@ -171,6 +170,7 @@
     "abort-controller": "^3.0.0"
   },
   "dependenciesComments": {
+    "cheerio": "1.0.0-rc.12",
     "form-data": "4.0.0",
     "kysely": "0.27.5",
     "drizzle-orm": "0.39.1",

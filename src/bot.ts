@@ -14,7 +14,7 @@ import { message } from "telegraf/filters";
 import { Stage, WizardScene } from "telegraf/scenes";
 import { KeyedDistinct } from "telegraf/typings/core/helpers/util";
 import axios, { AxiosError } from "axios";
-import { load } from "cheerio";
+// import { load } from "cheerio";
 // import { getAudioDurationInSeconds } from "get-audio-duration";
 // import { getVideoDurationInSeconds } from "get-video-duration";
 import path from "path";
@@ -167,24 +167,24 @@ const ERROR_MESSAGE_TO_EDIT_NOT_FOUND =
 const ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER =
   "403: Forbidden: bot was blocked by the user";
 
-const getLinkTitle = async (link: string) => {
-  try {
-    const resourceResponse = await axiosInstance.get(link);
-    const $ = load(resourceResponse.data);
-    let title = $("title").text();
+// const getLinkTitle = async (link: string) => {
+//   try {
+//     const resourceResponse = await axiosInstance.get(link);
+//     const $ = load(resourceResponse.data);
+//     let title = $("title").text();
 
-    // if (title.endsWith("YouTube")) {
-    //   title = title.split(" - YouTube")[0];
-    // }
+//     // if (title.endsWith("YouTube")) {
+//     //   title = title.split(" - YouTube")[0];
+//     // }
 
-    // logger.info(`Title is: ${title}`);
-    return title;
-  } catch (error) {
-    logger.warn("Unable to get website title:", error);
-    Sentry.captureException(error);
-    return;
-  }
-};
+//     // logger.info(`Title is: ${title}`);
+//     return title;
+//   } catch (error) {
+//     logger.warn("Unable to get website title:", error);
+//     Sentry.captureException(error);
+//     return;
+//   }
+// };
 
 const shortenYoutubeLink = (youtubeVideoId: string) =>
   `https://youtu.be/${youtubeVideoId}`;

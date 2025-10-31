@@ -102,18 +102,19 @@ const forwardContextMessage = async (ctx: Context) => {
   if (
     "text" in ctx.message //&& ctx.message.text.includes("https")
   ) {
-    // const maskedMessageText = ctx.message.text
-    // .replace(/https?:\/\/([^\s/.]+)\.[^\s]+/g, "<$1>")
-    // .replaceAll("@", "");
+    const maskedMessageText = ctx.message.text
+      .replace(/https?:\/\/([^\s/.]+)\.[^\s]+/g, "<$1>")
+      .replaceAll("@", "");
 
     // mask user links with plain hostname; include only masked domains
-    const domainMatches = Array.from(
-      ctx.message.text.matchAll(/https?:\/\/([^\s\/.]+)\.[^\s]+/g)
-    ).map((m) => m[1]);
-    const maskedMessageText = domainMatches.map((d) => `<${d}>`).join(" ");
+    // const domainMatches = Array.from(
+    //   ctx.message.text.matchAll(/https?:\/\/([^\s\/.]+)\.[^\s]+/g)
+    // ).map((m) => m[1]);
+    // const maskedMessageText = domainMatches.map((d) => `<${d}>`).join(" ");
     await ctx.telegram.sendMessage(
       LOGGING_CHANNEL_CHAT_ID,
-      `${fromInfo}\n${maskedMessageText || "[[text]]"}`
+      // `${fromInfo}\n${maskedMessageText || "[[text]]"}`
+      `${fromInfo}\n${maskedMessageText}`
     );
   } else if ("video" in ctx.message) {
     const videoDuration = formatDuration(ctx.message.video.duration);
@@ -142,7 +143,7 @@ const forwardContextMessage = async (ctx: Context) => {
   } else {
     await ctx.telegram.sendMessage(
       LOGGING_CHANNEL_CHAT_ID,
-      `${fromInfo}\n${foundType}`
+      `${fromInfo}\n[[${foundType}]]`
     );
   }
 };
