@@ -59,7 +59,8 @@ const initUpdatesTable = async () => {
 
 export const trackUpdate = async (update: Update) => {
   try {
-    await initUpdatesTable();
+    // Table is pre-provisioned; avoid schema operations on hot path
+    // await initUpdatesTable();
     console.log("Table 'updates' is ready");
 
     await driver.tableClient.withSessionRetry(async (session) => {
