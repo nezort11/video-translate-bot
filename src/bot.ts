@@ -270,7 +270,7 @@ const getTranslateLanguage = (context: BotContext) => {
   }
 };
 
-const DEFAULT_CREDITS_BALANCE = 10; // 10 minutes
+const DEFAULT_CREDITS_BALANCE = 20; // 20 minutes
 
 const getCurrentBalance = (context: BotContext) => {
   return (context.session.balance ?? 0) + DEFAULT_CREDITS_BALANCE;
