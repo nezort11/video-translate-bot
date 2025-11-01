@@ -103,7 +103,8 @@ const forwardContextMessage = async (ctx: Context) => {
   ) {
     const maskedMessageText = ctx.message.text
       .replace(/https?:\/\/([^\s/.]+)\.[^\s]+/g, "<$1>")
-      .replaceAll("@", "");
+      .replaceAll("@", "") // remove @ from usernames
+      .replaceAll("#", ""); // remove # from hashtags
 
     // mask user links with plain hostname; include only masked domains
     // const domainMatches = Array.from(
