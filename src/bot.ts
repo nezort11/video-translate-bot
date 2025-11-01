@@ -70,9 +70,10 @@ import {
 // import { botThrottler, translateThrottler } from "./throttler";
 import {
   capitalize,
-  escapeHtml,
   formatDuration,
   importPTimeout,
+  serializeAndEscapeError,
+  truncateText,
 } from "./utils";
 import { InlineKeyboardButton, Message, Update } from "telegraf/types";
 import {
@@ -589,7 +590,7 @@ const handleError = async (error: unknown, context: Context) => {
       "message" in error &&
       error.message === ERROR_FORBIDDEN_BOT_WAS_BLOCKED_BY_THE_USER
     ) {
-      logger.warn(error);
+      logger.warn("[WARN]", error);
       return;
     }
     const { TimeoutError } = await importPTimeout();
@@ -614,12 +615,21 @@ const handleError = async (error: unknown, context: Context) => {
   await replyError(context, t("error_retry"));
   if (APP_ENV !== "local") {
     try {
-      await telegramLoggerContext.reply(
-        `<code>${escapeHtml(inspect(error))}</code>`,
-        {
-          parse_mode: "HTML",
-        }
-      );
+      const TELEGRAM_MAX_LENGTH = 4096;
+      // 32 is the overhead from formatting (emoji, code tags, etc.)
+      const maxErrorLength = TELEGRAM_MAX_LENGTH - 32;
+
+      // Step 1: Serialize and escape error (escaping can increase length)
+      const escapedError = serializeAndEscapeError(error);
+
+      // Step 2: Truncate the escaped text to fit within the limit
+      const truncatedError = truncateText(escapedError, maxErrorLength);
+
+      const message = `🚨 <code>${truncatedError}</code>`;
+
+      await telegramLoggerContext.reply(message, {
+        parse_mode: "HTML",
+      });
     } catch (error) {
       console.warn("Error while sending error inspect", error);
     }
