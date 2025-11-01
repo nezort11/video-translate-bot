@@ -48,9 +48,6 @@ importers:
       link-preview-js:
         specifier: 3.0.5
         version: 3.0.5
-      lodash:
-        specifier: 4.17.21
-        version: 4.17.21
       moment:
         specifier: 2.29.4
         version: 2.29.4
@@ -115,9 +112,6 @@ importers:
       '@types/fluent-ffmpeg':
         specifier: 2.1.27
         version: 2.1.27
-      '@types/lodash':
-        specifier: ^4
-        version: 4.14.30
       '@types/node':
         specifier: 18.15.3
         version: 18.15.3
@@ -3008,10 +3002,6 @@ packages:
     resolution: {integrity: sha512-BQ5aZNSCpj7D6K2ksrRCTmKRLEpnPvWDiLPfoGyhZ++8YtiK9d/3DBKPJgry359X/P1PfruyYwvnvwFjuEiEIg==}
     dependencies:
       '@types/node': 18.15.3
-
-  /@types/lodash@4.14.30:
-    resolution: {integrity: sha512-YeHa1y4c0FfbjHJ/+4MkUBniI0J2DFrmXYUrBMJRf+rfuZDyF3jog5xS9t6ARVws/8ZHGbpqVif+/vlpgDl97Q==}
-    dev: true
 
   /@types/lodash@4.17.13:
     resolution: {integrity: sha512-lfx+dftrEZcdBPczf9d0Qv0x+j/rfNCMuC6OcfXmO8gkfeNAY88PgKUbvG56whcN23gc27yenwF6oJZXGFpYxg==}

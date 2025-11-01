@@ -2,7 +2,23 @@ import { Response } from "express";
 import type { ErrorObject } from "serialize-error";
 import { DEBUG_ENV } from "./env";
 import moment from "moment";
-import { round } from "lodash";
+
+/**
+ * Round a number to the specified precision (lodash round equivalent)
+ * @param number The number to round
+ * @param precision The number of decimal places (default: 0)
+ */
+export const round = (number: number, precision: number = 0): number => {
+  const factor = Math.pow(10, precision);
+  return Math.round(number * factor) / factor;
+};
+
+/**
+ * Capitalize the first character of a string and lowercase the rest (lodash capitalize equivalent)
+ */
+export const capitalize = (string: string): string => {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+};
 
 export const getChatId = (id: string) => {
   return `-100${id}`;

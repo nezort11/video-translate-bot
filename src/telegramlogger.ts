@@ -7,7 +7,6 @@ import { BOT_TOKEN, LOGGING_CHANNEL_CHAT_ID } from "./env";
 import { logger } from "./logger";
 import { botThrottler } from "./throttler";
 import { formatDuration, formatFileSize } from "./utils";
-import { round } from "lodash";
 
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(botThrottler);

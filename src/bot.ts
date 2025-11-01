@@ -29,8 +29,6 @@ import * as Sentry from "@sentry/node";
 import moment from "moment";
 import { inspect } from "util";
 // import { TimeoutError } from "p-timeout";
-import _ from "lodash";
-const { capitalize } = _;
 // @ts-ignore
 import { VideoTranslateResponse } from "./services/vtrans";
 // import { TextToSpeechClient } from "@google-cloud/text-to-speech";
@@ -70,7 +68,12 @@ import {
   telegramLoggerOutgoingMiddleware,
 } from "./telegramlogger";
 // import { botThrottler, translateThrottler } from "./throttler";
-import { escapeHtml, formatDuration, importPTimeout, percent } from "./utils";
+import {
+  capitalize,
+  escapeHtml,
+  formatDuration,
+  importPTimeout,
+} from "./utils";
 import { InlineKeyboardButton, Message, Update } from "telegraf/types";
 import {
   TranslateException,
