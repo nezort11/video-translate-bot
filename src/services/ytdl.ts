@@ -86,10 +86,13 @@ type VideoDownloadResponseData = {
   url: string;
 };
 
-export const downloadVideo = async (url: string, format: number) => {
+export const downloadVideo = async (url: string, format?: string | number) => {
   const videoDownloadResponse =
     await ytdlClient.post<VideoDownloadResponseData>("/download", null, {
-      params: { url },
+      params: {
+        url,
+        ...(format && { format: format.toString() }),
+      },
     });
 
   return videoDownloadResponse.data.url;

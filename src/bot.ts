@@ -1861,7 +1861,7 @@ bot.action(/.+/, async (context) => {
       // videoBuffer = await downloadYoutubeVideo(videoLink, {
       //   quality: 18,
       // });
-      const videoUrl = await downloadVideo(videoLink, 18);
+      const videoUrl = await downloadVideo(videoLink); // Use default "best" format
       const videoResponse = await axios.get<ArrayBuffer>(videoUrl, {
         responseType: "arraybuffer",
       });
