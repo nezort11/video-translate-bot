@@ -63,7 +63,6 @@ export const importNanoid = async () =>
 export const serializeErrorAsync = async (error: unknown) => {
   const { serializeError } = await importSerializeError();
   const serializedError = serializeError(error);
-  console.log("serialized error", serializedError);
   // https://docs.pynt.io/documentation/api-security-testing/pynt-security-tests-coverage/stack-trace-in-response
   if (DEBUG_ENV !== "true") {
     delete serializedError.stack;
@@ -75,7 +74,8 @@ export const handleInternalErrorExpress = async (
   error: unknown,
   res: Response<ErrorObject>
 ) => {
-  console.error(error);
+  const { logger } = await import("./logger");
+  logger.error(error);
   const serializedError = await serializeErrorAsync(error);
   res.status(500).json(serializedError);
 };
@@ -91,7 +91,13 @@ export const percent = (percent: number) => percent / 100;
  * @returns HTML-escaped error string
  */
 export const serializeAndEscapeError = (error: unknown): string => {
-  const errorInspect = inspect(error);
+  const errorInspect = inspect(error, {
+    depth: 2,
+    maxArrayLength: 10,
+    maxStringLength: 200,
+    breakLength: 80,
+    compact: true,
+  });
   return escapeHtml(errorInspect);
 };
 

@@ -631,7 +631,7 @@ const handleError = async (error: unknown, context: Context) => {
         parse_mode: "HTML",
       });
     } catch (error) {
-      console.warn("Error while sending error inspect", error);
+      logger.warn("Error while sending error inspect", error);
     }
   }
 };
@@ -1732,7 +1732,7 @@ bot.action(/.+/, async (context) => {
               console.log(`Processing: ${progress.percent}% done`);
             })
             .on("error", (error) => {
-              console.error("Failed to process", error);
+              logger.error("Failed to process", error);
               reject(error);
             })
             .on("end", (data) => {
@@ -2155,7 +2155,7 @@ bot.action(/.+/, async (context) => {
         );
         console.log("Cleaned up messages older than 1 hour in logging channel");
       } catch (error) {
-        console.warn("Failed to cleanup old logging channel messages", error);
+        logger.warn("Failed to cleanup old logging channel messages", error);
       }
     });
 
@@ -2171,7 +2171,7 @@ bot.action(/.+/, async (context) => {
       await context.deleteMessage();
     } catch (_) {}
   } catch (error) {
-    console.log("Catched action error:", error);
+    logger.error("Catched action error:", error);
     // delete in progress message in case of error
     try {
       console.log("Deleting in-progress message on error...");
