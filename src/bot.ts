@@ -100,6 +100,7 @@ import {
 } from "./core";
 import {
   downloadVideo,
+  getVideoDownloadUrl,
   // downloadYoutubeVideo,
   // ytdlAgent,
 } from "./services/ytdl";
@@ -1861,9 +1862,20 @@ bot.action(/.+/, async (context) => {
       // videoBuffer = await downloadYoutubeVideo(videoLink, {
       //   quality: 18,
       // });
-      const videoUrl = await downloadVideo(videoLink); // Use default "best" format
-      const videoResponse = await axios.get<ArrayBuffer>(videoUrl, {
+
+      // Use new direct URL approach to avoid gateway timeout
+      logger.info("Getting direct YouTube download URL...");
+      const downloadUrlData = await getVideoDownloadUrl(videoLink); // Use default "best" format
+      logger.info(
+        `Got direct URL (format: ${downloadUrlData.format_id}, quality: ${downloadUrlData.quality}, expires in ${downloadUrlData.expires_in_hours}h)`
+      );
+
+      logger.info("Downloading video directly from YouTube...");
+      const videoResponse = await axios.get<ArrayBuffer>(downloadUrlData.url, {
         responseType: "arraybuffer",
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        timeout: 600000, // 10 minutes timeout for large videos
       });
       videoBuffer = Buffer.from(videoResponse.data);
     }

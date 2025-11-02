@@ -86,6 +86,22 @@ type VideoDownloadResponseData = {
   url: string;
 };
 
+type VideoDownloadUrlResponseData = {
+  url: string;
+  format_id: string;
+  ext: string;
+  quality?: string;
+  filesize?: number;
+  expires_in_hours: number;
+  title?: string;
+  duration?: number;
+};
+
+/**
+ * Downloads video through our serverless function (old approach).
+ * Limited by 5-minute API Gateway timeout.
+ * @deprecated Use getVideoDownloadUrl() for large videos to avoid timeout
+ */
 export const downloadVideo = async (url: string, format?: string | number) => {
   const videoDownloadResponse =
     await ytdlClient.post<VideoDownloadResponseData>("/download", null, {
@@ -96,4 +112,31 @@ export const downloadVideo = async (url: string, format?: string | number) => {
     });
 
   return videoDownloadResponse.data.url;
+};
+
+/**
+ * Gets direct YouTube download URL without downloading through our gateway.
+ * Avoids the 5-minute API Gateway timeout for large videos.
+ *
+ * @param url - YouTube video URL
+ * @param format - Video format ID (e.g., "18" for 360p, "22" for 720p)
+ * @returns Object containing direct download URL and video metadata
+ *
+ * Note: The returned URL expires after ~6 hours
+ */
+export const getVideoDownloadUrl = async (
+  url: string,
+  format?: string | number
+): Promise<VideoDownloadUrlResponseData> => {
+  const response = await ytdlClient.get<VideoDownloadUrlResponseData>(
+    "/download-url",
+    {
+      params: {
+        url,
+        ...(format && { format: format.toString() }),
+      },
+    }
+  );
+
+  return response.data;
 };
