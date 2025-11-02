@@ -86,19 +86,122 @@ export const delay = (milliseconds: number) =>
 export const percent = (percent: number) => percent / 100;
 
 /**
+ * Format an AxiosError for logging/display with only essential information.
+ * Avoids deeply nested socket/TLS details that can create massive logs.
+ * @param error The AxiosError to format
+ * @param options Formatting options
+ * @returns Formatted error string
+ */
+export const formatAxiosError = (
+  error: any,
+  options: {
+    includeStack?: boolean;
+    maxResponseLength?: number;
+    separator?: string;
+  } = {}
+): string => {
+  const {
+    includeStack = false,
+    maxResponseLength = 500,
+    separator = "\n",
+  } = options;
+
+  const parts: string[] = [];
+
+  // Error name and message
+  if (error.name) {
+    parts.push(`${error.name}: ${error.message || "Unknown error"}`);
+  } else if (error.message) {
+    parts.push(error.message);
+  }
+
+  // HTTP status and status text
+  if (error.response?.status) {
+    parts.push(
+      `Status: ${error.response.status} ${error.response.statusText || ""}`
+    );
+  }
+
+  // Request details
+  if (error.config) {
+    const method = error.config.method?.toUpperCase();
+    const url = error.config.baseURL
+      ? `${error.config.baseURL}${error.config.url || ""}`
+      : error.config.url;
+    if (method && url) {
+      parts.push(`Request: ${method} ${url}`);
+    }
+  }
+
+  // Response data (if it's small and useful)
+  if (error.response?.data) {
+    try {
+      const dataStr =
+        typeof error.response.data === "string"
+          ? error.response.data
+          : JSON.stringify(error.response.data);
+
+      if (dataStr.length <= maxResponseLength) {
+        parts.push(`Response: ${dataStr}`);
+      } else {
+        parts.push(
+          `Response: ${dataStr.substring(0, maxResponseLength)}... (truncated)`
+        );
+      }
+    } catch {
+      parts.push("Response: [unable to serialize]");
+    }
+  }
+
+  // Error code
+  if (error.code) {
+    parts.push(`Code: ${error.code}`);
+  }
+
+  // Stack trace (optional, first few lines only)
+  if (includeStack && error.stack) {
+    const stackLines = error.stack.split("\n").slice(0, 5);
+    parts.push(`Stack:\n${stackLines.join("\n")}`);
+  }
+
+  return parts.join(separator);
+};
+
+/**
  * Serialize and escape error for safe display in HTML
  * @param error The error object to serialize
  * @returns HTML-escaped error string
  */
 export const serializeAndEscapeError = (error: unknown): string => {
-  const errorInspect = inspect(error, {
-    depth: 2,
-    maxArrayLength: 10,
-    maxStringLength: 200,
-    breakLength: 80,
-    compact: true,
-  });
-  return escapeHtml(errorInspect);
+  let errorText: string;
+
+  // Check if it's an AxiosError
+  if (
+    error &&
+    typeof error === "object" &&
+    "isAxiosError" in error &&
+    error.isAxiosError === true
+  ) {
+    errorText = formatAxiosError(error, { includeStack: true });
+  } else if (error instanceof Error) {
+    // Regular Error object
+    errorText = `${error.name}: ${error.message}`;
+    if (error.stack) {
+      const stackLines = error.stack.split("\n").slice(0, 5);
+      errorText += `\n${stackLines.join("\n")}`;
+    }
+  } else {
+    // Fallback to inspect with very limited depth
+    errorText = inspect(error, {
+      depth: 1,
+      maxArrayLength: 5,
+      maxStringLength: 100,
+      breakLength: 80,
+      compact: true,
+    });
+  }
+
+  return escapeHtml(errorText);
 };
 
 /**
