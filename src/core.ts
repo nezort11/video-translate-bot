@@ -241,9 +241,26 @@ export const uploadVideo = async (videoBuffer: Buffer) => {
   return videoObjectUrl!;
 };
 
-const TRANSLATE_PULLING_INTERVAL = moment
+const TRANSLATE_PULLING_INTERVAL_FALLBACK = moment
   .duration(15, "seconds")
   .asMilliseconds();
+
+const TRANSLATE_PULLING_INTERVAL_MIN = moment
+  .duration(5, "seconds")
+  .asMilliseconds();
+
+const waitForTranslation = async (error: TranslateInProgressException) => {
+  // Use remainingTime from the response if available, otherwise use fallback
+  const remainingTime = error.data?.remainingTime;
+  const delayMs = remainingTime
+    ? Math.max(remainingTime * 1000, TRANSLATE_PULLING_INTERVAL_MIN)
+    : TRANSLATE_PULLING_INTERVAL_FALLBACK;
+  logger.info(
+    `Translation in progress, waiting ${delayMs / 1000}s before retry...`
+  );
+  await delay(delayMs);
+  logger.info("Rerequesting translation...");
+};
 
 export const translateVideoFinal = async (
   url: string,
@@ -263,8 +280,7 @@ export const translateVideoFinal = async (
         return res;
       } catch (firstError) {
         if (firstError instanceof TranslateInProgressException) {
-          await delay(TRANSLATE_PULLING_INTERVAL);
-          logger.info("Rerequesting translation...");
+          await waitForTranslation(firstError);
           return await translateVideoFinal(url, targetLanguage, true);
         }
         // fallback and stick to old voices for all next retries
@@ -279,8 +295,7 @@ export const translateVideoFinal = async (
     });
   } catch (error) {
     if (error instanceof TranslateInProgressException) {
-      await delay(TRANSLATE_PULLING_INTERVAL);
-      logger.info("Rerequesting translation...");
+      await waitForTranslation(error);
       return await translateVideoFinal(
         url,
         targetLanguage,
