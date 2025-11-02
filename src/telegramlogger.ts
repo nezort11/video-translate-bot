@@ -59,10 +59,15 @@ const forwardContextMessage = async (ctx: Context) => {
     return;
   }
 
+  const userName =
+    ctx.from && ctx.from.username
+      ? ctx.from.username
+      : `${ctx.from?.first_name} ${ctx.from?.last_name}`;
+
   const fromInfo = ctx.from
     ? // don't include first and last name for privacy reasons
       // ${ctx.from.first_name} ${ctx.from.last_name} (
-      `user: ${ctx.from.username}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
+      `👤 ${userName}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
     : "";
 
   const typeOrder = [
@@ -186,14 +191,43 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
         "voice" in oldCallApiResponse
       )
     ) {
-      setTimeout(
-        async () =>
-          await telegramLoggerForwardMessage(
-            ctx,
-            oldCallApiResponse as Message
-          ),
-        1000
-      );
+      // For text messages, send custom message with recipient info (for matching dialogs)
+      if (
+        method === "sendMessage" &&
+        "text" in oldCallApiResponse &&
+        oldCallApiResponse.text
+      ) {
+        setTimeout(async () => {
+          try {
+            const userName =
+              ctx.from && ctx.from.username
+                ? ctx.from.username
+                : `${ctx.from?.first_name} ${ctx.from?.last_name}`;
+
+            const toInfo = ctx.from
+              ? `🤖 to ${userName}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
+              : "🤖 to unknown user";
+
+            const messageText = oldCallApiResponse.text;
+            await ctx.telegram.sendMessage(
+              LOGGING_CHANNEL_CHAT_ID,
+              `${toInfo}\n${messageText}`
+            );
+          } catch (error) {
+            logger.warn("Outgoing message logging error:", error);
+          }
+        }, 1000);
+      } else {
+        // For non-text messages, use the old forwarding behavior
+        setTimeout(
+          async () =>
+            await telegramLoggerForwardMessage(
+              ctx,
+              oldCallApiResponse as Message
+            ),
+          1000
+        );
+      }
     }
 
     return oldCallApiResponse;
