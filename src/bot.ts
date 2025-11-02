@@ -855,11 +855,11 @@ const videoSearchWizard = new WizardScene<BotContext>(
 );
 
 // Initialize before the .scene is used
-const stage = new Stage();
-// @ts-expect-error WizardScene is compatible with BaseScene
-stage.register(videoSearchWizard);
-// @ts-expect-error invalid types
-bot.use(stage.middleware());
+// const stage = new Stage();
+// // @ts-expect-error WizardScene is compatible with BaseScene
+// stage.register(videoSearchWizard);
+// // @ts-expect-error invalid types
+// bot.use(stage.middleware());
 
 bot.command("search", async (context) => {
   await context.scene.enter(SceneName.VideoSearch);
