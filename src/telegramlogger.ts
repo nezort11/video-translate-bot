@@ -183,6 +183,11 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
       // don't forward forwarded messages (recursion)
       // only forward messages forwarded to bot (not from bot)
       method !== "forwardMessage" &&
+      // skip logging messages that are already being sent to the logging channel (prevent infinite recursion)
+      payload &&
+      typeof payload === "object" &&
+      "chat_id" in payload &&
+      payload.chat_id !== LOGGING_CHANNEL_CHAT_ID &&
       // skip forwarding sent media messages (videos/audios)
       !(
         "video" in oldCallApiResponse ||
