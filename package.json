@@ -127,7 +127,6 @@
     "i18next-fs-backend": "2.6.0",
     "js-yaml": "4.1.0",
     "cors": "2.8.5",
-    "moment": "2.29.4",
     "nanoid": "3.3.4",
     "p-retry": "6.2.1",
     "p-timeout": "^6.1.2",

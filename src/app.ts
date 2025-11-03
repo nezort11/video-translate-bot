@@ -19,11 +19,7 @@ import {
   translateVideoPreferLiveVoices,
 } from "./services/vtrans";
 import S3Localstorage from "s3-localstorage";
-import {
-  DEBUG_ENV,
-  STORAGE_CHANNEL_CHAT_ID,
-  YTDL_STORAGE_BUCKET,
-} from "./env";
+import { DEBUG_ENV, STORAGE_CHANNEL_CHAT_ID, YTDL_STORAGE_BUCKET } from "./env";
 import { downloadMessageFile, useTelegramClient } from "./telegramclient";
 import {
   TEMP_DIR_PATH,

@@ -26,7 +26,7 @@ import ffmpeg, { FfprobeData } from "fluent-ffmpeg";
 import { Api } from "telegram";
 // import translate from "@iamtraction/google-translate";
 import * as Sentry from "@sentry/node";
-import moment from "moment";
+import { duration, diff, toSeconds, fromSeconds } from "./time";
 import { inspect } from "util";
 // import { TimeoutError } from "p-timeout";
 // @ts-ignore
@@ -1434,14 +1434,10 @@ bot.action(/.+/, async (context) => {
   // const originalVideoDuration = videoInfo.duration;
 
   const currentCreditsBalance = getCurrentBalance(context);
-  const videoDuration =
-    videoInfo.duration ?? moment.duration({ minutes: 30 }).asSeconds();
+  const videoDuration = videoInfo.duration ?? toSeconds.fromMinutes(30);
 
   let isValidationError = true;
-  if (
-    videoDuration >
-    moment.duration({ minutes: currentCreditsBalance }).asSeconds()
-  ) {
+  if (videoDuration > toSeconds.fromMinutes(currentCreditsBalance)) {
     await replyError(
       context,
       "You dont have enough video translation credits to perform this translate, please topup your credits balance first /balance",
@@ -1451,7 +1447,7 @@ bot.action(/.+/, async (context) => {
     );
   } else if (
     videoInfo.duration &&
-    videoInfo.duration > moment.duration({ hours: 1 }).asSeconds()
+    videoInfo.duration > toSeconds.fromHours(1)
   ) {
     await replyError(context, t("video_too_long"), {
       disable_notification: true,
@@ -1489,8 +1485,10 @@ bot.action(/.+/, async (context) => {
 
   if (context.session.translationStartedAt) {
     if (
-      moment().diff(context.session.translationStartedAt, "seconds") <
-      EXECUTION_TIMEOUT
+      diff.inSeconds(
+        new Date(),
+        new Date(context.session.translationStartedAt)
+      ) < EXECUTION_TIMEOUT
     ) {
       return await replyError(context, t("concurrent_translations_limit"));
     }
@@ -2168,7 +2166,7 @@ bot.action(/.+/, async (context) => {
 
     // Decrease amount of video translation credits based on video duration
     const videoDurationCredits = Math.ceil(
-      moment.duration({ seconds: videoDuration }).asMinutes()
+      fromSeconds.toMinutes(videoDuration)
     );
     context.session.balance =
       (context.session.balance ?? 0) - videoDurationCredits;

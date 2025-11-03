@@ -3,7 +3,7 @@ import { StringSession } from "telegram/sessions";
 import fs from "fs";
 import axios from "axios";
 import { importPTimeout } from "./utils";
-import moment from "moment";
+import { diff, duration } from "./time";
 // // // @ts-expect-error no types
 // import input from "input";
 import {
@@ -70,7 +70,7 @@ const getAvailableSessionStringIndex = async (
       continue;
     } else if (
       lastConnectedAt &&
-      moment().diff(lastConnectedAt, "seconds") < EXECUTION_TIMEOUT
+      diff.inSeconds(new Date(), new Date(lastConnectedAt)) < EXECUTION_TIMEOUT
     ) {
       continue;
     } else {
@@ -241,9 +241,7 @@ export const delegateDownloadLargeFile = async (
   try {
     console.log("downloading video using worker api...");
     const { default: pTimeout } = await importPTimeout();
-    const downloadTimeoutMilliseconds = moment
-      .duration(EXECUTION_TIMEOUT - 60, "seconds")
-      .asMilliseconds();
+    const downloadTimeoutMilliseconds = duration.seconds(EXECUTION_TIMEOUT - 60);
 
     let videoFileUrl: string;
     if (APP_ENV === "local") {

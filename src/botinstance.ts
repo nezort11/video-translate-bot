@@ -1,4 +1,4 @@
-import moment from "moment";
+import { duration } from "./time";
 import { BOT_TOKEN, EXECUTION_TIMEOUT } from "./env";
 import { Telegraf } from "telegraf";
 import { SceneActionContext, SceneActionSession } from "./actions";
@@ -9,12 +9,10 @@ import {
 } from "telegraf/scenes";
 // import { BotTelegraf } from "./botclient";
 
-// const BOT_TIMEOUT = moment.duration(12, "hours").asMilliseconds(); // 1 hour video for 0.01x might take up to 12 hours
+// const BOT_TIMEOUT = duration.hours(12); // 1 hour video for 0.01x might take up to 12 hours
 
 // trigger timeout handler 30 seconds before serverless function/container execution timeout
-const BOT_TIMEOUT = moment
-  .duration(EXECUTION_TIMEOUT - 30, "seconds")
-  .asMilliseconds();
+const BOT_TIMEOUT = duration.seconds(EXECUTION_TIMEOUT - 30);
 
 // extend bot context from action scene and wizard context
 

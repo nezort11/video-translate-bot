@@ -34,7 +34,7 @@ import { app } from "./app";
 import { logger } from "./logger";
 
 import { Telegraf } from "telegraf";
-import moment from "moment";
+import { duration } from "./time";
 import type { Handler } from "@yandex-cloud/function-types";
 // import type { MessageQueue } from "@yandex-cloud/function-types/dist/src/triggers/messageQueue";
 import type { Http } from "@yandex-cloud/function-types/dist/src/http";
@@ -190,7 +190,7 @@ const main = async () => {
 const debugBot = new Telegraf(BOT_TOKEN, {
   // REQUIRED for `sendChatAction` to work in serverless/webhook environment https://github.com/telegraf/telegraf/issues/1047
   telegram: { webhookReply: false },
-  handlerTimeout: moment.duration(1, "hour").asMilliseconds(),
+  handlerTimeout: duration.hours(1),
 });
 
 debugBot.start(async (context) => await context.reply("Hi, lol"));

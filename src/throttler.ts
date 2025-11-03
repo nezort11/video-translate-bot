@@ -1,6 +1,6 @@
 import { telegrafThrottler } from "telegraf-throttler";
 // import Bottleneck from "bottleneck";
-import moment from "moment";
+import { duration } from "./time";
 
 import { logger } from "./logger";
 
@@ -15,29 +15,29 @@ const inThrottleConfig = {
   highWater: 8, // max queue size (per chat)
   strategy: Bottleneck.strategy.LEAK, // forget about updates > queue
   maxConcurrent: 8, // max updates processed at the same time (per all chats)
-  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
+  minTime: duration.seconds(0.3),
 };
 const inTranslateThrottleConfig = {
   highWater: 4, // max translate 4 videos in the queue (per chat)
   strategy: Bottleneck.strategy.LEAK,
   maxConcurrent: 1, // max 1 video at the same time because of low server (per all chats)
-  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
+  minTime: duration.seconds(0.3),
 };
 
 // https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
 const outPrivateChatThrottleConfig = {
   maxConcurrent: 1,
-  minTime: moment.duration(0.025, "seconds").asMilliseconds(),
+  minTime: duration.seconds(0.025),
   reservoir: 30,
   reservoirRefreshAmount: 30,
-  reservoirRefreshInterval: moment.duration(1, "seconds").asMilliseconds(),
+  reservoirRefreshInterval: duration.seconds(1),
 };
 const outGroupChatThrottleConfig = {
   maxConcurrent: 1,
-  minTime: moment.duration(0.3, "seconds").asMilliseconds(),
+  minTime: duration.seconds(0.3),
   reservoir: 20,
   reservoirRefreshAmount: 20,
-  reservoirRefreshInterval: moment.duration(60, "seconds").asMilliseconds(),
+  reservoirRefreshInterval: duration.seconds(60),
 };
 
 export const botThrottler = telegrafThrottler({

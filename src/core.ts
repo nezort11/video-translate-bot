@@ -15,7 +15,7 @@ import {
   VideoTranslateResponse,
   translateVideo,
 } from "./services/vtrans";
-import moment from "moment";
+import { duration, subtract, diff, isValidDate } from "./time";
 import http from "http";
 import https from "https";
 import ffmpeg from "fluent-ffmpeg";
@@ -241,13 +241,9 @@ export const uploadVideo = async (videoBuffer: Buffer) => {
   return videoObjectUrl!;
 };
 
-const TRANSLATE_PULLING_INTERVAL_FALLBACK = moment
-  .duration(15, "seconds")
-  .asMilliseconds();
+const TRANSLATE_PULLING_INTERVAL_FALLBACK = duration.seconds(15);
 
-const TRANSLATE_PULLING_INTERVAL_MIN = moment
-  .duration(5, "seconds")
-  .asMilliseconds();
+const TRANSLATE_PULLING_INTERVAL_MIN = duration.seconds(5);
 
 const waitForTranslation = async (error: TranslateInProgressException) => {
   // Use remainingTime from the response if available, otherwise use fallback
@@ -306,7 +302,7 @@ export const translateVideoFinal = async (
   }
 };
 
-const AXIOS_REQUEST_TIMEOUT = moment.duration(45, "minutes").asMilliseconds();
+const AXIOS_REQUEST_TIMEOUT = duration.minutes(45);
 
 export const axiosInstance = axios.create({
   timeout: AXIOS_REQUEST_TIMEOUT,
@@ -406,12 +402,12 @@ export const cleanupOldChannelMessages = async (
   const hours = options?.hours ?? 1;
   const batchSize = options?.batchSize ?? 100;
 
-  const cutoffTime = moment().subtract(hours, "hour");
+  const cutoffTime = subtract.hours(new Date(), hours);
   const messagesToDelete: number[] = [];
 
   for await (const message of telegramClient.iterMessages(channelId)) {
-    const messageDate = message?.date ? moment(message.date) : null;
-    if (!messageDate || !messageDate.isValid()) {
+    const messageDate = message?.date ? new Date(message.date) : null;
+    if (!messageDate || !isValidDate(messageDate)) {
       continue;
     }
     if (message.pinned) {
@@ -441,7 +437,7 @@ export const cleanupOldChannelMessages = async (
       hasVideoMime || hasVideoAttr || hasVideoFlag
     );
 
-    if (isVideoMessage && messageDate.isBefore(cutoffTime)) {
+    if (isVideoMessage && messageDate < cutoffTime) {
       messagesToDelete.push(message.id);
 
       if (messagesToDelete.length >= batchSize) {

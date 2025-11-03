@@ -2,8 +2,13 @@ import { setTimeout } from "node:timers/promises";
 import fs from "fs/promises";
 
 import puppeteer, { Browser, Page } from "puppeteer";
-import moment from "moment";
 import dotenv from "dotenv";
+
+// Time utilities
+const duration = {
+  seconds: (value: number): number => value * 1000,
+  minutes: (value: number): number => value * 60 * 1000,
+};
 
 const IS_PRODUCTION = !!process.env.CHROME_USER_DATA_DIR;
 
@@ -38,7 +43,7 @@ const initTranslateImage = async () => {
         "--disable-site-isolation-trials",
         ...(IS_PRODUCTION ? ["--no-sandbox", "--disable-setuid-sandbox"] : []),
       ],
-      protocolTimeout: moment.duration(5, "minutes").asMilliseconds(), // Chrome DevTools Protocol timeout
+      protocolTimeout: duration.minutes(5), // Chrome DevTools Protocol timeout
     });
     console.log("creating new page");
     page = await browser.newPage();
@@ -76,10 +81,10 @@ export const translateImage = async (imageLink: string) => {
     await initTranslateImage();
   }
 
-  await setTimeout(moment.duration(3, "seconds").asMilliseconds());
+  await setTimeout(duration.seconds(3));
   const ocrUrlInputSelector = "#ocrUrlInput";
   await page.waitForSelector(ocrUrlInputSelector, {
-    timeout: moment.duration(20, "seconds").asMilliseconds(),
+    timeout: duration.seconds(20),
   });
   await page.focus(ocrUrlInputSelector);
   try {
@@ -87,7 +92,7 @@ export const translateImage = async (imageLink: string) => {
       await page.keyboard.type(imageLink);
       await page.keyboard.press("Enter");
 
-      await setTimeout(moment.duration(5, "seconds").asMilliseconds());
+      await setTimeout(duration.seconds(5));
       const errorMessageElement = await page.$(".urlInput-errorMessage");
       if (errorMessageElement) {
         throw new ImageTranslateTranslateError();
@@ -106,12 +111,12 @@ export const translateImage = async (imageLink: string) => {
     const downloadButtonSelector =
       '.button_type_download[data-tooltip-position="top"]';
     await page.waitForSelector(downloadButtonSelector, {
-      timeout: moment.duration(20, "seconds").asMilliseconds(),
+      timeout: duration.seconds(20),
     });
     try {
       await page.click(downloadButtonSelector);
 
-      await setTimeout(moment.duration(5, "seconds").asMilliseconds());
+      await setTimeout(duration.seconds(5));
       // check if file is downloaded file
       const translatedImage = await fs.readFile(
         "./chrome_downloads/translated.jpg"
