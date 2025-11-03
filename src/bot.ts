@@ -863,9 +863,9 @@ const videoSearchWizard = new WizardScene<BotContext>(
 // // @ts-expect-error invalid types
 // bot.use(stage.middleware());
 
-bot.command("search", async (context) => {
-  await context.scene.enter(SceneName.VideoSearch);
-});
+// bot.command("search", async (context) => {
+//   await context.scene.enter(SceneName.VideoSearch);
+// });
 
 bot.command("test", async (context) => {
   await context.reply(`Your chat id: ${context.chat.id}`);
