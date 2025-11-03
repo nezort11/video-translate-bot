@@ -5,7 +5,12 @@ import axios from "axios";
 import { streamToBuffer } from "../core";
 import { importPRetry } from "../utils";
 import { logger } from "../logger";
-import { DOTENV_DIR_PATH, PROXY_SERVER_URI, YTDL_API_BASE_URL, YTDL_FUNCTION_URL } from "../env";
+import {
+  DOTENV_DIR_PATH,
+  PROXY_SERVER_URI,
+  YTDL_API_BASE_URL,
+  YTDL_FUNCTION_URL,
+} from "../env";
 
 // 1. Install https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc
 // 2. Go to https://youtube.com (feed index page)

@@ -58,6 +58,7 @@ import {
   LAMBDA_TASK_ROOT,
   WORKER_BOT_SERVER_WEBHOOK_URL,
   LOGGING_CHANNEL_CHAT_ID,
+  STORAGE_CHANNEL_CHAT_ID,
   OPENAI_API_BASE_URL,
   OPENAI_API_KEY,
   EXECUTION_TIMEOUT,
@@ -1768,7 +1769,7 @@ bot.action(/.+/, async (context) => {
 
       let fileMessage: Api.Message;
       await useTelegramClient(async (telegramClient) => {
-        fileMessage = await telegramClient.sendFile(LOGGING_CHANNEL_CHAT_ID, {
+        fileMessage = await telegramClient.sendFile(STORAGE_CHANNEL_CHAT_ID, {
           file: outputBuffer,
           // caption: `${videoLink}`,
           caption: `🎧 <b>${videoTitle || "Unknown"}</b>\n— ${finalArtist}\n${
@@ -1791,7 +1792,7 @@ bot.action(/.+/, async (context) => {
       });
       await bot.telegram.copyMessage(
         context.chat?.id ?? 0,
-        LOGGING_CHANNEL_CHAT_ID,
+        STORAGE_CHANNEL_CHAT_ID,
         fileMessage!.id
       );
       await telegramLoggerContext.reply("<translated audio>");
@@ -1805,7 +1806,7 @@ bot.action(/.+/, async (context) => {
       await useTelegramClient(async (telegramClient) => {
         // reupdate translated file message with new client
         [fileMessage] = await telegramClient.getMessages(
-          LOGGING_CHANNEL_CHAT_ID,
+          STORAGE_CHANNEL_CHAT_ID,
           {
             ids: [fileMessage!.id],
           }
@@ -2018,7 +2019,7 @@ bot.action(/.+/, async (context) => {
         logger.info("Uploading to telegram channel...");
         await useTelegramClient(async (telegramClient) => {
           const fileMessage = await telegramClient.sendFile(
-            LOGGING_CHANNEL_CHAT_ID,
+            STORAGE_CHANNEL_CHAT_ID,
             {
               file: outputBuffer,
               // caption: `${videoLink}`,
@@ -2104,7 +2105,7 @@ bot.action(/.+/, async (context) => {
         logger.info("Uploading to telegram channel...");
         await useTelegramClient(async (telegramClient) => {
           const fileMessage = await telegramClient.sendFile(
-            LOGGING_CHANNEL_CHAT_ID,
+            STORAGE_CHANNEL_CHAT_ID,
             {
               file: outputBuffer,
               caption: videoCaption,
@@ -2133,35 +2134,35 @@ bot.action(/.+/, async (context) => {
 
     await bot.telegram.copyMessage(
       context.chat?.id ?? 0,
-      LOGGING_CHANNEL_CHAT_ID,
+      STORAGE_CHANNEL_CHAT_ID,
       translatedFileMessage!.id
     );
     const videoDurationFormatted = formatDuration(videoDuration);
     await telegramLoggerContext.reply(
-      `<translated video, ${videoDurationFormatted}>!`
+      `[[✅📺 translated video, ${videoDurationFormatted}>]]`
     );
 
     console.log("Deleting result translated video...");
     await useTelegramClient(async (telegramClient) => {
       // reupdate translated file message with new client
       [translatedFileMessage] = await telegramClient.getMessages(
-        LOGGING_CHANNEL_CHAT_ID,
+        STORAGE_CHANNEL_CHAT_ID,
         {
           ids: [translatedFileMessage!.id],
         }
       );
       // Delete translated video message from the channel (for copyrights/privacy reasons)
       await translatedFileMessage.delete({ revoke: true });
-      // Cleanup: delete old messages in the logging channel
-      console.log("Cleaning up old logging channel messages...");
+      // Cleanup: delete old messages in the storage channel
+      console.log("Cleaning up old storage channel messages...");
       try {
         await cleanupOldChannelMessages(
           telegramClient,
-          LOGGING_CHANNEL_CHAT_ID
+          STORAGE_CHANNEL_CHAT_ID
         );
-        console.log("Cleaned up messages older than 1 hour in logging channel");
+        console.log("Cleaned up messages older than 1 hour in storage channel");
       } catch (error) {
-        logger.warn("Failed to cleanup old logging channel messages", error);
+        logger.warn("Failed to cleanup old storage channel messages", error);
       }
     });
 

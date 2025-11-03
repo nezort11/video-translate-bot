@@ -21,8 +21,7 @@ import {
 import S3Localstorage from "s3-localstorage";
 import {
   DEBUG_ENV,
-  LOGGING_CHANNEL_CHAT_ID,
-  // STORAGE_CHANNEL_CHAT_ID,
+  STORAGE_CHANNEL_CHAT_ID,
   YTDL_STORAGE_BUCKET,
 } from "./env";
 import { downloadMessageFile, useTelegramClient } from "./telegramclient";
@@ -402,9 +401,7 @@ app.post(
       let fileMessageId: number;
       await useTelegramClient(async (telegramClient) => {
         const fileMessage = await telegramClient.sendFile(
-          // STORAGE_CHANNEL_CHAT_ID,
-          // just use logging channel as a intermediate storage channel
-          LOGGING_CHANNEL_CHAT_ID,
+          STORAGE_CHANNEL_CHAT_ID,
           {
             file: outputBuffer,
             caption: `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
@@ -425,7 +422,7 @@ app.post(
 
       await bot.telegram.copyMessage(
         chatId,
-        LOGGING_CHANNEL_CHAT_ID,
+        STORAGE_CHANNEL_CHAT_ID,
         fileMessageId!
       );
 
