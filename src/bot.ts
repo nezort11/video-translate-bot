@@ -1863,19 +1863,13 @@ bot.action(/.+/, async (context) => {
       //   quality: 18,
       // });
 
-      // Use new direct URL approach to avoid gateway timeout
-      logger.info("Getting direct YouTube download URL...");
-      const downloadUrlData = await getVideoDownloadUrl(videoLink); // Use default "best" format
-      logger.info(
-        `Got direct URL (format: ${downloadUrlData.format_id}, quality: ${downloadUrlData.quality}, expires in ${downloadUrlData.expires_in_hours}h)`
-      );
+      // Download video using ytdl service (direct function invocation, bypasses API Gateway 5min timeout)
+      logger.info("Downloading video using ytdl service...");
+      const videoUrl = await downloadVideo(videoLink);
+      logger.info("Video downloaded to S3, fetching...");
 
-      logger.info("Downloading video directly from YouTube...");
-      const videoResponse = await axios.get<ArrayBuffer>(downloadUrlData.url, {
+      const videoResponse = await axios.get<ArrayBuffer>(videoUrl, {
         responseType: "arraybuffer",
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-        timeout: 600000, // 10 minutes timeout for large videos
       });
       videoBuffer = Buffer.from(videoResponse.data);
     }

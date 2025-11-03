@@ -293,26 +293,10 @@ app.post(
         //   quality: format,
         // });
 
-        // Use new direct URL approach to avoid gateway timeout
-        console.log("Getting direct YouTube download URL...");
-        const downloadUrlData = await getVideoDownloadUrl(videoLink, format);
-        console.log(`Got direct URL (format: ${downloadUrlData.format_id}, quality: ${downloadUrlData.quality})`);
-
-        // For the /download API endpoint, we still need to upload to our storage
-        // So we download from YouTube and upload to S3
-        console.log("Downloading from YouTube...");
-        const videoResponse = await axiosInstance.get<ArrayBuffer>(downloadUrlData.url, {
-          responseType: "arraybuffer",
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-          timeout: 600000, // 10 minutes
-        });
-        const videoBuffer = Buffer.from(videoResponse.data);
-        console.log(`Downloaded ${videoBuffer.byteLength} bytes`);
-
-        // Upload to S3 storage
-        videoFileUrl = await uploadVideo(videoBuffer);
-        console.log("Uploaded to storage:", videoFileUrl);
+        // Download video using ytdl service (direct function invocation bypasses API Gateway timeout)
+        console.log("Downloading video using ytdl service...");
+        videoFileUrl = await downloadVideo(videoLink, format);
+        console.log("Video downloaded and uploaded to storage:", videoFileUrl);
       } else if (videoPlatform === VideoPlatform.Telegram) {
         const videoUrl = new URL(videoLink);
         const videoMessageId = +videoUrl.pathname.slice(1);
