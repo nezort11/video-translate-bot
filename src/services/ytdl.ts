@@ -5,7 +5,7 @@ import axios from "axios";
 import { streamToBuffer } from "../core";
 import { importPRetry } from "../utils";
 import { logger } from "../logger";
-import { DOTENV_DIR_PATH, PROXY_SERVER_URI, YTDL_API_BASE_URL } from "../env";
+import { DOTENV_DIR_PATH, PROXY_SERVER_URI, YTDL_API_BASE_URL, YTDL_FUNCTION_URL } from "../env";
 
 // 1. Install https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc
 // 2. Go to https://youtube.com (feed index page)
@@ -98,18 +98,24 @@ type VideoDownloadUrlResponseData = {
 };
 
 /**
- * Downloads video through our serverless function (old approach).
- * Limited by 5-minute API Gateway timeout.
- * @deprecated Use getVideoDownloadUrl() for large videos to avoid timeout
+ * Downloads video through direct function invocation (bypasses API Gateway).
+ * Has 10-minute timeout instead of API Gateway's 5-minute limit.
  */
 export const downloadVideo = async (url: string, format?: string | number) => {
-  const videoDownloadResponse =
-    await ytdlClient.post<VideoDownloadResponseData>("/download", null, {
-      params: {
-        url,
-        ...(format && { format: format.toString() }),
-      },
-    });
+  // Use direct function invocation to bypass API Gateway's 5-minute timeout
+  // Function has 10-minute timeout which is enough for large videos
+  const functionUrl = YTDL_FUNCTION_URL || YTDL_API_BASE_URL;
+
+  const videoDownloadResponse = await axios.post<VideoDownloadResponseData>(
+    functionUrl,
+    {
+      url,
+      ...(format && { format: format.toString() }),
+    },
+    {
+      timeout: 600000, // 10 minutes
+    }
+  );
 
   return videoDownloadResponse.data.url;
 };

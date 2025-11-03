@@ -23,6 +23,7 @@ declare global {
       WORKER_APP_SERVER_URL: string;
 
       YTDL_API_BASE_URL: string;
+      YTDL_FUNCTION_URL: string;
 
       STORAGE_BUCKET: string;
       YTDL_STORAGE_BUCKET: string;
