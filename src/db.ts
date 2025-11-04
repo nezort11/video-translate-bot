@@ -18,6 +18,10 @@ export const driver = new Driver({
   endpoint: YDB_ENDPOINT,
   database: YDB_DATABASE,
   authService: getCredentialsFromEnv(),
+  // Increased operation timeout, helps during high database load or network latency (Timeout code 400090)
+  clientOptions: {
+    operationTimeout: 30000,
+  },
 });
 
 // Generic Redis-like store-table in YDB
