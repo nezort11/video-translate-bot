@@ -39,7 +39,7 @@
     "app:package": "zip -r ./video-translate-bot.zip ./package.json ./node_modules ./build ./locales",
     "app:upload": "yc storage s3api put-object --bucket $(terraform output -raw video_translate_bot_code_bucket) --key function.zip --body ./video-translate-bot.zip",
     "app:rebuild": "npm rebuild better-sqlite3 --target_platform=linux --target_arch=x64",
-    "app:ci": "pnpm build && pnpm npm:pre && pnpm app:package && pnpm npm:post && pnpm app:upload",
+    "app:ci": "pnpm build && pnpm npm:pre && pnpm npm:install && pnpm app:package && pnpm npm:post && pnpm app:upload",
     "app:cd": "pnpm tf apply -auto-approve",
     "app:cicd": "pnpm app:ci && pnpm app:cd",
     "webhook:info": "source ./env/.env && pnpm telegraf -m getWebhookInfo -t $BOT_TOKEN_PROD",
