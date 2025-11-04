@@ -313,6 +313,7 @@ const AXIOS_REQUEST_TIMEOUT = duration.minutes(45);
 
 export const axiosInstance = axios.create({
   timeout: AXIOS_REQUEST_TIMEOUT,
+  proxy: false, // Explicitly disable proxy to prevent ECONNREFUSED errors from misconfigured proxy env vars
   httpAgent: new http.Agent({
     keepAlive: true,
     timeout: AXIOS_REQUEST_TIMEOUT,

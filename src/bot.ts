@@ -582,7 +582,7 @@ const replyError = (
   context: Context,
   ...replyArgs: Parameters<typeof Context.prototype.reply>
 ) => {
-  replyArgs[0] = `⚠️  ${replyArgs[0]}`;
+  replyArgs[0] = `⚠️ ${replyArgs[0]}`;
   return context.reply(...replyArgs);
 };
 
