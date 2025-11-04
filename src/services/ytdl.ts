@@ -78,7 +78,15 @@ const COOKIES_FILE_PATH = path.join(
 
 const ytdlClient = axios.create({
   baseURL: YTDL_API_BASE_URL,
+  // validateStatus: (status) => status < 500, // Don't throw on 4xx errors
 });
+
+// Validate ytdl client configuration at startup
+if (!YTDL_API_BASE_URL) {
+  logger.warn(
+    "YTDL_API_BASE_URL is not configured. YouTube video info requests will fail."
+  );
+}
 
 export const getVideoInfo = async (url: string) => {
   const videoInfoResponse = await ytdlClient.get("/info", {
@@ -110,6 +118,12 @@ export const downloadVideo = async (url: string, format?: string | number) => {
   // Use direct function invocation to bypass API Gateway's 5-minute timeout
   // Function has 10-minute timeout which is enough for large videos
   const functionUrl = YTDL_FUNCTION_URL || YTDL_API_BASE_URL;
+
+  if (!functionUrl) {
+    throw new Error(
+      "YTDL service is not configured. Please set YTDL_FUNCTION_URL or YTDL_API_BASE_URL environment variable."
+    );
+  }
 
   const videoDownloadResponse = await axios.post<VideoDownloadResponseData>(
     functionUrl,

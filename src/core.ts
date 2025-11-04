@@ -183,18 +183,25 @@ const handleRequestError = (error: unknown, warning: string) => {
 };
 
 export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
-  logger.info("Requesting to translate video thumbnail...");
-  try {
-    const { data } = await axios.post<ArrayBuffer>(
-      IMAGE_TRANSLATE_URL,
-      { imageLink: videoThumbnailUrl },
-      { responseType: "arraybuffer" }
-    );
+  // Try to translate thumbnail if service is configured
+  if (IMAGE_TRANSLATE_URL) {
+    logger.info("Requesting to translate video thumbnail...");
+    try {
+      const { data } = await axios.post<ArrayBuffer>(
+        IMAGE_TRANSLATE_URL,
+        { imageLink: videoThumbnailUrl },
+        { responseType: "arraybuffer" }
+      );
 
-    logger.info(`Translated video thumbnail: ${data.byteLength}`);
-    return createThumbnailBuffer(data);
-  } catch (error) {
-    handleRequestError(error, "getting translated video thumbnail failed");
+      logger.info(`Translated video thumbnail: ${data.byteLength}`);
+      return createThumbnailBuffer(data);
+    } catch (error) {
+      handleRequestError(error, "getting translated video thumbnail failed");
+    }
+  } else {
+    logger.warn(
+      "IMAGE_TRANSLATE_URL is not configured. Skipping thumbnail translation."
+    );
   }
 
   logger.info("Downloading original video thumbnail...");
