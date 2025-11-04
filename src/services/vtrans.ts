@@ -83,32 +83,41 @@ type VideoTranslateOptions = {
   videoFileUrl?: string;
   subtitlesFileUrl?: string;
   useLivelyVoice?: boolean;
+  firstRequest?: boolean;
 };
 
 const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
-  console.log("encoding video translate request", opts);
-  return VideoTranslateRequestProto.encode({
+  // Check if the URL is a direct MP4 file
+  // const isDirectMp4 = opts.url.toLowerCase().includes(".mp4");
+
+  // Build translationHelp array
+  const translationHelp: { target: TranslationHelp; targetUrl: string }[] = [];
+  if (opts.subtitlesFileUrl) {
+    translationHelp.push({
+      target: TranslationHelp.SubtitlesFileUrl,
+      targetUrl: opts.subtitlesFileUrl,
+    });
+  }
+  // For direct MP4 files, add the video URL to translationHelp
+  if (opts.videoFileUrl) {
+    translationHelp.push({
+      target: TranslationHelp.VideoFileUrl,
+      targetUrl: opts.videoFileUrl,
+    });
+  }
+  // Note: For direct MP4 files, we don't add to translationHelp
+  // The API should be able to handle them via the url field directly
+
+  const requestData = {
     url: opts.url,
     // deviceId: deviceId,
-    firstRequest: true,
+    firstRequest: opts.firstRequest ?? true,
     unknown0: 1,
     // language: "en",
+    // Keep forceSourceLang false for better compatibility
     forceSourceLang: false,
     unknown1: 0,
-    translationHelp:
-      opts.videoFileUrl && opts.subtitlesFileUrl
-        ? [
-            {
-              target: TranslationHelp.SubtitlesFileUrl,
-              targetUrl: opts.subtitlesFileUrl,
-            },
-
-            {
-              target: TranslationHelp.VideoFileUrl,
-              targetUrl: opts.videoFileUrl,
-            },
-          ]
-        : [],
+    translationHelp,
     wasStream: false,
     responseLanguage: opts.targetLanguage, // YANDEX_VIDEO_TRANSLATE_LANGUAGES
     unknown2: 1,
@@ -116,7 +125,11 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
     bypassCache: false,
     useLivelyVoice: opts.useLivelyVoice ?? false,
     videoTitle: "",
-  }).finish();
+  };
+
+  // console.log("encoding video translate request", JSON.stringify(requestData, null, 2));
+
+  return VideoTranslateRequestProto.encode(requestData).finish();
 };
 
 enum VideoTranslationStatus {
@@ -126,6 +139,7 @@ enum VideoTranslationStatus {
   LONG_WAITING = 3,
   PART_CONTENT = 5,
   AUDIO_REQUESTED = 6,
+  PROCESSING = 7, // New status code observed in production
 }
 
 export type VideoTranslateResponse = {
@@ -265,11 +279,13 @@ export const translateVideo = async (
     ...opts,
     url,
   });
-  console.log("Decoding video translate response...");
   const videoTranslateResponseData = decodeVideoTranslateResponse(
     videoTranslateResponse
   );
-  console.log("videoTranslateResponseData", videoTranslateResponseData);
+  console.log(
+    "Video translate response status:",
+    videoTranslateResponseData.status
+  );
 
   const translateErrorOptions = { data: videoTranslateResponseData };
   switch (videoTranslateResponseData.status) {
@@ -290,8 +306,18 @@ export const translateVideo = async (
         translateErrorOptions
       );
     case 2:
+    case 3:
+      // WAITING and LONG_WAITING statuses indicate translation is in progress
       throw new TranslateInProgressException(
         "Translation is in progress...",
+        translateErrorOptions
+      );
+    case 7:
+      // PROCESSING status - may indicate incompatibility (e.g., live voices with direct MP4)
+      // Treat as error to trigger fallback
+      throw new TranslateException(
+        videoTranslateResponseData.message ||
+          "Translation request rejected (status 7)",
         translateErrorOptions
       );
     default:
