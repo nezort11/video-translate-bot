@@ -1438,11 +1438,28 @@ bot.action(/.+/, async (context) => {
 
   let isValidationError = true;
   if (videoDuration > toSeconds.fromMinutes(currentCreditsBalance)) {
+    // Calculate required credits (1 credit = 1 minute)
+    const requiredCredits = Math.ceil(videoDuration / 60);
+    const creditsNeeded = requiredCredits - currentCreditsBalance;
+
+    // Format video duration as MM:SS
+    const minutes = Math.floor(videoDuration / 60);
+    const seconds = Math.floor(videoDuration % 60);
+    const formattedDuration = `${minutes}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
+
     await replyError(
       context,
-      "You dont have enough video translation credits to perform this translate, please topup your credits balance first /balance",
+      t("insufficient_credits", {
+        videoDuration: formattedDuration,
+        currentBalance: currentCreditsBalance,
+        requiredCredits: requiredCredits,
+        creditsNeeded: creditsNeeded,
+      }),
       {
         disable_notification: true,
+        parse_mode: "HTML",
       }
     );
   } else if (
