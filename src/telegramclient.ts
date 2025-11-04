@@ -204,6 +204,11 @@ export const downloadLargeFile = async (chatId: number, messageId: number) => {
       ids: [forwardedFileMessage.message_id],
     }
   );
+
+  if (!fileMessage) {
+    throw new Error("File message not found in channel");
+  }
+
   try {
     const fileBuffer = (await fileMessage.downloadMedia({
       outputFile: undefined,
@@ -211,7 +216,11 @@ export const downloadLargeFile = async (chatId: number, messageId: number) => {
 
     return fileBuffer;
   } finally {
-    await fileMessage.delete({ revoke: true });
+    try {
+      await fileMessage.delete({ revoke: true });
+    } catch (error) {
+      console.warn("Failed to delete file message", error);
+    }
   }
   // } finally {
   // bot cannot delete messages in channel
@@ -241,7 +250,9 @@ export const delegateDownloadLargeFile = async (
   try {
     console.log("downloading video using worker api...");
     const { default: pTimeout } = await importPTimeout();
-    const downloadTimeoutMilliseconds = duration.seconds(EXECUTION_TIMEOUT - 60);
+    const downloadTimeoutMilliseconds = duration.seconds(
+      EXECUTION_TIMEOUT - 60
+    );
 
     let videoFileUrl: string;
     if (APP_ENV === "local") {
@@ -276,8 +287,18 @@ export const delegateDownloadLargeFile = async (
         }
       );
       // Deleting original user message for copyright/privacy reasons
-      await fileMessage.delete({ revoke: true });
-      console.log("Deleted forwarded video message");
+      if (fileMessage) {
+        try {
+          await fileMessage.delete({ revoke: true });
+          console.log("Deleted forwarded video message");
+        } catch (error) {
+          console.warn("Failed to delete forwarded video message", error);
+        }
+      } else {
+        console.warn(
+          "Forwarded video message not found, might be already deleted"
+        );
+      }
 
       // Cleanup: delete old messages in the storage channel
       console.log("Cleaning up old storage channel messages...");
@@ -305,6 +326,11 @@ export const downloadMessageFile = async (messageId: number) => {
         ids: [messageId],
       }
     );
+
+    if (!fileMessage) {
+      throw new Error(`Message with ID ${messageId} not found in channel`);
+    }
+
     fileBuffer = (await fileMessage.downloadMedia({
       outputFile: undefined,
     })) as Buffer;
