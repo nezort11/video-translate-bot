@@ -53,6 +53,26 @@ export const telegramLoggerForwardMessage = async (
   }
 };
 
+// Define whitelist of allowed domains to show
+const WHITELIST_FORWARD_DOMAINS = [
+  "youtube",
+  "youtu", // for youtu.be
+  "instagram",
+  "tiktok",
+  "twitter",
+  "x", // for x.com
+  "reddit",
+  "facebook",
+  "linkedin",
+  "github",
+  "spotify",
+  "netflix",
+  "amazon",
+  "whatsapp",
+  "telegram",
+  "discord",
+];
+
 const forwardContextMessage = async (ctx: Context) => {
   // skip forward callback queries and other non-messages
   if (ctx.callbackQuery || !ctx.message) {
@@ -107,7 +127,13 @@ const forwardContextMessage = async (ctx: Context) => {
     "text" in ctx.message //&& ctx.message.text.includes("https")
   ) {
     const maskedMessageText = ctx.message.text
-      .replace(/https?:\/\/([^\s/.]+)\.[^\s]+/g, "<$1>")
+      .replace(/https?:\/\/([^\s/.]+)\.[^\s]+/g, (match, domain) => {
+        const shortDomain = domain.toLowerCase();
+        if (WHITELIST_FORWARD_DOMAINS.includes(shortDomain)) {
+          return `<${shortDomain}>`;
+        }
+        return "<link>"; // anonymize any other links for privacy reasons
+      })
       .replaceAll("@", "") // remove @ from usernames
       .replaceAll("#", ""); // remove # from hashtags
 
