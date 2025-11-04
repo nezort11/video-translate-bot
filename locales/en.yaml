@@ -17,20 +17,20 @@ greeting: "Hello! Welcome to our bot."
 language_changed: "Language changed successfully."
 unknown_language: "Unknown language. Please choose either 'en' or 'ru'."
 balance: |
-  Your current 💰 balance is <b>{balance} credits</b> ⏳ (1 credit = 1 minute of video translation).
+  Your current 💰 balance is <b>{{balance}} credits</b> ⏳ (1 credit = 1 minute of video translation).
 
   To 🔝 top-up your balance of credits please purchase one of the following options
 purchase_50: "60 credits for $1 (⭐️50)"
 purchase_150: "225 credits for $3 (⭐️150) (25% discount)"
 purchase_500: "875 credits for $10 (⭐️500) (45% discount)"
-success_payment: "✅ Successfully purchased {credits} credits. Your current balance is {balance} credits ⏳"
+success_payment: "✅ Successfully purchased {{credits}} credits. Your current balance is {{balance}} credits ⏳"
 insufficient_credits: |
   ❌ You don't have enough credits to translate this video.
 
-  📹 Video duration: <b>{videoDuration}</b>
-  💰 Your balance: <b>{currentBalance} credits</b>
-  ⚠️ Required: <b>{requiredCredits} credits</b>
-  🔝 Need to top up: <b>at least {creditsNeeded} credits</b>
+  📹 Video duration: <b>{{videoDuration}}</b>
+  💰 Your balance: <b>{{currentBalance}} credits</b>
+  ⚠️ Required: <b>{{requiredCredits}} credits</b>
+  🔝 Need to top up: <b>at least {{creditsNeeded}} credits</b>
 
   Please top up your balance first using /balance
 

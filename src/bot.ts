@@ -788,7 +788,7 @@ const starsAmountToOptionMap = {
 bot.command("balance", async (context) => {
   const balance = getCurrentBalance(context);
   await context.replyWithHTML(
-    t("balance").replace("{balance}", `${balance}`),
+    t("balance", { balance }),
     Markup.inlineKeyboard([
       [
         Markup.button.callback(
@@ -1315,9 +1315,10 @@ bot.on(message("successful_payment"), async (context, next) => {
 
   const balance = getCurrentBalance(context);
   await context.reply(
-    t("success_payment")
-      .replace("{credits}", `${creditsOptionPurchased.credits}`)
-      .replace("{balance}", `${balance}`)
+    t("success_payment", {
+      credits: creditsOptionPurchased.credits,
+      balance: balance,
+    })
   );
 });
 
