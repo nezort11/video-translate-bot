@@ -203,6 +203,15 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
   ) {
     const oldCallApiResponse = await oldCallApi(method, payload, { signal });
 
+    const userName =
+      ctx.from && ctx.from.username
+        ? ctx.from.username
+        : `${ctx.from?.first_name} ${ctx.from?.last_name}`;
+
+    const toInfo = ctx.from
+      ? `🤖 to ${userName}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
+      : "🤖 to unknown user";
+
     if (
       typeof oldCallApiResponse === "object" &&
       "message_id" in oldCallApiResponse &&
@@ -230,15 +239,6 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
       ) {
         setTimeout(async () => {
           try {
-            const userName =
-              ctx.from && ctx.from.username
-                ? ctx.from.username
-                : `${ctx.from?.first_name} ${ctx.from?.last_name}`;
-
-            const toInfo = ctx.from
-              ? `🤖 to ${userName}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
-              : "🤖 to unknown user";
-
             const messageText = oldCallApiResponse.text;
             await ctx.telegram.sendMessage(
               LOGGING_CHANNEL_CHAT_ID,
@@ -246,6 +246,22 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
             );
           } catch (error) {
             logger.warn("Outgoing message logging error:", error);
+          }
+        }, 1000);
+      } else if (
+        method === "editMessageText" &&
+        "text" in oldCallApiResponse &&
+        oldCallApiResponse.text
+      ) {
+        setTimeout(async () => {
+          try {
+            const messageText = oldCallApiResponse.text;
+            await ctx.telegram.sendMessage(
+              LOGGING_CHANNEL_CHAT_ID,
+              `${toInfo}\n${messageText}`
+            );
+          } catch (error) {
+            logger.warn("Edited message logging error:", error);
           }
         }, 1000);
       } else {
