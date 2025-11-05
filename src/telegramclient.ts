@@ -87,6 +87,10 @@ export const getClient = async (sessionString: string) => {
   const session = new StringSession(sessionString);
   const _telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
     connectionRetries: 3,
+    // Increase timeout from default 10s to 10 minutes for large file downloads
+    // Default 10s causes "Request timeout 10000ms exceeded" errors
+    timeout: 600000, // 10 minutes in milliseconds
+    requestRetries: 3,
   });
 
   const isLoggedIn = await _telegramClient.isUserAuthorized();
@@ -261,12 +265,16 @@ export const delegateDownloadLargeFile = async (
       );
       videoFileUrl = await uploadVideo(videoBuffer);
     } else {
+      // Normalize baseURL to avoid double slashes in URL path
+      // Remove trailing slash from baseURL if present
+      const normalizedBaseURL = WORKER_APP_SERVER_URL.replace(/\/$/, "");
+
       const videoResponse = await pTimeout(
         axios.post("/download", null, {
           params: {
             url: videoChannelMessageUrl.href,
           },
-          baseURL: WORKER_APP_SERVER_URL,
+          baseURL: normalizedBaseURL,
         }),
         {
           milliseconds: downloadTimeoutMilliseconds,
