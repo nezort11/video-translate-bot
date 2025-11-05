@@ -29,6 +29,13 @@ const YOUTUBE_LINK_REGEX =
 const BILIBILI_LINK_REGEX =
   /(?:https?:\/\/)?(?:www\.)?bilibili\.com\/video\/(\S{13})/g;
 
+export class UnsupportedPlatformError extends Error {
+  constructor(message?: string) {
+    super(message);
+    this.name = this.constructor.name;
+  }
+}
+
 export enum VideoPlatform {
   YouTube = "YOUTUBE",
   Telegram = "TELEGRAM",
@@ -158,12 +165,39 @@ export const getVideoInfo = async (link: string) => {
       thumbnail: images[0],
     };
   } catch (error) {
-    if (error instanceof Error && error.message === "Request timeout") {
-      console.warn(error);
-      return {};
-    } else {
-      throw error;
+    if (error instanceof Error) {
+      // Handle timeout errors
+      if (error.message === "Request timeout") {
+        console.warn(error);
+        return {};
+      }
+
+      // Handle FetchError with maximum redirect reached (e.g., VK video, etc.)
+      if (
+        error.name === "FetchError" &&
+        error.message.includes("maximum redirect reached")
+      ) {
+        logger.warn(`Unsupported platform detected: ${error.message}`);
+        throw new UnsupportedPlatformError(`Platform not supported: ${link}`);
+      }
+
+      // Handle other common fetch/network errors that indicate unsupported platforms
+      if (
+        error.name === "FetchError" ||
+        error.message.includes("ENOTFOUND") ||
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("redirect") ||
+        error.message.includes("SSL") ||
+        error.message.includes("certificate")
+      ) {
+        logger.warn(`Possible unsupported platform: ${error.message}`);
+        throw new UnsupportedPlatformError(
+          `Platform may not be supported: ${link}`
+        );
+      }
     }
+
+    throw error;
   }
 };
 

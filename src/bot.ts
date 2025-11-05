@@ -98,6 +98,7 @@ import {
   TEMP_DIR_PATH,
   mixTranslatedVideo,
   cleanupOldChannelMessages,
+  UnsupportedPlatformError,
 } from "./core";
 import {
   downloadVideo,
@@ -604,6 +605,13 @@ const handleError = async (error: unknown, context: Context) => {
 
     if (error instanceof NoOpenTelegramSessionError) {
       await replyError(context, t("system_capacity_reached"));
+      return;
+    }
+
+    // Handle unsupported platform errors
+    if (error instanceof UnsupportedPlatformError) {
+      logger.warn("[WARN] Unsupported platform:", error.message);
+      await replyError(context, t("unsupported_platform"));
       return;
     }
   }

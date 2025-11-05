@@ -32,6 +32,7 @@ import {
   translateText,
   translateVideoFinal,
   uploadVideo,
+  UnsupportedPlatformError,
 } from "./core";
 // import bot instance with logger middlewares attached
 import path from "path";
@@ -251,6 +252,11 @@ app.get(
       const videoInfo = await getVideoInfo(videoUrl);
       res.json(videoInfo);
     } catch (error) {
+      // Return 400 for unsupported platforms instead of 500
+      if (error instanceof UnsupportedPlatformError) {
+        const serializedError = await serializeErrorAsync(error);
+        return res.status(400).json(serializedError);
+      }
       await handleInternalErrorExpress(error, res);
     }
   }
