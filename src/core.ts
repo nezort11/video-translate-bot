@@ -51,15 +51,22 @@ export const getVideoPlatform = (link: string) => {
     return VideoPlatform.YouTube;
   }
 
-  const url = new URL(link);
-  if (url.protocol === "tg:") {
-    return VideoPlatform.Telegram;
-  }
-  // if (!link.match(BILIBILI_LINK_REGEX)) {
-  //   return VideoPlatform.Bilibili;
-  // }
+  // Validate URL before creating URL object
+  try {
+    const url = new URL(link);
+    if (url.protocol === "tg:") {
+      return VideoPlatform.Telegram;
+    }
+    // if (!link.match(BILIBILI_LINK_REGEX)) {
+    //   return VideoPlatform.Bilibili;
+    // }
 
-  return VideoPlatform.Other;
+    return VideoPlatform.Other;
+  } catch (error) {
+    // Invalid URL format
+    logger.warn(`Invalid URL provided: ${link}`);
+    throw new UnsupportedPlatformError(`Invalid URL format: ${link}`);
+  }
 };
 
 export const getYoutubeVideoId = (youtubeLink: string) =>

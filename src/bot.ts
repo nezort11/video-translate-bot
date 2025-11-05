@@ -1277,7 +1277,7 @@ bot.on(messageTextNotCommand, async (context, next) => {
   //   `Incoming translate request: ${inspect(context.update, { depth: null })}`
   // );
 
-  const router = createRouter(context, Screen.Translate, { link: text });
+  const router = createRouter(context, Screen.Translate, { link: linkMatch });
   await route(context, router.id);
 });
 
