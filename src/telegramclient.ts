@@ -28,6 +28,13 @@ export class CorruptedSessionStringError extends Error {
   }
 }
 
+export class TelegramDownloadTimeoutError extends Error {
+  constructor(message?: string) {
+    super(message || 'Telegram download timeout: The file took too long to download from Telegram servers');
+    this.name = this.constructor.name;
+  }
+}
+
 export class NoOpenTelegramSessionError extends Error {
   constructor(...args: ConstructorParameters<typeof Error>) {
     super(...args);
@@ -269,18 +276,31 @@ export const delegateDownloadLargeFile = async (
       // Remove trailing slash from baseURL if present
       const normalizedBaseURL = WORKER_APP_SERVER_URL.replace(/\/$/, "");
 
-      const videoResponse = await pTimeout(
-        axios.post("/download", null, {
-          params: {
-            url: videoChannelMessageUrl.href,
-          },
-          baseURL: normalizedBaseURL,
-        }),
-        {
-          milliseconds: downloadTimeoutMilliseconds,
+      try {
+        const videoResponse = await pTimeout(
+          axios.post("/download", null, {
+            params: {
+              url: videoChannelMessageUrl.href,
+            },
+            baseURL: normalizedBaseURL,
+            // Add axios timeout that's slightly less than pTimeout
+            timeout: downloadTimeoutMilliseconds - 5000,
+          }),
+          {
+            milliseconds: downloadTimeoutMilliseconds,
+          }
+        );
+        videoFileUrl = videoResponse.data.url;
+      } catch (error) {
+        // Enhance error message for worker download failures
+        if (axios.isAxiosError(error) && error.response?.status === 500) {
+          const errorData = error.response.data;
+          if (errorData?.message?.includes('Timeout') || errorData?.errorMessage?.includes('Timeout')) {
+            throw new TelegramDownloadTimeoutError();
+          }
         }
-      );
-      videoFileUrl = videoResponse.data.url;
+        throw error;
+      }
     }
 
     console.log("Downloaded video:", videoFileUrl);
@@ -325,23 +345,75 @@ export const delegateDownloadLargeFile = async (
   }
 };
 
-export const downloadMessageFile = async (messageId: number) => {
-  let fileBuffer: Buffer;
-  await useTelegramClient(async (telegramClient) => {
-    const [fileMessage] = await telegramClient.getMessages(
-      STORAGE_CHANNEL_CHAT_ID,
-      {
-        ids: [messageId],
+/**
+ * Downloads a file from Telegram with retry logic for timeout errors
+ */
+export const downloadMessageFile = async (
+  messageId: number,
+  maxRetries: number = 3
+) => {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Downloading file (attempt ${attempt}/${maxRetries})...`);
+
+      let fileBuffer: Buffer;
+      await useTelegramClient(async (telegramClient) => {
+        const [fileMessage] = await telegramClient.getMessages(
+          STORAGE_CHANNEL_CHAT_ID,
+          {
+            ids: [messageId],
+          }
+        );
+
+        if (!fileMessage) {
+          throw new Error(`Message with ID ${messageId} not found in channel`);
+        }
+
+        fileBuffer = (await fileMessage.downloadMedia({
+          outputFile: undefined,
+        })) as Buffer;
+      });
+
+      console.log(`File downloaded successfully on attempt ${attempt}`);
+      return fileBuffer!;
+    } catch (error) {
+      lastError = error as Error;
+
+      // Check if this is a retriable Telegram timeout error
+      const isTimeoutError = error instanceof RPCError &&
+        (error.message.includes('Timeout') || error.message.includes('-503'));
+
+      // Check if this is a retriable network error
+      const isNetworkError = error instanceof Error &&
+        (error.message.includes('ETIMEDOUT') ||
+         error.message.includes('ECONNRESET') ||
+         error.message.includes('Request timeout'));
+
+      if ((isTimeoutError || isNetworkError) && attempt < maxRetries) {
+        // Exponential backoff: 2s, 4s, 8s
+        const delaySeconds = Math.pow(2, attempt);
+        console.warn(
+          `Download failed with ${isTimeoutError ? 'Telegram timeout' : 'network error'}: ${error.message}`
+        );
+        console.log(`Retrying in ${delaySeconds}s...`);
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+      } else {
+        // Non-retriable error or max retries reached
+        if (isTimeoutError && attempt >= maxRetries) {
+          // Convert to our custom error after exhausting retries
+          throw new TelegramDownloadTimeoutError(
+            `Failed to download file after ${maxRetries} attempts due to Telegram timeout`
+          );
+        }
+        throw error;
       }
-    );
-
-    if (!fileMessage) {
-      throw new Error(`Message with ID ${messageId} not found in channel`);
     }
+  }
 
-    fileBuffer = (await fileMessage.downloadMedia({
-      outputFile: undefined,
-    })) as Buffer;
-  });
-  return fileBuffer!;
+  // Should not reach here, but throw custom error if we do
+  throw new TelegramDownloadTimeoutError(
+    lastError?.message || 'Download failed after retries'
+  );
 };

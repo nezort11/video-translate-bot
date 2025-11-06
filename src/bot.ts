@@ -40,6 +40,7 @@ import { VideoTranslateResponse } from "./services/vtrans";
 // } from "./translate";
 import {
   NoOpenTelegramSessionError,
+  TelegramDownloadTimeoutError,
   delegateDownloadLargeFile,
   getClient,
   useTelegramClient,
@@ -606,6 +607,13 @@ const handleError = async (error: unknown, context: Context) => {
 
     if (error instanceof NoOpenTelegramSessionError) {
       await replyError(context, t("system_capacity_reached"));
+      return;
+    }
+
+    // Handle Telegram download timeout errors
+    if (error instanceof TelegramDownloadTimeoutError) {
+      logger.warn("[WARN] Telegram download timeout:", error);
+      await replyError(context, t("telegram_download_timeout"));
       return;
     }
 
