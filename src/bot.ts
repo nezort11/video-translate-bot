@@ -1603,6 +1603,15 @@ bot.action(/.+/, async (context) => {
             "Cannot translate video to target language",
             targetTranslateLanguage
           );
+          // Throw an error for unsupported languages instead of continuing with undefined translationUrl
+          await replyError(
+            context,
+            t("unsupported_language", {
+              language: targetTranslateLanguage,
+              supported: YANDEX_VIDEO_TRANSLATE_LANGUAGES.join(", "),
+            })
+          );
+          return;
           // console.log(
           //   "requesting video translate... !LAMBDA_TASK_ROOT",
           //   !LAMBDA_TASK_ROOT
