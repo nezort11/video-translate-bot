@@ -1626,6 +1626,12 @@ bot.action(/.+/, async (context) => {
       } catch (error) {
         // if (error instanceof Error) {
         if (error instanceof TranslateException) {
+          // Check if it's an MP4 file (Telegram platform)
+          if (videoPlatform === VideoPlatform.Telegram) {
+            await replyError(context, t("cannot_translate_mp4"));
+            return;
+          }
+
           if (error.message) {
             const YANDEX_TRANSLATE_ERROR_MESSAGE =
               "Возникла ошибка, попробуйте позже";
