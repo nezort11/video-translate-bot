@@ -36,6 +36,29 @@ export const telegramLoggerContext = new TelegramLoggerContext(
   bot.botInfo!
 );
 
+/**
+ * Helper function to get user information string from context
+ * @param ctx - Telegram context with user information
+ * @returns Formatted user info string (username or first+last name)
+ */
+export const getUserName = (ctx: Context): string => {
+  return ctx.from && ctx.from.username
+    ? ctx.from.username
+    : `${ctx.from?.first_name} ${ctx.from?.last_name}`;
+};
+
+/**
+ * Helper function to get complete user info string with ID and language
+ * @param ctx - Telegram context with user information
+ * @returns Formatted string with user info including ID and language
+ */
+export const getUserInfo = (ctx: Context): string => {
+  const userName = getUserName(ctx);
+  return ctx.from
+    ? `${userName}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
+    : `unknown user`;
+};
+
 export const telegramLoggerForwardMessage = async (
   context: Context,
   message: Message
@@ -203,14 +226,41 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
   ) {
     const oldCallApiResponse = await oldCallApi(method, payload, { signal });
 
-    const userName =
-      ctx.from && ctx.from.username
-        ? ctx.from.username
-        : `${ctx.from?.first_name} ${ctx.from?.last_name}`;
+    const toInfo = "🤖 to " + getUserInfo(ctx);
 
-    const toInfo = ctx.from
-      ? `🤖 to ${userName}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
-      : "🤖 to unknown user";
+    // Special handling for copyMessage (e.g., when sending translated videos/audios)
+    if (
+      method === "copyMessage" &&
+      typeof oldCallApiResponse === "object" &&
+      "message_id" in oldCallApiResponse &&
+      payload &&
+      typeof payload === "object" &&
+      "chat_id" in payload &&
+      payload.chat_id !== LOGGING_CHANNEL_CHAT_ID
+    ) {
+      setTimeout(async () => {
+        try {
+          let mediaType = "media";
+          if (
+            "video" in oldCallApiResponse ||
+            "video_note" in oldCallApiResponse
+          ) {
+            mediaType = "📺 video";
+          } else if ("audio" in oldCallApiResponse) {
+            mediaType = "🎧 audio";
+          } else if ("voice" in oldCallApiResponse) {
+            mediaType = "🎤 voice";
+          }
+
+          await ctx.telegram.sendMessage(
+            LOGGING_CHANNEL_CHAT_ID,
+            `${toInfo}\n✅ Copied ${mediaType} to user`
+          );
+        } catch (error) {
+          logger.warn("Copy message logging error:", error);
+        }
+      }, 1000);
+    }
 
     if (
       typeof oldCallApiResponse === "object" &&
@@ -218,6 +268,7 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
       // don't forward forwarded messages (recursion)
       // only forward messages forwarded to bot (not from bot)
       method !== "forwardMessage" &&
+      method !== "copyMessage" && // skip copyMessage as it's handled above
       // skip logging messages that are already being sent to the logging channel (prevent infinite recursion)
       payload &&
       typeof payload === "object" &&

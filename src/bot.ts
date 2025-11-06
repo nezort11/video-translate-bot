@@ -67,6 +67,7 @@ import {
   telegramLoggerContext,
   telegramLoggerIncomingMiddleware,
   telegramLoggerOutgoingMiddleware,
+  getUserInfo,
 } from "./telegramlogger";
 // import { botThrottler, translateThrottler } from "./throttler";
 import {
@@ -1819,7 +1820,11 @@ bot.action(/.+/, async (context) => {
         STORAGE_CHANNEL_CHAT_ID,
         fileMessage!.id
       );
-      await telegramLoggerContext.reply("<translated audio>");
+
+      const userInfo = getUserInfo(context);
+      await telegramLoggerContext.reply(
+        `🤖 to ${userInfo}\n<✅🎧 audio translated>`
+      );
       try {
         console.log(
           "Deleting current message on finish after sending translated audio..."
@@ -2162,8 +2167,10 @@ bot.action(/.+/, async (context) => {
       translatedFileMessage!.id
     );
     const videoDurationFormatted = formatDuration(videoDuration);
+
+    const userInfo = getUserInfo(context);
     await telegramLoggerContext.reply(
-      `[[✅📺 translated video, ${videoDurationFormatted}>]]`
+      `🤖 to ${userInfo}\n<✅📺 video translated, ${videoDurationFormatted}>`
     );
 
     console.log("Deleting result translated video...");
