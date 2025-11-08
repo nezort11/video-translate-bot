@@ -47,6 +47,7 @@ export enum ActionType {
   TranslateVideo = "TRANSLATE_VIDEO",
   ChooseLanguage = "CHOOSE_LANGUAGE",
   ChooseSourceLanguage = "CHOOSE_SOURCE_LANGUAGE",
+  ToggleEnhancedTranslate = "TOGGLE_ENHANCED_TRANSLATE",
 }
 
 export interface ActionDataBase<T extends ActionType> {
@@ -79,7 +80,8 @@ export type ActionData =
   | ActionDataBase<ActionType.TranslateVideo>
   | TranslateActionData
   | ChooseLanguageActionData
-  | ChooseSourceLanguageActionData;
+  | ChooseSourceLanguageActionData
+  | ActionDataBase<ActionType.ToggleEnhancedTranslate>;
 
 export interface Router {
   id: string;

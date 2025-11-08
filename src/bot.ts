@@ -301,6 +301,18 @@ const getSourceLanguage = (
   return router.session.detectedLanguage;
 };
 
+const getEnhancedTranslatePreference = (router: Router): boolean => {
+  // Default to false (off) - use regular translate by default
+  return router.session.useEnhancedTranslate === true;
+};
+
+const toggleEnhancedTranslatePreference = (router: Router): boolean => {
+  const currentValue = getEnhancedTranslatePreference(router);
+  const newValue = !currentValue;
+  router.session.useEnhancedTranslate = newValue;
+  return newValue;
+};
+
 const DEFAULT_CREDITS_BALANCE = 20; // 20 minutes
 
 const getCurrentBalance = (context: BotContext) => {
@@ -1218,6 +1230,23 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
     videoTranslateApp.searchParams.set("url", link);
     videoTranslateApp.searchParams.set("lang", translateLanguage);
 
+    // Create enhanced translate toggle button
+    const useEnhancedTranslate = getEnhancedTranslatePreference(router);
+    const enhancedTranslateToggleButton = createActionButton(
+      t(
+        useEnhancedTranslate
+          ? "enhanced_translate_on"
+          : "enhanced_translate_off"
+      ),
+      {
+        context,
+        routerId: router.id,
+        data: {
+          type: ActionType.ToggleEnhancedTranslate,
+        },
+      }
+    );
+
     return await renderScreen(context, translateVideoMessage, {
       parse_mode: "Markdown",
       disable_notification: true,
@@ -1244,6 +1273,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
         [onlineVideoTranslateActionButton],
         // [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
         [translationLanguageActionButton], // No source language button for YouTube
+        [enhancedTranslateToggleButton], // Enhanced translate toggle button for YouTube only
         // [
         //   Markup.button.callback(
         //     "📺 Видео (mp4) (дольше ⏳)",
@@ -1521,6 +1551,15 @@ bot.action(/.+/, async (context) => {
     return await route(context, routerId);
   }
 
+  if (actionType === ActionType.ToggleEnhancedTranslate) {
+    // Toggle the enhanced translate preference
+    const router = getRouter(context, routerId);
+    toggleEnhancedTranslatePreference(router);
+
+    // Re-render the current screen to show the updated toggle state
+    return await route(context, routerId);
+  }
+
   // const actionType = actionData[0] as TranslateType;
   // @ts-ignore
   if (actionType === TranslateType.ChooseVideoQuality) {
@@ -1727,10 +1766,17 @@ bot.action(/.+/, async (context) => {
             console.log("Manual source language:", sourceLanguage || "auto");
           }
 
+          // Get user's enhanced translate preference for YouTube videos
+          const preferEnhanced =
+            videoPlatform === VideoPlatform.YouTube
+              ? getEnhancedTranslatePreference(router)
+              : undefined; // For non-YouTube, use default behavior (try enhanced, fallback to regular)
+
           const videoTranslateData = await translateVideoFinal(
             videoLink,
             targetTranslateLanguage,
-            sourceLanguage
+            sourceLanguage,
+            preferEnhanced
           );
           translationUrl = videoTranslateData.url;
         } else {

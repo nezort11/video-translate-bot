@@ -326,46 +326,58 @@ export const translateVideoFinal = async (
   url: string,
   targetLanguage?: string,
   sourceLanguage?: string,
-  // internal: sticky selection for retries
-  chosenUseLivelyVoice?: boolean
+  // User preference: true = prefer enhanced (live voices), false = prefer regular (faster), undefined = auto (try enhanced with fallback)
+  preferEnhanced?: boolean
 ): Promise<VideoTranslateResponse> => {
   try {
     console.log("Requesting video translate...");
-    if (chosenUseLivelyVoice === undefined) {
-      // First attempt: try live voices; if it fails (non-progress), fallback once and stick
-      try {
-        const res = await translateVideo(url, {
-          targetLanguage,
-          sourceLanguage,
-          useLivelyVoice: true,
-        });
-        return res;
-      } catch (firstError) {
-        if (firstError instanceof TranslateInProgressException) {
-          await waitForTranslation(firstError);
-          return await translateVideoFinal(
-            url,
-            targetLanguage,
-            sourceLanguage,
-            true
-          );
-        }
-        // fallback and stick to old voices for all next retries
+    console.log("Enhanced translate preference:", preferEnhanced === true ? "ON" : preferEnhanced === false ? "OFF" : "AUTO");
+    
+    // If user explicitly turned OFF enhanced translate, always use regular voices
+    if (preferEnhanced === false) {
+      return await translateVideo(url, {
+        targetLanguage,
+        sourceLanguage,
+        useLivelyVoice: false,
+      });
+    }
+    
+    // If user explicitly turned ON enhanced translate, always use live voices
+    if (preferEnhanced === true) {
+      return await translateVideo(url, {
+        targetLanguage,
+        sourceLanguage,
+        useLivelyVoice: true,
+      });
+    }
+    
+    // If undefined (auto mode for non-YouTube): try live voices first with fallback
+    try {
+      const res = await translateVideo(url, {
+        targetLanguage,
+        sourceLanguage,
+        useLivelyVoice: true,
+      });
+      return res;
+    } catch (firstError) {
+      if (firstError instanceof TranslateInProgressException) {
+        await waitForTranslation(firstError);
+        // Retry with enhanced translate
         return await translateVideoFinal(
           url,
           targetLanguage,
           sourceLanguage,
-          false
+          true
         );
       }
+      // Fallback to regular voices if enhanced fails
+      console.log("Enhanced translate failed, falling back to regular translate");
+      return await translateVideo(url, {
+        targetLanguage,
+        sourceLanguage,
+        useLivelyVoice: false,
+      });
     }
-
-    // Subsequent attempts: stick to the chosen mode
-    return await translateVideo(url, {
-      targetLanguage,
-      sourceLanguage,
-      useLivelyVoice: chosenUseLivelyVoice,
-    });
   } catch (error) {
     if (error instanceof TranslateInProgressException) {
       await waitForTranslation(error);
@@ -373,7 +385,7 @@ export const translateVideoFinal = async (
         url,
         targetLanguage,
         sourceLanguage,
-        chosenUseLivelyVoice
+        preferEnhanced
       );
     }
     throw error;
