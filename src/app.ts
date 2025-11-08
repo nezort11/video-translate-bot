@@ -165,6 +165,24 @@ app.post(
       console.log("videoUrl", videoUrl);
       console.log("languageCode", targetLanguageCode);
 
+      // Detect source language from video
+      let detectedLanguage: string | undefined = undefined;
+      try {
+        console.log("🔍 Detecting video language...");
+        const videoInfo = await getVideoInfo(videoUrl);
+        detectedLanguage = videoInfo.language;
+        if (detectedLanguage) {
+          console.log(`✅ Detected language: ${detectedLanguage}`);
+        } else {
+          console.log("⚠️  Could not detect language, using auto-detection");
+        }
+      } catch (error) {
+        console.warn(
+          "⚠️  Failed to detect language, using auto-detection",
+          error
+        );
+      }
+
       // "https://www.youtube.com/watch?v=5bId3N7QZec"
       if (!videoUrl || !videoFileUrl) {
         const missingParams: string[] = [];
@@ -177,7 +195,11 @@ app.post(
         throw new MissingParameterError(missingParams);
       }
 
-      const videoTranslateData = await translateVideoFinal(videoUrl, undefined, undefined);
+      const videoTranslateData = await translateVideoFinal(
+        videoUrl,
+        detectedLanguage,
+        undefined
+      );
       const translationUrl = videoTranslateData.url;
 
       logger.info("Downloading translation...");

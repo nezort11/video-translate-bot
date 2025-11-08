@@ -293,9 +293,12 @@ const getTranslateLanguage = (context: BotContext) => {
   }
 };
 
-const getSourceLanguage = (context: BotContext): string | undefined => {
-  // Return undefined for "Auto" detection, or the explicitly set source language
-  return context.session.sourceLanguage;
+const getSourceLanguage = (
+  context: BotContext,
+  router: Router
+): string | undefined => {
+  // Get detected language from router session, fallback to undefined (auto)
+  return router.session.detectedLanguage;
 };
 
 const DEFAULT_CREDITS_BALANCE = 20; // 20 minutes
@@ -1163,13 +1166,16 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
   );
 
   // Source language button
-  const sourceLanguage = getSourceLanguage(context);
+  const sourceLanguage = getSourceLanguage(context, router);
   const sourceLanguageFlag = sourceLanguage
     ? sourceLanguageToFlag[sourceLanguage]
     : "🌐";
+  const sourceLanguageText = sourceLanguage
+    ? `${sourceLanguageFlag} ${sourceLanguage.toUpperCase()}`
+    : t("source_language_auto");
   const sourceLanguageActionButton = createActionButton(
     t("source_language", {
-      language_flag: sourceLanguageFlag,
+      language_flag: sourceLanguageText,
     }),
     {
       context,
@@ -1237,7 +1243,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
         ],
         [onlineVideoTranslateActionButton],
         // [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
-        [translationLanguageActionButton, sourceLanguageActionButton],
+        [translationLanguageActionButton], // No source language button for YouTube
         // [
         //   Markup.button.callback(
         //     "📺 Видео (mp4) (дольше ⏳)",
@@ -1404,6 +1410,9 @@ bot.on(message("video"), async (context) => {
   const router = createRouter(context, Screen.Translate, {
     link: videoFileUrl.href,
   });
+
+  // Note: Telegram videos don't have language detection, will show Auto
+
   await route(context, router.id);
 });
 
@@ -1500,7 +1509,13 @@ bot.action(/.+/, async (context) => {
   }
 
   if (actionType === ActionType.ChooseSourceLanguage) {
-    context.session.sourceLanguage = actionData.language;
+    // Store user's language choice (or undefined for auto) in router session
+    setRouterSessionData(
+      context,
+      routerId,
+      "detectedLanguage",
+      actionData.language
+    );
     context.session.routers![routerId].screen = Screen.Translate;
 
     return await route(context, routerId);
@@ -1701,7 +1716,17 @@ bot.action(/.+/, async (context) => {
         if (
           YANDEX_VIDEO_TRANSLATE_LANGUAGES.includes(targetTranslateLanguage)
         ) {
-          const sourceLanguage = getSourceLanguage(context);
+          // For YouTube: use detected language from videoInfo, fallback to auto
+          // For other platforms: use manual selection from router session
+          let sourceLanguage: string | undefined;
+          if (videoPlatform === VideoPlatform.YouTube) {
+            sourceLanguage = videoInfo.language; // Auto-detected, may be undefined
+            console.log("YouTube detected language:", sourceLanguage || "auto");
+          } else {
+            sourceLanguage = getSourceLanguage(context, router); // Manual selection
+            console.log("Manual source language:", sourceLanguage || "auto");
+          }
+
           const videoTranslateData = await translateVideoFinal(
             videoLink,
             targetTranslateLanguage,

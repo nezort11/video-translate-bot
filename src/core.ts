@@ -132,6 +132,7 @@ export const getVideoInfo = async (link: string) => {
     return {
       duration: videoDuration,
       thumbnail: videoThumbnail,
+      language: undefined, // Fallback to auto for Telegram videos
     };
   }
   if (videoPlatform === VideoPlatform.YouTube) {
@@ -150,6 +151,19 @@ export const getVideoInfo = async (link: string) => {
       // videoInfo.videoDetails.thumbnails
       videoInfo.thumbnails
     );
+    
+    // Extract language from video info, fallback to undefined (auto) if not available
+    let detectedLanguage: string | undefined = undefined;
+    try {
+      const rawLanguage = videoInfo.language || videoInfo.defaultAudioLanguage;
+      if (rawLanguage && typeof rawLanguage === 'string') {
+        // Normalize language code (e.g., "en-US" -> "en", "zh-CN" -> "zh")
+        detectedLanguage = rawLanguage.split('-')[0].toLowerCase();
+      }
+    } catch (error) {
+      logger.warn("Failed to detect video language, falling back to auto", error);
+    }
+    
     return {
       // title: videoInfo.videoDetails.title,
       title: videoInfo.title,
@@ -159,6 +173,7 @@ export const getVideoInfo = async (link: string) => {
       duration: videoInfo.duration,
       thumbnail: videoThumbnail,
       formats: videoInfo.formats,
+      language: detectedLanguage,
     };
   }
 
@@ -170,6 +185,7 @@ export const getVideoInfo = async (link: string) => {
     return {
       title: "title" in linkPreview ? linkPreview.title : undefined,
       thumbnail: images[0],
+      language: undefined, // Fallback to auto for other platforms
     };
   } catch (error) {
     if (error instanceof Error) {

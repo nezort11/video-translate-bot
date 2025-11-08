@@ -7,6 +7,7 @@ import {
   translateVideoPreferLiveVoices,
 } from "./services/vtrans";
 import { inspect } from "util";
+import { getVideoInfo } from "./core";
 // import { getLinkPreview } from "link-preview-js";
 
 const main = async () => {
@@ -24,8 +25,23 @@ const main = async () => {
   }
 
   try {
+    // Detect source language from video
+    let detectedLanguage: string | undefined = undefined;
+    try {
+      console.log("🔍 Detecting video language...");
+      const videoInfo = await getVideoInfo(translateUrl);
+      detectedLanguage = videoInfo.language;
+      if (detectedLanguage) {
+        console.log(`✅ Detected language: ${detectedLanguage}`);
+      } else {
+        console.log("⚠️  Could not detect language, using auto-detection");
+      }
+    } catch (error) {
+      console.warn("⚠️  Failed to detect language, using auto-detection", error);
+    }
+
     const translatedUrl = await translateVideoPreferLiveVoices(translateUrl, {
-      sourceLanguage: "kr",
+      sourceLanguage: detectedLanguage,
       targetLanguage: "ru",
     });
     console.log(`🎉 Translated url: ${inspect(translatedUrl)}`);

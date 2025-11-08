@@ -99,7 +99,6 @@ export type SceneActionSession = WizardSession<WizardSessionData> & {
   routers?: Record<string, Router>;
 
   translateLanguage?: string;
-  sourceLanguage?: string; // undefined means "Auto"
   translationStartedAt?: string; // ISO 8601 date
   balance?: number;
 };
@@ -173,7 +172,7 @@ export const setRouterSessionData = (
   context: BotContext,
   routerId: string,
   key: string,
-  data: string
+  data: string | undefined
 ) => {
   context.session.routers![routerId].session[key] = data;
 };
