@@ -42,7 +42,7 @@ concurrent_translations_limit: "Слишком много одновременн
 dialog_left: "Диалог покинут"
 voice_faster: "🎙️ Голос (mp3) (быстрее ⚡️)"
 audio_mp3: "🎧 Аудио (mp3)"
-video_mp4_online: "📺 Видео (mp4) (онлайн)"
+video_mp4_online: "📺 Видео (mp4)"
 video_mp4: "📺 Видео (mp4)"
 translation_language: "Язык перевода: {{language_flag}}"
 source_language: "Язык видео: {{language_flag}}"

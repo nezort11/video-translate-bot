@@ -42,7 +42,7 @@ concurrent_translations_limit: "Too many concurrent translations is not allowed.
 dialog_left: "Dialog left"
 voice_faster: "🎙️ Voice (mp3) (faster ⚡️)"
 audio_mp3: "🎧 Audio (mp3)"
-video_mp4_online: "📺 Video (mp4) (online)"
+video_mp4_online: "📺 Video (mp4)"
 video_mp4: "📺 Video (mp4)"
 translation_language: "Translation language: {{language_flag}}"
 source_language: "Video language: {{language_flag}}"
