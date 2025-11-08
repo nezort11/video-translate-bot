@@ -289,12 +289,14 @@ export const translateVideo = async (
 
   const translateErrorOptions = { data: videoTranslateResponseData };
   switch (videoTranslateResponseData.status) {
-    case 0:
+    case VideoTranslationStatus.FAILED:
       throw new TranslateException(
         videoTranslateResponseData.message || "Translation failed",
         translateErrorOptions
       );
-    case 1:
+    case VideoTranslationStatus.FINISHED:
+    case VideoTranslationStatus.PART_CONTENT:
+      // FINISHED or PART_CONTENT - both indicate successful translation with available content
       const hasUrl =
         videoTranslateResponseData.url !== undefined &&
         videoTranslateResponseData.url !== null;
@@ -305,14 +307,15 @@ export const translateVideo = async (
         "Audio link not received",
         translateErrorOptions
       );
-    case 2:
-    case 3:
-      // WAITING and LONG_WAITING statuses indicate translation is in progress
+    case VideoTranslationStatus.WAITING:
+    case VideoTranslationStatus.LONG_WAITING:
+    case VideoTranslationStatus.AUDIO_REQUESTED:
+      // WAITING, LONG_WAITING, and AUDIO_REQUESTED statuses indicate translation is in progress
       throw new TranslateInProgressException(
         "Translation is in progress...",
         translateErrorOptions
       );
-    case 7:
+    case VideoTranslationStatus.PROCESSING:
       // PROCESSING status - may indicate incompatibility (e.g., live voices with direct MP4)
       // Treat as error to trigger fallback
       throw new TranslateException(
