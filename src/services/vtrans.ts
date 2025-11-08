@@ -76,9 +76,26 @@ enum TranslationHelp {
   SubtitlesFileUrl = "subtitles_file_url",
 }
 
+export type SourceLanguage =
+  | "ru"
+  | "en"
+  | "zh"
+  | "ko"
+  | "ar"
+  | "fr"
+  | "it"
+  | "es"
+  | "de"
+  | "ja";
+
+export type TargetLanguage = "ru" | "en" | "kk";
+
 type VideoTranslateOptions = {
   url: string;
-  targetLanguage?: string;
+  // used to translate non-english videos properly when auto detected language is wrong
+  // undefined means auto-detect
+  sourceLanguage?: SourceLanguage | string;
+  targetLanguage?: string | TargetLanguage;
 
   videoFileUrl?: string;
   subtitlesFileUrl?: string;
@@ -114,6 +131,7 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
     firstRequest: opts.firstRequest ?? true,
     unknown0: 1,
     // language: "en",
+    ...(opts.sourceLanguage && { language: opts.sourceLanguage }),
     // Keep forceSourceLang false for better compatibility
     forceSourceLang: false,
     unknown1: 0,

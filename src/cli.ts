@@ -6,6 +6,7 @@ import {
   TranslateInProgressException,
   translateVideoPreferLiveVoices,
 } from "./services/vtrans";
+import { inspect } from "util";
 // import { getLinkPreview } from "link-preview-js";
 
 const main = async () => {
@@ -23,8 +24,11 @@ const main = async () => {
   }
 
   try {
-    const translatedUrl = await translateVideoPreferLiveVoices(translateUrl);
-    console.log(`🎉 Translated url: ${translatedUrl}`);
+    const translatedUrl = await translateVideoPreferLiveVoices(translateUrl, {
+      sourceLanguage: "kr",
+      targetLanguage: "ru",
+    });
+    console.log(`🎉 Translated url: ${inspect(translatedUrl)}`);
   } catch (error) {
     if (error instanceof TranslateInProgressException) {
       console.log("⏳ Video translate is in progress...");

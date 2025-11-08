@@ -34,6 +34,7 @@ import type { BotContext } from "./botinstance";
 export enum Screen {
   Translate = "TRANSLATE",
   LanguageSettings = "LANGUAGE_SETTINGS",
+  SourceLanguageSettings = "SOURCE_LANGUAGE_SETTINGS",
   Settings = "SETTINGS",
 }
 
@@ -45,6 +46,7 @@ export enum ActionType {
   TranslateAudio = "TRANSLATE_AUDIO",
   TranslateVideo = "TRANSLATE_VIDEO",
   ChooseLanguage = "CHOOSE_LANGUAGE",
+  ChooseSourceLanguage = "CHOOSE_SOURCE_LANGUAGE",
 }
 
 export interface ActionDataBase<T extends ActionType> {
@@ -65,13 +67,19 @@ export type ChooseLanguageActionData =
     language: string;
   };
 
+export type ChooseSourceLanguageActionData =
+  ActionDataBase<ActionType.ChooseSourceLanguage> & {
+    language: string | undefined;
+  };
+
 export type ActionData =
   | NavigateActionData
   | ActionDataBase<ActionType.TranslateVoice>
   | ActionDataBase<ActionType.TranslateAudio>
   | ActionDataBase<ActionType.TranslateVideo>
   | TranslateActionData
-  | ChooseLanguageActionData;
+  | ChooseLanguageActionData
+  | ChooseSourceLanguageActionData;
 
 export interface Router {
   id: string;
@@ -91,6 +99,7 @@ export type SceneActionSession = WizardSession<WizardSessionData> & {
   routers?: Record<string, Router>;
 
   translateLanguage?: string;
+  sourceLanguage?: string; // undefined means "Auto"
   translationStartedAt?: string; // ISO 8601 date
   balance?: number;
 };

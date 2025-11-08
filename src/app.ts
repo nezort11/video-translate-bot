@@ -177,7 +177,7 @@ app.post(
         throw new MissingParameterError(missingParams);
       }
 
-      const videoTranslateData = await translateVideoFinal(videoUrl);
+      const videoTranslateData = await translateVideoFinal(videoUrl, undefined, undefined);
       const translationUrl = videoTranslateData.url;
 
       logger.info("Downloading translation...");

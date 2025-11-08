@@ -309,6 +309,7 @@ const waitForTranslation = async (error: TranslateInProgressException) => {
 export const translateVideoFinal = async (
   url: string,
   targetLanguage?: string,
+  sourceLanguage?: string,
   // internal: sticky selection for retries
   chosenUseLivelyVoice?: boolean
 ): Promise<VideoTranslateResponse> => {
@@ -319,22 +320,34 @@ export const translateVideoFinal = async (
       try {
         const res = await translateVideo(url, {
           targetLanguage,
+          sourceLanguage,
           useLivelyVoice: true,
         });
         return res;
       } catch (firstError) {
         if (firstError instanceof TranslateInProgressException) {
           await waitForTranslation(firstError);
-          return await translateVideoFinal(url, targetLanguage, true);
+          return await translateVideoFinal(
+            url,
+            targetLanguage,
+            sourceLanguage,
+            true
+          );
         }
         // fallback and stick to old voices for all next retries
-        return await translateVideoFinal(url, targetLanguage, false);
+        return await translateVideoFinal(
+          url,
+          targetLanguage,
+          sourceLanguage,
+          false
+        );
       }
     }
 
     // Subsequent attempts: stick to the chosen mode
     return await translateVideo(url, {
       targetLanguage,
+      sourceLanguage,
       useLivelyVoice: chosenUseLivelyVoice,
     });
   } catch (error) {
@@ -343,6 +356,7 @@ export const translateVideoFinal = async (
       return await translateVideoFinal(
         url,
         targetLanguage,
+        sourceLanguage,
         chosenUseLivelyVoice
       );
     }

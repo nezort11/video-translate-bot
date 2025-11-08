@@ -264,6 +264,20 @@ const languageToFlag = {
   kg: "🇰🇬", // Kyrgyz - Kyrgyzstan
 } as const;
 
+// Source languages supported by Yandex Video Translate
+const sourceLanguageToFlag = {
+  ru: "🇷🇺", // Russian
+  en: "🇺🇸", // English
+  zh: "🇨🇳", // Chinese
+  ko: "🇰🇷", // Korean
+  ar: "🇸🇦", // Arabic
+  fr: "🇫🇷", // French
+  it: "🇮🇹", // Italian
+  es: "🇪🇸", // Spanish
+  de: "🇩🇪", // German
+  ja: "🇯🇵", // Japanese
+} as const;
+
 const SUPPORTED_TRANSLATE_LANGUAGES = Object.keys(languageToFlag);
 
 const getTranslateLanguage = (context: BotContext) => {
@@ -277,6 +291,11 @@ const getTranslateLanguage = (context: BotContext) => {
   } else {
     return "en";
   }
+};
+
+const getSourceLanguage = (context: BotContext): string | undefined => {
+  // Return undefined for "Auto" detection, or the explicitly set source language
+  return context.session.sourceLanguage;
 };
 
 const DEFAULT_CREDITS_BALANCE = 20; // 20 minutes
@@ -1049,7 +1068,11 @@ bot.command("debug_vtrans", async (context) => {
   logger.info("Request translation...");
   let translationUrl: string; //| undefined;
   try {
-    const videoTranslateData = await translateVideoFinal(mockVideoLink);
+    const videoTranslateData = await translateVideoFinal(
+      mockVideoLink,
+      undefined,
+      undefined
+    );
     translationUrl = videoTranslateData.url;
   } catch (error: unknown) {
     await context.reply(`Error while translating: ${error?.toString()}`);
@@ -1138,6 +1161,26 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       },
     }
   );
+
+  // Source language button
+  const sourceLanguage = getSourceLanguage(context);
+  const sourceLanguageFlag = sourceLanguage
+    ? sourceLanguageToFlag[sourceLanguage]
+    : "🌐";
+  const sourceLanguageActionButton = createActionButton(
+    t("source_language", {
+      language_flag: sourceLanguageFlag,
+    }),
+    {
+      context,
+      routerId: router.id,
+      data: {
+        type: ActionType.Navigate,
+        screen: Screen.SourceLanguageSettings,
+      },
+    }
+  );
+
   // specify a reply_to_message_id on first message sent
   const renderScreenReplyParams = context.message?.message_id && {
     reply_parameters: {
@@ -1155,7 +1198,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       reply_markup: Markup.inlineKeyboard([
         // [voiceTranslateActionButton],
         [onlineVideoTranslateActionButton],
-        [translationLanguageActionButton],
+        [translationLanguageActionButton, sourceLanguageActionButton],
       ]).reply_markup,
 
       ...renderScreenReplyParams,
@@ -1194,7 +1237,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
         ],
         [onlineVideoTranslateActionButton],
         // [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
-        [translationLanguageActionButton],
+        [translationLanguageActionButton, sourceLanguageActionButton],
         // [
         //   Markup.button.callback(
         //     "📺 Видео (mp4) (дольше ⏳)",
@@ -1210,7 +1253,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
     disable_notification: true,
     reply_markup: Markup.inlineKeyboard([
       [voiceTranslateActionButton],
-      [translationLanguageActionButton],
+      [translationLanguageActionButton, sourceLanguageActionButton],
     ]).reply_markup,
     ...renderScreenReplyParams,
   });
@@ -1259,6 +1302,61 @@ const renderChooseTranslateLanguage = async (
   });
 };
 
+const renderChooseSourceLanguage = async (
+  context: BotContext,
+  router: Router
+) => {
+  const routerId = router.id;
+
+  const languageButtonRows: Hideable<InlineKeyboardButton.CallbackButton>[][] =
+    [];
+
+  // Add "Auto" button first
+  const autoButton = createActionButton(t("source_language_auto"), {
+    context,
+    routerId,
+    data: {
+      type: ActionType.ChooseSourceLanguage,
+      language: undefined,
+    },
+  });
+  languageButtonRows.push([autoButton]);
+
+  const languages = Object.entries(sourceLanguageToFlag);
+  const LANGUAGES_PER_ROW = 5;
+  for (let index = 0; index < languages.length; index += LANGUAGES_PER_ROW) {
+    const row = languages
+      .slice(index, index + LANGUAGES_PER_ROW)
+      .map(([langCode, flag]) =>
+        createActionButton(flag, {
+          context,
+          routerId,
+          data: {
+            type: ActionType.ChooseSourceLanguage,
+            language: langCode,
+          },
+        })
+      );
+    languageButtonRows.push(row);
+  }
+
+  await renderScreen(context, t("choose_source_language"), {
+    reply_markup: Markup.inlineKeyboard([
+      ...languageButtonRows,
+      [
+        createActionButton(t("back"), {
+          context,
+          routerId,
+          data: {
+            type: ActionType.Navigate,
+            screen: Screen.Translate,
+          },
+        }),
+      ],
+    ]).reply_markup,
+  });
+};
+
 const route = async (context: BotContext, routerId: string) => {
   const router = getRouter(context, routerId);
   switch (router.screen) {
@@ -1267,6 +1365,9 @@ const route = async (context: BotContext, routerId: string) => {
       break;
     case Screen.LanguageSettings:
       await renderChooseTranslateLanguage(context, router);
+      break;
+    case Screen.SourceLanguageSettings:
+      await renderChooseSourceLanguage(context, router);
       break;
   }
 };
@@ -1393,6 +1494,13 @@ bot.action(/.+/, async (context) => {
 
   if (actionType === ActionType.ChooseLanguage) {
     context.session.translateLanguage = actionData.language;
+    context.session.routers![routerId].screen = Screen.Translate;
+
+    return await route(context, routerId);
+  }
+
+  if (actionType === ActionType.ChooseSourceLanguage) {
+    context.session.sourceLanguage = actionData.language;
     context.session.routers![routerId].screen = Screen.Translate;
 
     return await route(context, routerId);
@@ -1593,9 +1701,11 @@ bot.action(/.+/, async (context) => {
         if (
           YANDEX_VIDEO_TRANSLATE_LANGUAGES.includes(targetTranslateLanguage)
         ) {
+          const sourceLanguage = getSourceLanguage(context);
           const videoTranslateData = await translateVideoFinal(
             videoLink,
-            targetTranslateLanguage
+            targetTranslateLanguage,
+            sourceLanguage
           );
           translationUrl = videoTranslateData.url;
         } else {
