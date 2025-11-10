@@ -159,7 +159,7 @@ app.post(
   ) => {
     try {
       const videoUrl = req.query.url;
-      const targetLanguageCode = req.query.lang;
+      const targetLanguageCode = req.query.lang ?? "ru";
       const videoFileUrl = req.query.videoUrl;
       // const subtitlesFileUrl = req.query.subtitlesUrl;
       console.log("videoUrl", videoUrl);
@@ -197,8 +197,9 @@ app.post(
 
       const videoTranslateData = await translateVideoFinal(
         videoUrl,
+        targetLanguageCode,
         detectedLanguage,
-        undefined
+        true
       );
       const translationUrl = videoTranslateData.url;
 
