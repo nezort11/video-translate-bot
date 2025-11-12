@@ -88,7 +88,7 @@ if (!YTDL_API_BASE_URL) {
   );
 }
 
-export const getVideoInfo = async (url: string) => {
+export const getVideoInfoYtdl = async (url: string) => {
   const videoInfoResponse = await ytdlClient.get("/info", {
     params: { url },
   });

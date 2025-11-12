@@ -4,7 +4,7 @@ import { logger } from "./logger";
 import { APP_ENV, IMAGE_TRANSLATE_URL, YTDL_STORAGE_BUCKET } from "./env";
 import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
-import { getVideoInfo as getVideoInfoYtdl } from "./services/ytdl";
+import { getVideoInfoYtdl } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
 import { delay, importNanoid, importPTimeout, percent } from "./utils";
 import { translate } from "./services/translate";
@@ -151,19 +151,22 @@ export const getVideoInfo = async (link: string) => {
       // videoInfo.videoDetails.thumbnails
       videoInfo.thumbnails
     );
-    
+
     // Extract language from video info, fallback to undefined (auto) if not available
     let detectedLanguage: string | undefined = undefined;
     try {
       const rawLanguage = videoInfo.language || videoInfo.defaultAudioLanguage;
-      if (rawLanguage && typeof rawLanguage === 'string') {
+      if (rawLanguage && typeof rawLanguage === "string") {
         // Normalize language code (e.g., "en-US" -> "en", "zh-CN" -> "zh")
-        detectedLanguage = rawLanguage.split('-')[0].toLowerCase();
+        detectedLanguage = rawLanguage.split("-")[0].toLowerCase();
       }
     } catch (error) {
-      logger.warn("Failed to detect video language, falling back to auto", error);
+      logger.warn(
+        "Failed to detect video language, falling back to auto",
+        error
+      );
     }
-    
+
     return {
       // title: videoInfo.videoDetails.title,
       title: videoInfo.title,
@@ -331,8 +334,12 @@ export const translateVideoFinal = async (
 ): Promise<VideoTranslateResponse> => {
   try {
     console.log("Requesting video translate...");
-    console.log("Enhanced translate preference:", preferEnhanced === true ? "ON" : preferEnhanced === false ? "OFF" : "AUTO");
-    
+    console.log(
+      "Enhanced translate preference:",
+      preferEnhanced === true ? "ON" : preferEnhanced === false ? "OFF" : "AUTO"
+    );
+    console.log("Source language:", sourceLanguage || "auto/unknown");
+
     // If user explicitly turned OFF enhanced translate, always use regular voices
     if (preferEnhanced === false) {
       return await translateVideo(url, {
@@ -341,16 +348,33 @@ export const translateVideoFinal = async (
         useLivelyVoice: false,
       });
     }
-    
-    // If user explicitly turned ON enhanced translate, always use live voices
+
+    // If user explicitly turned ON enhanced translate
     if (preferEnhanced === true) {
+      // If source language is unknown/undefined, live voices are not supported
+      // Fall back to regular voices to avoid "unknown language" error
+      if (!sourceLanguage) {
+        console.log(
+          "⚠️  Source language unknown, using regular voices instead of live voices"
+        );
+        // return await translateVideo(url, {
+        //   targetLanguage,
+        //   sourceLanguage,
+        //   useLivelyVoice: false,
+        // });
+        throw new Error(
+          "Source language unknown, using regular voices instead of live voices"
+        );
+      }
+
+      // Source language is known, use live voices as requested
       return await translateVideo(url, {
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: true,
       });
     }
-    
+
     // If undefined (auto mode for non-YouTube): try live voices first with fallback
     try {
       const res = await translateVideo(url, {
@@ -371,7 +395,9 @@ export const translateVideoFinal = async (
         );
       }
       // Fallback to regular voices if enhanced fails
-      console.log("Enhanced translate failed, falling back to regular translate");
+      console.log(
+        "Enhanced translate failed, falling back to regular translate"
+      );
       return await translateVideo(url, {
         targetLanguage,
         sourceLanguage,
@@ -390,6 +416,55 @@ export const translateVideoFinal = async (
     }
     throw error;
   }
+};
+
+/**
+ * Translates a video with automatic source language detection.
+ * This is a higher-level wrapper around translateVideoFinal that handles language detection.
+ *
+ * @param url - The video URL to translate
+ * @param targetLanguage - Target language code (e.g., "ru", "en")
+ * @param preferEnhanced - true = prefer enhanced (live voices), false = prefer regular, undefined = auto
+ * @param sourceLanguageOverride - Optional manual source language override (skips auto-detection if provided)
+ * @returns Promise with the translated video URL
+ */
+export const translateVideoFull = async (
+  url: string,
+  targetLanguage?: string,
+  preferEnhanced?: boolean,
+  sourceLanguageOverride?: string
+): Promise<VideoTranslateResponse> => {
+  let sourceLanguage: string | undefined = sourceLanguageOverride;
+
+  // Only auto-detect if no manual override was provided
+  if (sourceLanguage === undefined) {
+    // Detect source language from video
+    try {
+      console.log("🔍 Detecting video language...");
+      const videoInfo = await getVideoInfo(url);
+      sourceLanguage = videoInfo.language;
+      if (sourceLanguage) {
+        console.log(`✅ Detected language: ${sourceLanguage}`);
+      } else {
+        console.log("⚠️  Could not detect language, using auto-detection");
+      }
+    } catch (error) {
+      console.warn(
+        "⚠️  Failed to detect language, using auto-detection",
+        error
+      );
+    }
+  } else {
+    console.log(`🔧 Using manual source language: ${sourceLanguage}`);
+  }
+
+  // Call translateVideoFinal with detected or manual language
+  return await translateVideoFinal(
+    url,
+    targetLanguage,
+    sourceLanguage,
+    preferEnhanced
+  );
 };
 
 const AXIOS_REQUEST_TIMEOUT = duration.minutes(45);

@@ -95,7 +95,7 @@ import {
   isValidUrl,
   getLinkMatch,
   uploadVideo,
-  translateVideoFinal,
+  translateVideoFull,
   axiosInstance,
   TEMP_DIR_PATH,
   mixTranslatedVideo,
@@ -1083,11 +1083,7 @@ bot.command("debug_vtrans", async (context) => {
   logger.info("Request translation...");
   let translationUrl: string; //| undefined;
   try {
-    const videoTranslateData = await translateVideoFinal(
-      mockVideoLink,
-      undefined,
-      undefined
-    );
+    const videoTranslateData = await translateVideoFull(mockVideoLink);
     translationUrl = videoTranslateData.url;
   } catch (error: unknown) {
     await context.reply(`Error while translating: ${error?.toString()}`);
@@ -1755,15 +1751,15 @@ bot.action(/.+/, async (context) => {
         if (
           YANDEX_VIDEO_TRANSLATE_LANGUAGES.includes(targetTranslateLanguage)
         ) {
-          // For YouTube: use detected language from videoInfo, fallback to auto
+          // For YouTube: use auto-detection (translateVideoFull handles it)
           // For other platforms: use manual selection from router session
-          let sourceLanguage: string | undefined;
-          if (videoPlatform === VideoPlatform.YouTube) {
-            sourceLanguage = videoInfo.language; // Auto-detected, may be undefined
-            console.log("YouTube detected language:", sourceLanguage || "auto");
-          } else {
-            sourceLanguage = getSourceLanguage(context, router); // Manual selection
-            console.log("Manual source language:", sourceLanguage || "auto");
+          let sourceLanguageOverride: string | undefined;
+          if (videoPlatform !== VideoPlatform.YouTube) {
+            sourceLanguageOverride = getSourceLanguage(context, router); // Manual selection for non-YouTube
+            console.log(
+              "Manual source language:",
+              sourceLanguageOverride || "auto"
+            );
           }
 
           // Get user's enhanced translate preference for YouTube videos
@@ -1772,11 +1768,11 @@ bot.action(/.+/, async (context) => {
               ? getEnhancedTranslatePreference(router)
               : undefined; // For non-YouTube, use default behavior (try enhanced, fallback to regular)
 
-          const videoTranslateData = await translateVideoFinal(
+          const videoTranslateData = await translateVideoFull(
             videoLink,
             targetTranslateLanguage,
-            sourceLanguage,
-            preferEnhanced
+            preferEnhanced,
+            sourceLanguageOverride
           );
           translationUrl = videoTranslateData.url;
         } else {
