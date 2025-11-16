@@ -103,6 +103,7 @@ export type SceneActionSession = WizardSession<WizardSessionData> & {
   translateLanguage?: string;
   translationStartedAt?: string; // ISO 8601 date
   balance?: number;
+  preferEnhancedTranslate?: boolean; // User's preference for enhanced translate (persists across sessions)
 };
 
 export type SceneActionContext = Omit<SceneContext, "session"> & {

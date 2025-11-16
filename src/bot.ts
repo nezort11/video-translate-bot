@@ -301,15 +301,17 @@ const getSourceLanguage = (
   return router.session.detectedLanguage;
 };
 
-const getEnhancedTranslatePreference = (router: Router): boolean => {
+const getEnhancedTranslatePreference = (context: BotContext): boolean => {
   // Default to false (off) - use regular translate by default
-  return router.session.useEnhancedTranslate === true;
+  // Stored in user session to persist across all video translations
+  return context.session.preferEnhancedTranslate === true;
 };
 
-const toggleEnhancedTranslatePreference = (router: Router): boolean => {
-  const currentValue = getEnhancedTranslatePreference(router);
+const toggleEnhancedTranslatePreference = (context: BotContext): boolean => {
+  const currentValue = getEnhancedTranslatePreference(context);
   const newValue = !currentValue;
-  router.session.useEnhancedTranslate = newValue;
+  // Store in user session to persist across all video translations
+  context.session.preferEnhancedTranslate = newValue;
   return newValue;
 };
 
@@ -1227,7 +1229,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
     videoTranslateApp.searchParams.set("lang", translateLanguage);
 
     // Create enhanced translate toggle button
-    const useEnhancedTranslate = getEnhancedTranslatePreference(router);
+    const useEnhancedTranslate = getEnhancedTranslatePreference(context);
     const enhancedTranslateToggleButton = createActionButton(
       t(
         useEnhancedTranslate
@@ -1548,9 +1550,8 @@ bot.action(/.+/, async (context) => {
   }
 
   if (actionType === ActionType.ToggleEnhancedTranslate) {
-    // Toggle the enhanced translate preference
-    const router = getRouter(context, routerId);
-    toggleEnhancedTranslatePreference(router);
+    // Toggle the enhanced translate preference (stored in user session to persist across all videos)
+    toggleEnhancedTranslatePreference(context);
 
     // Re-render the current screen to show the updated toggle state
     return await route(context, routerId);
@@ -1765,7 +1766,7 @@ bot.action(/.+/, async (context) => {
           // Get user's enhanced translate preference for YouTube videos
           const preferEnhanced =
             videoPlatform === VideoPlatform.YouTube
-              ? getEnhancedTranslatePreference(router)
+              ? getEnhancedTranslatePreference(context)
               : undefined; // For non-YouTube, use default behavior (try enhanced, fallback to regular)
 
           const videoTranslateData = await translateVideoFull(
