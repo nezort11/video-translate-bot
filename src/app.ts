@@ -378,7 +378,12 @@ app.post(
       if (videoTitle) {
         try {
           console.log("Translating video title...");
-          videoTitle = await translateText(videoTitle, "ru");
+          videoTitle = await translateText(videoTitle, "ru", {
+            channelName: videoInfo.artist,
+            channelDescription: videoInfo.channelDescription,
+            videoDescription: videoInfo.description,
+            contentType: "title",
+          });
         } catch (error) {
           console.warn("Error during title translation", error);
         }
@@ -389,7 +394,11 @@ app.post(
       if (artist) {
         try {
           console.log("Translating video artist...");
-          artist = await translateText(artist, "ru");
+          artist = await translateText(artist, "ru", {
+            channelDescription: videoInfo.channelDescription,
+            videoDescription: videoInfo.description,
+            contentType: "channel_name",
+          });
         } catch (error) {
           console.warn("Error during artist translation", error);
         }

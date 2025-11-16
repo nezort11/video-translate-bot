@@ -1,13 +1,20 @@
 import axios, { AxiosError } from "axios";
 import { Readable } from "stream";
 import { logger } from "./logger";
-import { APP_ENV, IMAGE_TRANSLATE_URL, YTDL_STORAGE_BUCKET } from "./env";
+import {
+  APP_ENV,
+  IMAGE_TRANSLATE_URL,
+  OPENAI_API_BASE_URL,
+  OPENAI_API_KEY,
+  YTDL_STORAGE_BUCKET,
+} from "./env";
 import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
 import { getVideoInfoYtdl } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
 import { delay, importNanoid, importPTimeout, percent } from "./utils";
 import { translate } from "./services/translate";
+import { translateWithGPT } from "./services/gpt-translate";
 import { bot } from "./botinstance";
 import S3LocalStorage from "s3-localstorage";
 import {
@@ -177,6 +184,10 @@ export const getVideoInfo = async (link: string) => {
       thumbnail: videoThumbnail,
       formats: videoInfo.formats,
       language: detectedLanguage,
+      // Additional context for GPT-based translation
+      description: videoInfo.description,
+      channelDescription:
+        videoInfo.channel_description || videoInfo.uploader_description,
     };
   }
 
@@ -276,10 +287,45 @@ export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
   }
 };
 
+/**
+ * Translates text using GPT API for better quality translations
+ * Falls back to Yandex Translate if GPT fails or is not configured
+ *
+ * @param text - Text to translate
+ * @param targetLanguageCode - Target language code (e.g., "ru", "en")
+ * @param context - Optional additional context for better translation quality
+ * @returns Translated text
+ */
 export const translateText = async (
   text: string,
-  targetLanguageCode: string
+  targetLanguageCode: string,
+  context?: {
+    channelName?: string;
+    channelDescription?: string;
+    videoDescription?: string;
+    contentType?: "title" | "channel_name" | "general";
+  }
 ) => {
+  // Try GPT translation first if configured
+  if (OPENAI_API_KEY && OPENAI_API_BASE_URL) {
+    try {
+      logger.info("Using GPT-based translation...");
+      const translatedText = await translateWithGPT({
+        text,
+        targetLanguage: targetLanguageCode,
+        ...context,
+      });
+      return translatedText;
+    } catch (error) {
+      logger.warn(
+        "GPT translation failed, falling back to Yandex Translate:",
+        error
+      );
+    }
+  }
+
+  // Fallback to Yandex Translate
+  logger.info("Using Yandex Translate...");
   const { default: pTimeout } = await importPTimeout();
   const translateData = await pTimeout(translate([text], targetLanguageCode), {
     milliseconds: 10 * 1000,

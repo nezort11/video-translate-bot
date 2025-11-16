@@ -1877,7 +1877,12 @@ bot.action(/.+/, async (context) => {
     if (videoTitle) {
       try {
         logger.info("Translating video title to russian...");
-        videoTitle = await translateText(videoTitle, targetTranslateLanguage);
+        videoTitle = await translateText(videoTitle, targetTranslateLanguage, {
+          channelName: videoInfo.artist,
+          channelDescription: videoInfo.channelDescription,
+          videoDescription: videoInfo.description,
+          contentType: "title",
+        });
         logger.info(`Translated video title to russian: ${videoTitle}`);
       } catch (error) {
         handleWarnError("Unable to translate video title:", error);
@@ -1902,7 +1907,11 @@ bot.action(/.+/, async (context) => {
         //   to: "ru",
         // });
         // artist = translateResponse.text;
-        artist = await translateText(artist, targetTranslateLanguage);
+        artist = await translateText(artist, targetTranslateLanguage, {
+          channelDescription: videoInfo.channelDescription,
+          videoDescription: videoInfo.description,
+          contentType: "channel_name",
+        });
         artist = artist.split(" ").map(capitalize).join(" ");
       } catch (error) {
         logger.warn(
