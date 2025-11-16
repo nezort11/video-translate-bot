@@ -328,17 +328,10 @@ export const translateVideo = async (
     case VideoTranslationStatus.WAITING:
     case VideoTranslationStatus.LONG_WAITING:
     case VideoTranslationStatus.AUDIO_REQUESTED:
-      // WAITING, LONG_WAITING, and AUDIO_REQUESTED statuses indicate translation is in progress
+    case VideoTranslationStatus.PROCESSING:
+      // WAITING, LONG_WAITING, AUDIO_REQUESTED, and PROCESSING statuses indicate translation is in progress
       throw new TranslateInProgressException(
         "Translation is in progress...",
-        translateErrorOptions
-      );
-    case VideoTranslationStatus.PROCESSING:
-      // PROCESSING status - may indicate incompatibility (e.g., live voices with direct MP4)
-      // Treat as error to trigger fallback
-      throw new TranslateException(
-        videoTranslateResponseData.message ||
-          "Translation request rejected (status 7)",
         translateErrorOptions
       );
     default:
