@@ -379,12 +379,32 @@ export const translateVideoFinal = async (
   preferEnhanced?: boolean
 ): Promise<VideoTranslateResponse> => {
   try {
+    // Check if the URL is a direct MP4 file
+    const isDirectMp4 = url.toLowerCase().includes(".mp4");
+
     console.log("Requesting video translate...");
+    console.log(
+      "URL type:",
+      isDirectMp4 ? "Direct MP4 file" : "Video platform URL"
+    );
     console.log(
       "Enhanced translate preference:",
       preferEnhanced === true ? "ON" : preferEnhanced === false ? "OFF" : "AUTO"
     );
     console.log("Source language:", sourceLanguage || "auto/unknown");
+
+    // Force regular translate for MP4 files without source language
+    // MP4 files typically don't have language metadata, so enhanced translate won't work
+    if (isDirectMp4 && !sourceLanguage) {
+      console.log(
+        "⚠️  Direct MP4 file without source language detected, forcing regular translate"
+      );
+      return await translateVideo(url, {
+        targetLanguage,
+        sourceLanguage,
+        useLivelyVoice: false,
+      });
+    }
 
     // If user explicitly turned OFF enhanced translate, always use regular voices
     if (preferEnhanced === false) {
@@ -401,16 +421,13 @@ export const translateVideoFinal = async (
       // Fall back to regular voices to avoid "unknown language" error
       if (!sourceLanguage) {
         console.log(
-          "⚠️  Source language unknown, using regular voices instead of live voices"
+          "⚠️  Source language unknown, falling back to regular voices"
         );
-        // return await translateVideo(url, {
-        //   targetLanguage,
-        //   sourceLanguage,
-        //   useLivelyVoice: false,
-        // });
-        throw new Error(
-          "Source language unknown, using regular voices instead of live voices"
-        );
+        return await translateVideo(url, {
+          targetLanguage,
+          sourceLanguage,
+          useLivelyVoice: false,
+        });
       }
 
       // Source language is known, use live voices as requested
@@ -421,7 +438,19 @@ export const translateVideoFinal = async (
       });
     }
 
-    // If undefined (auto mode for non-YouTube): try live voices first with fallback
+    // If undefined (auto mode): try live voices first with fallback
+    // But only if source language is available (otherwise skip directly to regular)
+    if (!sourceLanguage) {
+      console.log(
+        "⚠️  No source language for auto mode, using regular translate"
+      );
+      return await translateVideo(url, {
+        targetLanguage,
+        sourceLanguage,
+        useLivelyVoice: false,
+      });
+    }
+
     try {
       const res = await translateVideo(url, {
         targetLanguage,
@@ -432,12 +461,12 @@ export const translateVideoFinal = async (
     } catch (firstError) {
       if (firstError instanceof TranslateInProgressException) {
         await waitForTranslation(firstError);
-        // Retry with enhanced translate
+        // Retry with the same preference (don't hardcode to true)
         return await translateVideoFinal(
           url,
           targetLanguage,
           sourceLanguage,
-          true
+          preferEnhanced
         );
       }
       // Fallback to regular voices if enhanced fails
