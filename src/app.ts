@@ -439,7 +439,10 @@ app.post(
       await bot.telegram.copyMessage(
         chatId,
         STORAGE_CHANNEL_CHAT_ID,
-        fileMessageId!
+        fileMessageId!,
+        {
+          caption: "",
+        }
       );
 
       res.status(200).send();
