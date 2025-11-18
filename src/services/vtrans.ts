@@ -157,7 +157,9 @@ enum VideoTranslationStatus {
   LONG_WAITING = 3,
   PART_CONTENT = 5,
   AUDIO_REQUESTED = 6,
-  PROCESSING = 7, // New status code observed in production
+  // New status code observed in production
+  // probably related to authorization issues
+  PROCESSING = 7,
 }
 
 export type VideoTranslateResponse = {
@@ -300,6 +302,7 @@ export const translateVideo = async (
   const videoTranslateResponseData = decodeVideoTranslateResponse(
     videoTranslateResponse
   );
+  // console.log("Video translate response data:", videoTranslateResponseData);
   console.log(
     "Video translate response status:",
     videoTranslateResponseData.status
@@ -328,7 +331,7 @@ export const translateVideo = async (
     case VideoTranslationStatus.WAITING:
     case VideoTranslationStatus.LONG_WAITING:
     case VideoTranslationStatus.AUDIO_REQUESTED:
-    case VideoTranslationStatus.PROCESSING:
+      // case VideoTranslationStatus.PROCESSING:
       // WAITING, LONG_WAITING, AUDIO_REQUESTED, and PROCESSING statuses indicate translation is in progress
       throw new TranslateInProgressException(
         "Translation is in progress...",
