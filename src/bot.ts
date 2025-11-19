@@ -2028,10 +2028,7 @@ bot.action(/.+/, async (context) => {
       await bot.telegram.copyMessage(
         context.chat?.id ?? 0,
         STORAGE_CHANNEL_CHAT_ID,
-        fileMessage!.id,
-        {
-          caption: "",
-        }
+        fileMessage!.id
       );
 
       const userInfo = getUserInfo(context);
@@ -2377,10 +2374,7 @@ bot.action(/.+/, async (context) => {
     await bot.telegram.copyMessage(
       context.chat?.id ?? 0,
       STORAGE_CHANNEL_CHAT_ID,
-      translatedFileMessage!.id,
-      {
-        caption: "",
-      }
+      translatedFileMessage!.id
     );
     const videoDurationFormatted = formatDuration(videoDuration);
 
