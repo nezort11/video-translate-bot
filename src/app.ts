@@ -136,6 +136,7 @@ type FullVideoTranslateParams = {
   videoUrl: string;
   lang?: string;
   subtitlesUrl?: string;
+  preferEnhanced?: string; // "true" or "false" as query params are strings
 };
 
 class MissingParameterError extends TranslateException {
@@ -161,9 +162,11 @@ app.post(
       const videoUrl = req.query.url;
       const targetLanguageCode = req.query.lang ?? "ru";
       const videoFileUrl = req.query.videoUrl;
+      const preferEnhanced = req.query.preferEnhanced === "true"; // Convert string to boolean, defaults to false
       // const subtitlesFileUrl = req.query.subtitlesUrl;
       console.log("videoUrl", videoUrl);
       console.log("languageCode", targetLanguageCode);
+      console.log("preferEnhanced", preferEnhanced);
 
       // "https://www.youtube.com/watch?v=5bId3N7QZec"
       if (!videoUrl || !videoFileUrl) {
@@ -181,7 +184,7 @@ app.post(
       const videoTranslateData = await translateVideoFull(
         videoUrl,
         targetLanguageCode,
-        true // preferEnhanced - use live voices when source language is detected
+        preferEnhanced // Use enhanced/live voices based on query parameter (defaults to false)
       );
       const translationUrl = videoTranslateData.url;
 
