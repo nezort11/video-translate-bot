@@ -114,8 +114,10 @@ export const OWNER_USERNAME = process.env.OWNER_USERNAME!;
 
 export const SENTRY_DSN = process.env.SENTRY_DSN!;
 
-const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID!;
+const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID;
 export const LOGGING_CHANNEL_CHAT_ID = getChatId(LOGGING_CHANNEL_ID);
+const ALERTS_CHANNEL_ID = process.env.ALERTS_CHANNEL_ID;
+export const ALERTS_CHANNEL_CHAT_ID = getChatId(ALERTS_CHANNEL_ID);
 
 export const API_ID = process.env.APP_ID!;
 export const APP_HASH = process.env.APP_HASH!;

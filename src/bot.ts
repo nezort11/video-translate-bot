@@ -63,6 +63,7 @@ import {
   OPENAI_API_BASE_URL,
   OPENAI_API_KEY,
   EXECUTION_TIMEOUT,
+  ALERTS_CHANNEL_CHAT_ID,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -705,6 +706,9 @@ const handleError = async (error: unknown, context: Context) => {
 
       await telegramLoggerContext.reply(message, {
         parse_mode: "HTML",
+      });
+      await bot.telegram.sendMessage(message, ALERTS_CHANNEL_CHAT_ID, {
+        parse_mode: "HTML" as const,
       });
     } catch (error) {
       logger.warn("Error while sending error inspect", error);

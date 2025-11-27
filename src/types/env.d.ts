@@ -52,6 +52,7 @@ declare global {
       NOTIFICATION_BOT_TOKEN: string;
       NOTIFICATION_USER_ID: string;
       LOGGING_CHANNEL_ID: string;
+      ALERTS_CHANNEL_ID: string;
       DEBUG_USER_CHAT_ID: string;
     }
   }
