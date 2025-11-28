@@ -707,7 +707,7 @@ const handleError = async (error: unknown, context: Context) => {
       await telegramLoggerContext.reply(message, {
         parse_mode: "HTML",
       });
-      await bot.telegram.sendMessage(message, ALERTS_CHANNEL_CHAT_ID, {
+      await bot.telegram.sendMessage(ALERTS_CHANNEL_CHAT_ID, message, {
         parse_mode: "HTML" as const,
       });
     } catch (error) {
@@ -821,6 +821,8 @@ bot.start(async (context) => {
     // Перевожу не только с английского, но и с многих других языков"
     { disable_notification: true }
   );
+
+  throw new Error("test");
 });
 
 // Exit scenes on any /command entered
