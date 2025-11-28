@@ -40,9 +40,9 @@ export const STORAGE_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./storage");
 
 console.log("logging all files in env directory...", DOTENV_DIR_PATH);
 const files = fs.readdirSync(DOTENV_DIR_PATH);
-files.forEach((file) => {
-  console.log("dotenv dir file", file);
-});
+// files.forEach((file) => {
+//   console.log("dotenv dir file", file);
+// });
 
 // const GOOGLE_APPLICATION_CREDENTIALS_PATH = path.join(
 //   DOTENV_DIR_PATH,

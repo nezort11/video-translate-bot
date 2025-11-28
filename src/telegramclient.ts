@@ -157,7 +157,10 @@ type TelegramClientHandler = (client: TelegramClient) => Promise<void>;
 export const useTelegramClient = async (handler: TelegramClientHandler) => {
   let telegramSessionsStore: TelegramSessionsStore =
     (await store.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
-  console.log("telegram sessions store", telegramSessionsStore);
+  console.log(
+    "telegram sessions store",
+    JSON.stringify(telegramSessionsStore, null, 0)
+  );
 
   let sessionStringIndex: number;
   let client: undefined | TelegramClient;
@@ -165,7 +168,7 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
     sessionStringIndex = await getAvailableSessionStringIndex(
       telegramSessionsStore
     );
-    console.log("available telegram session index", sessionStringIndex);
+    console.log("available telegram session index:", sessionStringIndex);
     const sessionString = telegramSessionStrings[sessionStringIndex];
     telegramSessionsStore[sessionStringIndex] ??= {};
 
