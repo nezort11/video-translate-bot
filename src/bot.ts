@@ -821,8 +821,6 @@ bot.start(async (context) => {
     // Перевожу не только с английского, но и с многих других языков"
     { disable_notification: true }
   );
-
-  throw new Error("test");
 });
 
 // Exit scenes on any /command entered
