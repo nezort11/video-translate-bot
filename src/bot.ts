@@ -665,6 +665,13 @@ const handleError = async (error: unknown, context: Context) => {
 
     if (error instanceof NoOpenTelegramSessionError) {
       await replyError(context, t("system_capacity_reached"));
+      await bot.telegram.sendMessage(
+        ALERTS_CHANNEL_CHAT_ID,
+        `🚨 <code>${t("system_capacity_reached")}</code>`,
+        {
+          parse_mode: "HTML",
+        }
+      );
       return;
     }
 
