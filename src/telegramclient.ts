@@ -67,6 +67,8 @@ export type TelegramSessionsStore = {
 const getAvailableSessionStringIndex = async (
   telegramSessionsStore: TelegramSessionsStore
 ) => {
+  const availableSessionIndices: number[] = [];
+
   for (
     let sessionIndex = 0;
     sessionIndex < telegramSessionStrings.length;
@@ -84,13 +86,20 @@ const getAvailableSessionStringIndex = async (
     ) {
       continue;
     } else {
-      return sessionIndex;
+      availableSessionIndices.push(sessionIndex);
     }
   }
 
-  throw new NoOpenTelegramSessionError(
-    "No open telegram sessions available at the moment!"
+  if (availableSessionIndices.length === 0) {
+    throw new NoOpenTelegramSessionError(
+      "No open telegram sessions available at the moment!"
+    );
+  }
+
+  const randomSessionIndex = Math.floor(
+    Math.random() * availableSessionIndices.length
   );
+  return availableSessionIndices[randomSessionIndex];
 };
 
 export const getClient = async (sessionString: string) => {
