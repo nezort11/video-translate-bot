@@ -1085,6 +1085,23 @@ bot.command("test", async (context) => {
 
 const mockVideoLink = "https://www.youtube.com/watch?v=CcnwFJqEnxU";
 
+bot.command("me", async (context) => {
+  const userId = context.from?.id;
+  const username = context.from?.username
+    ? `@${context.from.username}`
+    : "unknown";
+
+  if (!userId) {
+    await context.reply("⚠️ Unable to detect your user id.");
+    return;
+  }
+
+  await context.reply(
+    `Your user id: <code>${userId}</code>\nUsername: ${username}`,
+    { parse_mode: "HTML", disable_notification: true }
+  );
+});
+
 bot.command("chatid", async (context) => {
   await context.reply(`Your chat id: ${context.chat.id}`);
 });
