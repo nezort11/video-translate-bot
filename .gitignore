@@ -1,6 +1,7 @@
 node_modules*
-/build
+**/build
 .serverless
+**/.next
 
 .DS_Store
 

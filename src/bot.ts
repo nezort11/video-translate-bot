@@ -64,6 +64,8 @@ import {
   OPENAI_API_KEY,
   EXECUTION_TIMEOUT,
   ALERTS_CHANNEL_CHAT_ID,
+  ADMIN_IDS,
+  ADMIN_DASHBOARD_URL,
 } from "./env";
 import {
   telegramLoggerContext,
@@ -2484,6 +2486,21 @@ bot.action(/.+/, async (context) => {
     clearInterval(progressInterval);
     translateTransaction.finish();
   }
+});
+
+bot.command("admin", async (context) => {
+  if (!ADMIN_IDS.includes(String(context.from?.id ?? 0))) {
+    return await context.reply("Sorry, you are not an admin");
+  }
+
+  await context.reply("Hi, admin!", {
+    reply_markup: {
+      inline_keyboard: [
+        // [{ text: "Dashboard", url: "https://admin.vidtrans.ai" }],
+        [{ text: "Admin Dashboard", web_app: { url: ADMIN_DASHBOARD_URL } }],
+      ],
+    },
+  });
 });
 
 bot.use(async (context) => {

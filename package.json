@@ -46,7 +46,16 @@
     "app:cicd:cached": "pnpm app:ci:cached && pnpm app:cd",
     "webhook:info": "source ./env/.env && pnpm telegraf -m getWebhookInfo -t $BOT_TOKEN_PROD",
     "webhook:set": "source ./env/.env && pnpm telegraf -m setWebhook -t $BOT_TOKEN_PROD -D \"{ \\\"url\\\": \\\"https://$(terraform output -raw video_translate_bot_gateway_domain)/webhook\\\", \\\"drop_pending_updates\\\": \\\"True\\\" }\"",
-    "webhook:delete": "source ./env/.env && pnpm telegraf -m deleteWebhook -t $BOT_TOKEN_PROD"
+    "webhook:delete": "source ./env/.env && pnpm telegraf -m deleteWebhook -t $BOT_TOKEN_PROD",
+    "admin:api:build": "cd packages/admin-api && pnpm build",
+    "admin:api:package": "cd packages/admin-api && zip -r admin-api.zip package.json node_modules build",
+    "admin:api:upload": "yc storage s3api put-object --bucket video-translate-bot-code --key admin-api.zip --body packages/admin-api/admin-api.zip",
+    "admin:api:ci": "pnpm admin:api:build && pnpm admin:api:package && pnpm admin:api:upload",
+    "admin:api:cd": "pnpm tf apply -auto-approve -target=yandex_function.admin-api -target=yandex_api_gateway.admin-api-gateway",
+    "admin:api:cicd": "pnpm admin:api:ci && pnpm admin:api:cd",
+    "admin:dashboard:dev": "cd packages/admin-dashboard && pnpm dev",
+    "admin:dashboard:build": "cd packages/admin-dashboard && pnpm build",
+    "admin:dashboard:deploy": "cd packages/admin-dashboard && vercel --prod"
   },
   "comments": {
     "server:serverless:info": "cd packages/video-translate-server && pnpm serverless:info",

@@ -112,6 +112,12 @@ export const BOT_TOKEN = (
 
 export const OWNER_USERNAME = process.env.OWNER_USERNAME!;
 
+export const ADMIN_IDS = process.env.ADMIN_IDS.split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
+
+export const ADMIN_DASHBOARD_URL = process.env.ADMIN_DASHBOARD_URL;
+
 export const SENTRY_DSN = process.env.SENTRY_DSN!;
 
 const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID;

@@ -278,3 +278,99 @@ EOF
     #     # don't append /webhook
     #     url: "https://functions.yandexcloud.net/${yandex_function.video-translate-bot-function.id}?integration=async"
     #     method: POST
+
+# =============================================================================
+# Admin Dashboard API
+# =============================================================================
+
+resource "yandex_function" "admin-api" {
+  name       = "admin-api"
+  user_hash  = filebase64sha256("packages/admin-api/admin-api.zip")
+  runtime    = "nodejs18"
+  entrypoint = "build/index.handler"
+  service_account_id = var.service_account_id
+
+  memory = 256
+  execution_timeout = 30
+  concurrency = 3
+
+  package {
+    bucket_name = yandex_storage_bucket.video-translate-bot-code.id
+    object_name = "admin-api.zip"
+  }
+
+  # Mount env bucket for credentials
+  mounts {
+    name = "env"
+    mode = "ro"
+    object_storage {
+      bucket = yandex_storage_bucket.video-translate-bot-env.bucket
+    }
+  }
+}
+
+resource "yandex_api_gateway" "admin-api-gateway" {
+  name        = "admin-api-gateway"
+  description = "API Gateway for Admin Dashboard API with CORS support"
+
+  spec = <<EOF
+openapi: 3.0.0
+info:
+  title: "Admin Dashboard API Gateway"
+  version: "1.0.0"
+x-yc-apigateway:
+  cors:
+    origin: "*"
+    methods: ["GET", "POST", "OPTIONS"]
+    headers: ["Content-Type", "Authorization"]
+    maxAge: 86400
+paths:
+  /api/auth/telegram-init:
+    post:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: "${yandex_function.admin-api.id}"
+        tag: "$latest"
+        service_account_id: "${var.service_account_id}"
+  /api/metrics/overview:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: "${yandex_function.admin-api.id}"
+        tag: "$latest"
+        service_account_id: "${var.service_account_id}"
+  /api/metrics/new-users:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: "${yandex_function.admin-api.id}"
+        tag: "$latest"
+        service_account_id: "${var.service_account_id}"
+  /api/metrics/active:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: "${yandex_function.admin-api.id}"
+        tag: "$latest"
+        service_account_id: "${var.service_account_id}"
+  /api/metrics/dau-history:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: "${yandex_function.admin-api.id}"
+        tag: "$latest"
+        service_account_id: "${var.service_account_id}"
+  /api/users:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: "${yandex_function.admin-api.id}"
+        tag: "$latest"
+        service_account_id: "${var.service_account_id}"
+EOF
+}
+
+output "admin_api_gateway_domain" {
+  value       = yandex_api_gateway.admin-api-gateway.domain
+  description = "Admin API Gateway domain"
+}
