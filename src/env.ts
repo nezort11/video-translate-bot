@@ -112,7 +112,8 @@ export const BOT_TOKEN = (
 
 export const OWNER_USERNAME = process.env.OWNER_USERNAME!;
 
-export const ADMIN_IDS = process.env.ADMIN_IDS.split(",")
+export const ADMIN_IDS = (process.env.ADMIN_IDS ?? "")
+  .split(",")
   .map((id) => id.trim())
   .filter(Boolean);
 

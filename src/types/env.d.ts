@@ -54,8 +54,8 @@ declare global {
       LOGGING_CHANNEL_ID: string;
       ALERTS_CHANNEL_ID: string;
       DEBUG_USER_CHAT_ID: string;
-      ADMIN_IDS: string;
-      ADMIN_DASHBOARD_URL: string;
+      ADMIN_IDS?: string;
+      ADMIN_DASHBOARD_URL?: string;
     }
   }
 }

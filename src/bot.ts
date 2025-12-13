@@ -2492,6 +2492,9 @@ bot.command("admin", async (context) => {
   if (!ADMIN_IDS.includes(String(context.from?.id ?? 0))) {
     return await context.reply("Sorry, you are not an admin");
   }
+  if (!ADMIN_DASHBOARD_URL) {
+    throw new Error("ADMIN_DASHBOARD_URL is not set");
+  }
 
   await context.reply("Hi, admin!", {
     reply_markup: {
