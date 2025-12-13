@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { JWT_SECRET, JWT_EXPIRES_IN } from "../env";
+import { JWT_SECRET, JWT_EXPIRES_IN, NODE_ENV } from "../env";
 import { verifyInitData, isAdmin } from "../services/telegram";
 
 const router: Router = Router();
@@ -18,6 +18,8 @@ router.post("/telegram-init", async (req: Request, res: Response) => {
       res.status(400).json({ error: "Missing initData in request body" });
       return;
     }
+
+    console.log("[auth] telegram-init request received");
 
     // Verify Telegram initData signature
     const verification = verifyInitData(initData);
@@ -77,6 +79,51 @@ router.post("/telegram-init", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[auth] Error in telegram-init:", error);
     res.status(500).json({ error: "Authentication failed" });
+  }
+});
+
+// POST /api/auth/debug - Development-only endpoint for testing
+// Only available in development mode
+router.post("/debug", async (req: Request, res: Response) => {
+  if (NODE_ENV !== "development") {
+    res.status(403).json({ error: "Debug auth only available in development" });
+    return;
+  }
+
+  try {
+    console.log("[auth] debug endpoint called");
+
+    // Create a mock admin user for development
+    const adminId = 776696185; // Your admin ID
+
+    const payload = {
+      sub: `tg:${adminId}`,
+      user_id: adminId,
+      username: "admin",
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN,
+    });
+
+    const decoded = jwt.decode(token) as { exp: number };
+    const expiresAt = new Date(decoded.exp * 1000).toISOString();
+
+    console.log("[auth] debug_login: development test user");
+
+    res.json({
+      token,
+      expiresAt,
+      user: {
+        id: adminId,
+        firstName: "Dev",
+        lastName: "Admin",
+        username: "admin",
+      },
+    });
+  } catch (error) {
+    console.error("[auth] Error in debug auth:", error);
+    res.status(500).json({ error: "Debug authentication failed" });
   }
 });
 

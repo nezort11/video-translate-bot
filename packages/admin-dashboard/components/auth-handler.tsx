@@ -13,15 +13,32 @@ interface AuthHandlerProps {
 }
 
 export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
-  const { isAuthenticated, isLoading, error, login } = useAuth();
+  const { isAuthenticated, isLoading, error, login, debugLogin } = useAuth();
   const [initError, setInitError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [hasAttemptedAuth, setHasAttemptedAuth] = useState(false);
 
   useEffect(() => {
     const initAuth = async () => {
+      // Prevent infinite retry loop
+      if (hasAttemptedAuth) {
+        console.log("[AuthHandler] Already attempted auth, skipping");
+        return;
+      }
+
+      console.log("[AuthHandler] Starting authentication initialization");
+      console.log(
+        "[AuthHandler] API Base URL:",
+        process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001"
+      );
+      setHasAttemptedAuth(true);
+
       try {
         // Mock Telegram environment in development
         if (process.env.NODE_ENV === "development") {
+          console.log(
+            "[AuthHandler] Development mode - mocking Telegram environment"
+          );
           mockTelegramEnv({
             themeParams: {
               accentTextColor: "#6ab2f2",
@@ -78,8 +95,10 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
         }
 
         const isTma = await isTMA();
+        console.log("[AuthHandler] Is Telegram Mini App:", isTma);
 
         if (!isTma && process.env.NODE_ENV !== "development") {
+          console.error("[AuthHandler] Not running in Telegram Mini App");
           setInitError("This app must be opened from Telegram");
           setIsInitializing(false);
           return;
@@ -88,29 +107,48 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
         // Get initData from Telegram
         const launchParams = retrieveLaunchParams();
         const initDataRaw = launchParams.initDataRaw;
+        console.log("[AuthHandler] InitData length:", initDataRaw?.length || 0);
 
         if (!initDataRaw) {
+          console.error("[AuthHandler] No initData available");
           setInitError("No init data available");
           setIsInitializing(false);
           return;
         }
 
         // Authenticate with backend
+        console.log("[AuthHandler] Attempting to authenticate with backend");
         await login(initDataRaw);
+        console.log("[AuthHandler] Authentication successful");
         setIsInitializing(false);
       } catch (err: any) {
-        console.error("Auth initialization error:", err);
-        setInitError(err.response?.data?.error || err.message);
+        console.error("[AuthHandler] Auth initialization error:", {
+          message: err.message,
+          response: err.response?.data,
+          config: {
+            baseURL: err.config?.baseURL,
+            url: err.config?.url,
+          },
+        });
+        setInitError(
+          err.response?.data?.error || err.message || "Authentication failed"
+        );
         setIsInitializing(false);
       }
     };
 
-    if (!isAuthenticated && !isLoading) {
+    if (!isAuthenticated && !isLoading && !hasAttemptedAuth) {
+      console.log("[AuthHandler] Conditions met, initializing auth");
       initAuth();
     } else {
+      console.log("[AuthHandler] Skipping auth init:", {
+        isAuthenticated,
+        isLoading,
+        hasAttemptedAuth,
+      });
       setIsInitializing(false);
     }
-  }, [isAuthenticated, isLoading, login]);
+  }, [isAuthenticated, isLoading, hasAttemptedAuth]);
 
   // Loading state
   if (isInitializing || isLoading) {
@@ -175,6 +213,15 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
           <p className="text-muted-foreground text-sm">
             Please open this app from Telegram to authenticate.
           </p>
+          {process.env.NODE_ENV === "development" && debugLogin && (
+            <button
+              onClick={debugLogin}
+              disabled={isLoading}
+              className="mt-6 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md text-sm font-medium transition disabled:opacity-50"
+            >
+              {isLoading ? "Authenticating..." : "🔧 Dev Debug Login"}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -182,4 +229,3 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
 
   return <>{children}</>;
 };
-

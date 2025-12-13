@@ -52,6 +52,7 @@ export const verifyInitData = (
   botToken: string = BOT_TOKEN
 ): { valid: boolean; error?: string; data?: InitDataPayload } => {
   if (!botToken) {
+    console.error("[telegram] BOT_TOKEN not configured");
     return { valid: false, error: "BOT_TOKEN not configured" };
   }
 
@@ -60,6 +61,7 @@ export const verifyInitData = (
     const hash = params.get("hash");
 
     if (!hash) {
+      console.error("[telegram] Missing hash in initData");
       return { valid: false, error: "Missing hash in initData" };
     }
 
@@ -86,7 +88,18 @@ export const verifyInitData = (
       .update(dataCheckString)
       .digest("hex");
 
+    console.log("[telegram] Hash verification debug:", {
+      botTokenLength: botToken.length,
+      providedHash: hash.substring(0, 10) + "...",
+      calculatedHash: calculatedHash.substring(0, 10) + "...",
+      hashMatch: calculatedHash === hash,
+      dataCheckLength: dataCheckString.length,
+    });
+
     if (calculatedHash !== hash) {
+      console.error(
+        `[telegram] Hash mismatch - provided: ${hash}, calculated: ${calculatedHash}`
+      );
       return { valid: false, error: "Invalid hash signature" };
     }
 
@@ -104,6 +117,7 @@ export const verifyInitData = (
       );
     }
 
+    console.log("[telegram] Verification successful for user:", parsed.user?.username);
     return { valid: true, data: parsed };
   } catch (error) {
     console.error("[telegram] Error verifying initData:", error);

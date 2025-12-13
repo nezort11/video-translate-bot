@@ -1,6 +1,9 @@
 import axios, { AxiosInstance, AxiosError } from "axios";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
+
+console.log("[API] Initializing with base URL:", API_BASE_URL);
 
 // API Response Types
 export interface AuthResponse {
@@ -98,6 +101,7 @@ export const getAuthToken = (): string | null => {
 
 export const getApiClient = (): AxiosInstance => {
   if (!apiClient) {
+    console.log("[API] Creating new API client with baseURL:", API_BASE_URL);
     apiClient = axios.create({
       baseURL: API_BASE_URL,
       timeout: 30000,
@@ -109,14 +113,34 @@ export const getApiClient = (): AxiosInstance => {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      console.log("[API] Request:", {
+        method: config.method,
+        url: config.url,
+        baseURL: config.baseURL,
+        hasAuth: !!token,
+      });
       return config;
     });
 
     // Handle 401 errors
     apiClient.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        console.log("[API] Response:", {
+          status: response.status,
+          url: response.config.url,
+        });
+        return response;
+      },
       (error: AxiosError) => {
+        console.error("[API] Error:", {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+        });
         if (error.response?.status === 401) {
+          console.log("[API] 401 Unauthorized - clearing auth token");
           setAuthToken(null);
           // Trigger re-auth - will be handled by auth context
           window.dispatchEvent(new CustomEvent("auth:expired"));
@@ -136,6 +160,13 @@ export const authenticateWithTelegram = async (
     "/api/auth/telegram-init",
     { initData }
   );
+  return response.data;
+};
+
+// Debug auth (development only)
+export const debugAuth = async (): Promise<AuthResponse> => {
+  console.log("[API] Calling debug auth endpoint");
+  const response = await getApiClient().post<AuthResponse>("/api/auth/debug");
   return response.data;
 };
 
@@ -205,4 +236,3 @@ export const getUsers = async (
   );
   return response.data;
 };
-

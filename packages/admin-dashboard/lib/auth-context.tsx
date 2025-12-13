@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import {
   authenticateWithTelegram,
+  debugAuth,
   setAuthToken,
   getAuthToken,
   AuthResponse,
@@ -29,6 +30,7 @@ interface AuthContextType {
   error: string | null;
   login: (initData: string) => Promise<void>;
   logout: () => void;
+  debugLogin?: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -74,17 +76,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = useCallback(async (initData: string) => {
+    console.log("[AuthContext] Login attempt starting");
     setIsLoading(true);
     setError(null);
 
     try {
+      console.log("[AuthContext] Calling authenticateWithTelegram");
       const response: AuthResponse = await authenticateWithTelegram(initData);
+      console.log("[AuthContext] Authentication successful:", {
+        userId: response.user.id,
+        username: response.user.username,
+        expiresAt: response.expiresAt,
+      });
       setAuthToken(response.token);
       setUser(response.user);
       setIsAuthenticated(true);
     } catch (err: any) {
       const errorMessage =
         err.response?.data?.error || err.message || "Authentication failed";
+      console.error("[AuthContext] Authentication failed:", {
+        error: errorMessage,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
       setError(errorMessage);
       setIsAuthenticated(false);
       throw err;
@@ -99,6 +113,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsAuthenticated(false);
   }, []);
 
+  const debugLoginFn = useCallback(async () => {
+    if (process.env.NODE_ENV !== "development") return;
+    console.log("[AuthContext] Debug login attempt");
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response: AuthResponse = await debugAuth();
+      console.log("[AuthContext] Debug authentication successful");
+      setAuthToken(response.token);
+      setUser(response.user);
+      setIsAuthenticated(true);
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.error ||
+        err.message ||
+        "Debug authentication failed";
+      console.error("[AuthContext] Debug authentication failed:", errorMessage);
+      setError(errorMessage);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -108,10 +147,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error,
         login,
         logout,
+        debugLogin:
+          process.env.NODE_ENV === "development" ? debugLoginFn : undefined,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
-
