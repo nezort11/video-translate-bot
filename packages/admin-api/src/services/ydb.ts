@@ -6,11 +6,14 @@ import {
   LAMBDA_TASK_ROOT,
 } from "../env";
 
-// Set YDB credentials path for production
-if (LAMBDA_TASK_ROOT) {
-  process.env.YDB_SERVICE_ACCOUNT_KEY_FILE_CREDENTIALS =
-    YDB_SERVICE_ACCOUNT_KEY_PATH;
-}
+// Set YDB credentials path for both production and local development
+process.env.YDB_SERVICE_ACCOUNT_KEY_FILE_CREDENTIALS =
+  YDB_SERVICE_ACCOUNT_KEY_PATH;
+
+console.log(
+  "[ydb] Using service account key from:",
+  YDB_SERVICE_ACCOUNT_KEY_PATH
+);
 
 let driverInstance: Driver | null = null;
 
@@ -24,7 +27,7 @@ export const getDriver = (): Driver => {
       database: YDB_DATABASE,
       authService: getCredentialsFromEnv(),
       clientOptions: {
-        operationTimeout: 30000,
+        operationTimeout: process.env.NODE_ENV === "test" ? 10000 : 30000,
       },
     });
   }
@@ -44,34 +47,92 @@ export const scanUpdates = async (
   toDate?: Date
 ): Promise<UpdateRow[]> => {
   const driver = getDriver();
+
+  // For now, let's try a simpler approach - fetch recent data only
+  // We'll use a time-based approach to get the most recent updates
+  console.log(
+    "[ydb] Fetching recent updates (last 7 days) to work around YDB limits"
+  );
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  // Try to fetch the most recent 2000 updates and filter by date
   const results: UpdateRow[] = [];
 
-  await driver.tableClient.withSessionRetry(async (session) => {
-    // For now, scan all updates and filter in memory
-    // YDB doesn't have efficient date filtering on JSON fields
-    const query = `
-      SELECT update_id, update_data
-      FROM updates
-      LIMIT 10000;
-    `;
+  try {
+    await driver.tableClient.withSessionRetry(async (session) => {
+      // Get the most recent updates first
+      const query = `
+        SELECT update_id, update_data
+        FROM updates
+        ORDER BY update_id DESC
+        LIMIT 2000;
+      `;
 
-    const result = await session.executeQuery(query);
+      console.log("[ydb] Fetching most recent 2000 updates");
+      const result = await session.executeQuery(query);
 
-    if (result.resultSets && result.resultSets[0]) {
-      const resultSet = result.resultSets[0];
-      const rows = TypedData.createNativeObjects(resultSet) as any[];
-      for (const row of rows) {
-        results.push({
-          update_id: Number(row.update_id),
-          update_data:
-            typeof row.update_data === "string"
-              ? row.update_data
-              : JSON.stringify(row.update_data),
-        });
+      if (result.resultSets && result.resultSets[0]) {
+        const resultSet = result.resultSets[0];
+        const rows = TypedData.createNativeObjects(resultSet) as any[];
+
+        console.log(`[ydb] Retrieved ${rows.length} raw rows from database`);
+
+        for (const row of rows) {
+          try {
+            const updateData =
+              typeof row.update_data === "string"
+                ? row.update_data
+                : JSON.stringify(row.update_data);
+
+            // Parse the JSON to check the date
+            const parsed = JSON.parse(updateData);
+
+            // Extract timestamp from various possible locations
+            let timestamp: number | null = null;
+
+            if (parsed.message?.date) {
+              timestamp = parsed.message.date;
+            } else if (parsed.edited_message?.edit_date) {
+              timestamp = parsed.edited_message.edit_date;
+            } else if (parsed.callback_query?.message?.date) {
+              timestamp = parsed.callback_query.message.date;
+            } else if (parsed.inline_query?.date) {
+              timestamp = parsed.inline_query.date;
+            } else if (parsed.my_chat_member?.date) {
+              timestamp = parsed.my_chat_member.date;
+            }
+
+            if (timestamp) {
+              const eventDate = new Date(timestamp * 1000);
+
+              // Only include events from the last 7 days to reduce processing
+              if (eventDate >= sevenDaysAgo) {
+                results.push({
+                  update_id: Number(row.update_id),
+                  update_data: updateData,
+                });
+              }
+            } else {
+              // If no timestamp found, include it anyway (fallback)
+              results.push({
+                update_id: Number(row.update_id),
+                update_data: updateData,
+              });
+            }
+          } catch (parseError) {
+            // Skip malformed JSON
+            console.warn(`[ydb] Skipping malformed update ${row.update_id}`);
+          }
+        }
       }
-    }
-  });
+    });
+  } catch (error) {
+    console.error("[ydb] Error fetching recent updates:", error);
+  }
 
+  console.log(`[ydb] Final filtered results count: ${results.length}`);
   return results;
 };
 

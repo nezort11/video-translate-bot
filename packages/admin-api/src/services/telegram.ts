@@ -52,7 +52,6 @@ export const verifyInitData = (
   botToken: string = BOT_TOKEN
 ): { valid: boolean; error?: string; data?: InitDataPayload } => {
   if (!botToken) {
-    console.error("[telegram] BOT_TOKEN not configured");
     return { valid: false, error: "BOT_TOKEN not configured" };
   }
 
@@ -61,7 +60,6 @@ export const verifyInitData = (
     const hash = params.get("hash");
 
     if (!hash) {
-      console.error("[telegram] Missing hash in initData");
       return { valid: false, error: "Missing hash in initData" };
     }
 
@@ -88,18 +86,7 @@ export const verifyInitData = (
       .update(dataCheckString)
       .digest("hex");
 
-    console.log("[telegram] Hash verification debug:", {
-      botTokenLength: botToken.length,
-      providedHash: hash.substring(0, 10) + "...",
-      calculatedHash: calculatedHash.substring(0, 10) + "...",
-      hashMatch: calculatedHash === hash,
-      dataCheckLength: dataCheckString.length,
-    });
-
     if (calculatedHash !== hash) {
-      console.error(
-        `[telegram] Hash mismatch - provided: ${hash}, calculated: ${calculatedHash}`
-      );
       return { valid: false, error: "Invalid hash signature" };
     }
 
@@ -113,11 +100,12 @@ export const verifyInitData = (
       // For Mini Apps, we allow older auth_date since it's set at app open
       // Just log a warning but don't fail
       console.warn(
-        `[telegram] initData auth_date is ${now - authDate}s old (max ${maxAge}s)`
+        `[telegram] initData auth_date is ${
+          now - authDate
+        }s old (max ${maxAge}s)`
       );
     }
 
-    console.log("[telegram] Verification successful for user:", parsed.user?.username);
     return { valid: true, data: parsed };
   } catch (error) {
     console.error("[telegram] Error verifying initData:", error);
@@ -131,4 +119,3 @@ export const verifyInitData = (
 export const isAdmin = (userId: number): boolean => {
   return ADMIN_IDS.includes(String(userId));
 };
-
