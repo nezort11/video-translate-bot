@@ -10,6 +10,16 @@ export const app: Application = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+// Request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.path}`);
+  if (req.headers.authorization) {
+    console.log(`  Auth: Bearer ${req.headers.authorization.slice(7, 20)}...`);
+  }
+  next();
+});
+
 
 // Health check
 app.get("/health", (req, res) => {

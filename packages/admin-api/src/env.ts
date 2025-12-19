@@ -1,8 +1,8 @@
 import dotenv from "dotenv";
 import path from "path";
 
-// Load .env file in development
-dotenv.config();
+// Load .env file from the package directory
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 export const NODE_ENV = process.env.NODE_ENV || "development";
 export const IS_PRODUCTION = NODE_ENV === "production";
@@ -14,7 +14,7 @@ export const ROOT_DIR_PATH = path.resolve(__dirname, "..");
 // Mount paths for YCF
 export const MOUNT_ROOT_DIR_PATH = path.resolve(
   ROOT_DIR_PATH,
-  LAMBDA_TASK_ROOT ? "../storage" : "."
+  LAMBDA_TASK_ROOT ? "../storage" : "../.."
 );
 export const DOTENV_DIR_PATH = path.resolve(MOUNT_ROOT_DIR_PATH, "env");
 
@@ -31,7 +31,8 @@ export const ADMIN_IDS = (process.env.ADMIN_IDS || "")
   .split(",")
   .map((id) => id.trim())
   .filter(Boolean);
-export const BOT_TOKEN = process.env.BOT_TOKEN_PROD || process.env.BOT_TOKEN || "";
+export const DEBUG_ADMIN_ID = process.env.DEBUG_ADMIN_ID || parseInt(ADMIN_IDS[0]) || 123456789;
+export const BOT_TOKEN = process.env.BOT_TOKEN || "";
 export const JWT_SECRET = process.env.JWT_SECRET || "dev-jwt-secret-change-me";
 export const JWT_EXPIRES_IN = "15m";
 
@@ -48,4 +49,4 @@ export const YDB_SERVICE_ACCOUNT_KEY_PATH = path.resolve(
 console.log("[admin-api] NODE_ENV:", NODE_ENV);
 console.log("[admin-api] ADMIN_IDS:", ADMIN_IDS);
 console.log("[admin-api] YDB_ENDPOINT:", YDB_ENDPOINT);
-
+console.log("[admin-api] YDB_DATABASE:", YDB_DATABASE);console.log("[admin-api] YDB_SERVICE_ACCOUNT_KEY_PATH:", YDB_SERVICE_ACCOUNT_KEY_PATH);

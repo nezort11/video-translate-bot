@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { JWT_SECRET, JWT_EXPIRES_IN, NODE_ENV } from "../env";
+import { JWT_SECRET, JWT_EXPIRES_IN, NODE_ENV, DEBUG_ADMIN_ID } from "../env";
 import { verifyInitData, isAdmin } from "../services/telegram";
 
 const router: Router = Router();
@@ -82,11 +82,13 @@ router.post("/telegram-init", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/auth/debug - Development-only endpoint for testing
-// Only available in development mode
+// POST /api/auth/debug - Development/test-only endpoint for testing
+// Only available in development and test modes
 router.post("/debug", async (req: Request, res: Response) => {
-  if (NODE_ENV !== "development") {
-    res.status(403).json({ error: "Debug auth only available in development" });
+  if (NODE_ENV !== "development" && NODE_ENV !== "test") {
+    res.status(403).json({
+      error: "Debug auth only available in development and test modes",
+    });
     return;
   }
 
@@ -94,7 +96,7 @@ router.post("/debug", async (req: Request, res: Response) => {
     console.log("[auth] debug endpoint called");
 
     // Create a mock admin user for development
-    const adminId = 776696185; // Your admin ID
+    const adminId = DEBUG_ADMIN_ID;
 
     const payload = {
       sub: `tg:${adminId}`,
