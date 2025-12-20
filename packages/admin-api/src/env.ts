@@ -34,7 +34,7 @@ export const ADMIN_IDS = (process.env.ADMIN_IDS || "")
 export const DEBUG_ADMIN_ID = process.env.DEBUG_ADMIN_ID || parseInt(ADMIN_IDS[0]) || 123456789;
 export const BOT_TOKEN = process.env.BOT_TOKEN || "";
 export const JWT_SECRET = process.env.JWT_SECRET || "dev-jwt-secret-change-me";
-export const JWT_EXPIRES_IN = "15m";
+export const JWT_EXPIRES_IN = "24h";
 
 // YDB config
 export const YDB_ENDPOINT = process.env.YDB_ENDPOINT;
