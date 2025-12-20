@@ -57,7 +57,7 @@ export const scanUpdates = async (
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  // Try to fetch the most recent 2000 updates and filter by date
+  // Try to fetch the most recent 10000 updates and filter by date
   const results: UpdateRow[] = [];
 
   try {
@@ -67,10 +67,10 @@ export const scanUpdates = async (
         SELECT update_id, update_data
         FROM updates
         ORDER BY update_id DESC
-        LIMIT 2000;
+        LIMIT 10000;
       `;
 
-      console.log("[ydb] Fetching most recent 2000 updates");
+      console.log("[ydb] Fetching most recent 10000 updates");
       const result = await session.executeQuery(query);
 
       if (result.resultSets && result.resultSets[0]) {
