@@ -13,7 +13,7 @@
     "build": "pnpm tsc --build",
     "typecheck": "tsc --noEmit",
     "command:js": "node",
-    "command:ts": "DEBUG='*' pnpm tsx",
+    "command:ts": "pnpm tsx",
     "run:js": "pnpm command:js ./build/index.js",
     "run:ts": "pnpm command:ts .",
     "run:deamon": "pnpm nodemon --exec \"pnpm command:ts\" --watch \"./.env\" --watch \"./src\" .",
