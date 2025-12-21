@@ -55,7 +55,9 @@
     "admin:api:cicd": "pnpm admin:api:ci && pnpm admin:api:cd",
     "admin:dashboard:dev": "cd packages/admin-dashboard && pnpm dev",
     "admin:dashboard:build": "cd packages/admin-dashboard && pnpm build",
-    "admin:dashboard:deploy": "cd packages/admin-dashboard && vercel --prod"
+    "admin:dashboard:deploy": "cd packages/admin-dashboard && vercel --prod",
+    "test": "jest",
+    "test:thumbnail": "jest src/__tests__/thumbnail.integration.test.ts"
   },
   "comments": {
     "server:serverless:info": "cd packages/video-translate-server && pnpm serverless:info",
@@ -162,6 +164,7 @@
     "@types/debug": "^4.1.12",
     "@types/express": "4.17.17",
     "@types/fluent-ffmpeg": "2.1.27",
+    "@types/jest": "^29.5.11",
     "@types/node": "18.15.3",
     "@types/node-persist": "^3",
     "@yandex-cloud/function-types": "2.1.2",
@@ -170,9 +173,11 @@
     "bottleneck": "^2.19.5",
     "drizzle-kit": "0.30.4",
     "husky": "8.0.3",
+    "jest": "^29.7.0",
     "lint-staged": "15.4.3",
     "nodemon": "2.0.20",
     "serverless": "3.40.0",
+    "ts-jest": "^29.1.1",
     "ts-node": "10.9.1",
     "tsx": "4.19.2",
     "typescript": "5.4.5",
