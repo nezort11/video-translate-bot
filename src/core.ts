@@ -7,6 +7,7 @@ import {
   OPENAI_API_BASE_URL,
   OPENAI_API_KEY,
   YTDL_STORAGE_BUCKET,
+  EHP_PROXY,
 } from "./env";
 import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
@@ -107,9 +108,13 @@ export const isValidUrl = (string) => {
 };
 
 const findMaxJpgYoutubeThumbnail = (thumbnails: thumbnail[]) => {
+  logger.debug(`Finding max JPG thumbnail from ${thumbnails.length} thumbnails`);
+
   let thumb: null | string = null;
   let maxThumbnailWidth = 0;
+
   for (const thumbnail of thumbnails) {
+    logger.debug(`Thumbnail: ${thumbnail.url}, width: ${thumbnail.width}, height: ${thumbnail.height}`);
     if (
       thumbnail.width &&
       // thumbnail.url.includes(".jpg") &&
@@ -117,7 +122,12 @@ const findMaxJpgYoutubeThumbnail = (thumbnails: thumbnail[]) => {
     ) {
       thumb = thumbnail.url;
       maxThumbnailWidth = thumbnail.width;
+      logger.debug(`Selected thumbnail with width ${maxThumbnailWidth}`);
     }
+  }
+
+  if (!thumb) {
+    logger.warn("No thumbnails with width information found");
   }
 
   return thumb;
@@ -131,10 +141,21 @@ export const getVideoInfo = async (link: string) => {
     // const fileId = videoUrl.pathname.slice(1);
     const videoDuration = +videoUrl.searchParams.get("duration")!;
     const videoThumbnailFileId = videoUrl.searchParams.get("thumbnail");
-    const videoThumbnail =
-      (videoThumbnailFileId &&
-        (await bot.telegram.getFileLink(videoThumbnailFileId)).href) ||
-      null;
+
+    logger.info(`Processing Telegram video thumbnail: fileId=${videoThumbnailFileId || 'NOT_PRESENT'}`);
+
+    let videoThumbnail: string | null = null;
+    if (videoThumbnailFileId) {
+      try {
+        const fileLink = await bot.telegram.getFileLink(videoThumbnailFileId);
+        videoThumbnail = fileLink.href;
+        logger.info(`Telegram thumbnail URL obtained: ${videoThumbnail}`);
+      } catch (error) {
+        logger.warn(`Failed to get Telegram file link for thumbnail ${videoThumbnailFileId}:`, error);
+      }
+    } else {
+      logger.info("No thumbnail file ID in Telegram video URL");
+    }
 
     return {
       duration: videoDuration,
@@ -154,10 +175,18 @@ export const getVideoInfo = async (link: string) => {
     // const videoInfo = await ytdl.getBasicInfo(link, { agent: ytdlAgent });
     // const videoInfo = await getVideoInfo(link);
     const videoInfo = await getVideoInfoYtdl(link);
+    logger.info(`YouTube video info retrieved, thumbnails count: ${videoInfo.thumbnails?.length || 0}`);
+
     const videoThumbnail = findMaxJpgYoutubeThumbnail(
       // videoInfo.videoDetails.thumbnails
       videoInfo.thumbnails
     );
+
+    if (videoThumbnail) {
+      logger.info(`YouTube thumbnail selected: ${videoThumbnail}`);
+    } else {
+      logger.warn("No suitable YouTube thumbnail found");
+    }
 
     // Extract language from video info, fallback to undefined (auto) if not available
     let detectedLanguage: string | undefined = undefined;
@@ -253,14 +282,43 @@ const handleRequestError = (error: unknown, warning: string) => {
   }
 };
 
+/**
+ * Proxies a URL through EHP proxy if configured and the URL is from YouTube
+ * @param url - Original URL to potentially proxy
+ * @returns Proxied URL or original URL if proxy not needed
+ */
+const proxyUrlIfNeeded = (url: string): string => {
+  if (!EHP_PROXY) {
+    return url;
+  }
+
+  // Check if URL is from YouTube/Google (i.ytimg.com, ytimg.com, youtube.com, etc.)
+  const isYouTubeUrl =
+    url.includes("ytimg.com") ||
+    url.includes("youtube.com") ||
+    url.includes("youtu.be") ||
+    url.includes("ggpht.com"); // YouTube profile images
+
+  if (isYouTubeUrl) {
+    const proxiedUrl = `${EHP_PROXY}/${url}`;
+    logger.info(`Proxying YouTube URL: ${url} -> ${proxiedUrl}`);
+    return proxiedUrl;
+  }
+
+  return url;
+};
+
 export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
   // Try to translate thumbnail if service is configured
   if (IMAGE_TRANSLATE_URL) {
     logger.info("Requesting to translate video thumbnail...");
     try {
+      // Use proxy for YouTube URLs when sending to translation service
+      const proxiedThumbnailUrl = proxyUrlIfNeeded(videoThumbnailUrl);
+
       const { data } = await axios.post<ArrayBuffer>(
         IMAGE_TRANSLATE_URL,
-        { imageLink: videoThumbnailUrl },
+        { imageLink: proxiedThumbnailUrl },
         { responseType: "arraybuffer" }
       );
 
@@ -277,7 +335,10 @@ export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
 
   logger.info("Downloading original video thumbnail...");
   try {
-    const { data } = await axios.get<ArrayBuffer>(videoThumbnailUrl, {
+    // Use proxy for YouTube URLs if configured
+    const finalThumbnailUrl = proxyUrlIfNeeded(videoThumbnailUrl);
+
+    const { data } = await axios.get<ArrayBuffer>(finalThumbnailUrl, {
       responseType: "arraybuffer",
     });
     return createThumbnailBuffer(data);

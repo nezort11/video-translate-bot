@@ -1944,13 +1944,35 @@ bot.action(/.+/, async (context) => {
     }
 
     const videoThumbnailUrl = videoInfo.thumbnail;
-    console.log("video thumbnail url: " + videoThumbnailUrl);
+    logger.info(
+      `Video thumbnail URL (${videoPlatform}): ${
+        videoThumbnailUrl || "NOT AVAILABLE"
+      }`
+    );
+
     let thumbnailBuffer: Buffer | undefined;
     if (videoThumbnailUrl) {
-      thumbnailBuffer =
-        (await getVideoThumbnail(videoThumbnailUrl)) ?? undefined;
+      try {
+        logger.info("Attempting to download/process video thumbnail...");
+        const videoThumbnailBuffer = await getVideoThumbnail(videoThumbnailUrl);
+        if (videoThumbnailBuffer) {
+          thumbnailBuffer = videoThumbnailBuffer;
+        }
+      } catch (error) {
+        logger.error("Failed to get video thumbnail:", {
+          error: error instanceof Error ? error.message : String(error),
+          videoThumbnailUrl,
+          videoPlatform,
+          videoLink,
+        });
+        // Continue without thumbnail
+        thumbnailBuffer = undefined;
+      }
+    } else {
+      logger.info(
+        `No thumbnail URL available for ${videoPlatform} video - skipping thumbnail processing`
+      );
     }
-    console.log("thumbnail buffer", thumbnailBuffer?.byteLength);
 
     // await context.replyWithPhoto({ source: thumbnailBuffer! });
     const originalArtist = videoInfo.artist;
@@ -2065,7 +2087,7 @@ bot.action(/.+/, async (context) => {
             videoPlatform === VideoPlatform.Telegram ? "" : videoLink
           }`,
           parseMode: "html",
-          thumb: thumbnailBuffer,
+          thumb: thumbnailBuffer || undefined,
 
           attributes: [
             new Api.DocumentAttributeAudio({
@@ -2318,7 +2340,7 @@ bot.action(/.+/, async (context) => {
               // caption: `${videoLink}`,
               caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
               parseMode: "html",
-              thumb: thumbnailBuffer,
+              thumb: thumbnailBuffer || undefined,
 
               attributes: [
                 new Api.DocumentAttributeAudio({
@@ -2403,7 +2425,7 @@ bot.action(/.+/, async (context) => {
               file: outputBuffer,
               caption: videoCaption,
               parseMode: "html",
-              thumb: thumbnailBuffer,
+              thumb: thumbnailBuffer || undefined,
               attributes: [
                 new Api.DocumentAttributeVideo({
                   // w: 320,

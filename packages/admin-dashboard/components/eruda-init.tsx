@@ -15,4 +15,3 @@ export function ErudaInit() {
 
   return null;
 }
-
