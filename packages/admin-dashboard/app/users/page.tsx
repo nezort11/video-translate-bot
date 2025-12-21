@@ -35,9 +35,12 @@ export default function UsersPage() {
       setTotalPages(response.totalPages);
       setTotal(response.total);
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to fetch users:", err);
-      setError(err.response?.data?.error || "Failed to load users");
+      const errorMessage = err instanceof Error && typeof err === 'object' && err !== null && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data
+        ? (err.response.data as { error: string }).error || err.message
+        : err instanceof Error ? err.message : "Failed to load users";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -1,0 +1,45 @@
+# Cursor Rules for Salary Calculator Project
+
+## Code Quality Checks
+
+You must run the following commands to verify code quality before finishing work:
+
+### TypeScript Type Checking
+
+- Run `pnpm tsc --noEmit` to check for TypeScript compilation errors
+- This should pass without any errors before finishing work
+
+### Linting
+
+- Run `pnpm lint` to check for ESLint violations
+- Fix any linting errors before finishing work
+
+### Testing
+
+- Run `pnpm test` to execute the test suite
+- All tests should pass before finishing work
+
+## Automated Quality Assurance
+
+Before finishing your work session:
+
+1. Always run type checking: `pnpm tsc --noEmit`
+2. Always run linting: `pnpm lint`
+3. Run tests if you've modified functionality: `pnpm test`
+
+## Project Structure
+
+This is a Next.js application with:
+
+- TypeScript for type safety
+- ESLint for code quality
+- Jest for testing
+- Tailwind CSS for styling
+- Telegram bot integration
+- PDF parsing capabilities
+
+## Development Workflow
+
+- Use `pnpm dev` for development server
+- Use `pnpm build` for production builds
+- Use `pnpm bot` for running the Telegram bot in development

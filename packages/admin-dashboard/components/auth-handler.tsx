@@ -121,18 +121,12 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
         await login(initDataRaw);
         console.log("[AuthHandler] Authentication successful");
         setIsInitializing(false);
-      } catch (err: any) {
-        console.error("[AuthHandler] Auth initialization error:", {
-          message: err.message,
-          response: err.response?.data,
-          config: {
-            baseURL: err.config?.baseURL,
-            url: err.config?.url,
-          },
-        });
-        setInitError(
-          err.response?.data?.error || err.message || "Authentication failed"
-        );
+      } catch (err: unknown) {
+        console.error("[AuthHandler] Auth initialization error:", err);
+        const errorMessage = err instanceof Error && typeof err === 'object' && err !== null && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data
+          ? (err.response.data as { error: string }).error || err.message
+          : err instanceof Error ? err.message : "Authentication failed";
+        setInitError(errorMessage);
         setIsInitializing(false);
       }
     };
@@ -148,7 +142,7 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
       });
       setIsInitializing(false);
     }
-  }, [isAuthenticated, isLoading, hasAttemptedAuth]);
+  }, [isAuthenticated, isLoading, hasAttemptedAuth, login]);
 
   // Loading state
   if (isInitializing || isLoading) {

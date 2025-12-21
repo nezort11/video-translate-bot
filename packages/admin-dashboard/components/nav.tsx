@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, Users, Settings } from "lucide-react";
+import { Home, Users } from "lucide-react";
 
 const navItems = [
   {

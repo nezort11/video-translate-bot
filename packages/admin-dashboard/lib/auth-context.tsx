@@ -91,14 +91,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthToken(response.token);
       setUser(response.user);
       setIsAuthenticated(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage =
-        err.response?.data?.error || err.message || "Authentication failed";
-      console.error("[AuthContext] Authentication failed:", {
-        error: errorMessage,
-        response: err.response?.data,
-        status: err.response?.status,
-      });
+        err instanceof Error &&
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "error" in err.response.data
+          ? (err.response.data as { error: string }).error || err.message
+          : err instanceof Error
+          ? err.message
+          : "Authentication failed";
+      console.error("[AuthContext] Authentication failed:", err);
       setError(errorMessage);
       setIsAuthenticated(false);
       throw err;
@@ -125,11 +134,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAuthToken(response.token);
       setUser(response.user);
       setIsAuthenticated(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage =
-        err.response?.data?.error ||
-        err.message ||
-        "Debug authentication failed";
+        err instanceof Error &&
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "error" in err.response.data
+          ? (err.response.data as { error: string }).error || err.message
+          : err instanceof Error
+          ? err.message
+          : "Debug authentication failed";
       console.error("[AuthContext] Debug authentication failed:", errorMessage);
       setError(errorMessage);
       setIsAuthenticated(false);

@@ -38,9 +38,12 @@ export default function DashboardPage() {
       setNewUsersHistory(newUsersData.data);
       setLastUpdated(new Date());
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to fetch dashboard data:", err);
-      setError(err.response?.data?.error || "Failed to load data");
+      const errorMessage = err instanceof Error && typeof err === 'object' && err !== null && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data
+        ? (err.response.data as { error: string }).error || err.message
+        : err instanceof Error ? err.message : "Failed to load data";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
