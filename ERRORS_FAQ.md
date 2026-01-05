@@ -21,3 +21,10 @@ https://console.yandex.cloud/folders/b1gjh7irh9poadr6llcg/ydb/databases/etn29aj5
 https://github.com/nezort11/ytdl-api/blob/8e66ffbe5578382b3c958f245dd99f3d78bd4bdd/cookies.txt.example#L1
 
 ## AxiosError: Request failed with status code 502 Status: 502 Bad Gateway – Response: {"errorMessage":"exit status 1","errorType":"UserCodeError"} – Code: ERR_BAD_RESPONSE
+
+## 🚨 RPCError: 400: CHAT_RESTRICTED (caused by messages.SendMedia)
+
+Канал был заблокирова телеграмом из-за переведенных видео
+"This message couldn't be displayed on your device because it violates the Telegram Terms of Service"
+
+Нужно создать новый чистый приватный канал, добавить необходимых ботов в качестве администраторов, и установить ID нового канала в STORAGE_CHANNEL_ID .env файле.
