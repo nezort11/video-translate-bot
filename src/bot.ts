@@ -126,6 +126,9 @@ import {
   getRouterSessionData,
   setActionData,
   setRouterSessionData,
+  NavigateActionData,
+  ChooseLanguageActionData,
+  ChooseSourceLanguageActionData,
 } from "./actions";
 import { driver, sessionStore, trackUpdate } from "./db";
 import { PassThrough, Readable } from "stream";
@@ -337,6 +340,19 @@ const toggleEnhancedTranslatePreference = (
     context.session.preferEnhancedTranslate = newValue;
   }
   return newValue;
+};
+
+const disableEnhancedTranslatePreference = (
+  context: BotContext,
+  router: Router
+) => {
+  if (PERSIST_ENHANCED_TRANSLATE_IN_ROUTER) {
+    // Store in router session to persist for this video only
+    router.session.preferEnhancedTranslate = false;
+  } else {
+    // Store in user session to persist across all video translations
+    context.session.preferEnhancedTranslate = false;
+  }
 };
 
 const DEFAULT_CREDITS_BALANCE = 20; // 20 minutes
@@ -1576,15 +1592,27 @@ bot.action(/.+/, async (context) => {
     // throw new Error("Action data is undefined");
     return;
   }
-  const actionType = actionData.type;
+  let actionType = actionData.type;
+
+  if (actionType === ActionType.RetryRegularTranslate) {
+    disableEnhancedTranslatePreference(context, router);
+    // Switch action type to TranslateVideo to fall through to video translation logic
+    // We update the local variable actionType, but we don't need to mutate actionData
+    // because the subsequent logic relies on actionType and session data.
+    actionType = ActionType.TranslateVideo;
+  }
 
   if (actionType === ActionType.Navigate) {
-    context.session.routers![routerId].screen = actionData.screen;
+    context.session.routers![routerId].screen = (
+      actionData as NavigateActionData
+    ).screen;
     return await route(context, routerId);
   }
 
   if (actionType === ActionType.ChooseLanguage) {
-    context.session.translateLanguage = actionData.language;
+    context.session.translateLanguage = (
+      actionData as ChooseLanguageActionData
+    ).language;
     context.session.routers![routerId].screen = Screen.Translate;
 
     return await route(context, routerId);
@@ -1596,7 +1624,7 @@ bot.action(/.+/, async (context) => {
       context,
       routerId,
       "detectedLanguage",
-      actionData.language
+      (actionData as ChooseSourceLanguageActionData).language
     );
     context.session.routers![routerId].screen = Screen.Translate;
 
@@ -1872,11 +1900,26 @@ bot.action(/.+/, async (context) => {
               return;
             }
 
+            const isEnhanced = getEnhancedTranslatePreference(context, router);
+            const extra = isEnhanced && {
+              reply_markup: Markup.inlineKeyboard([
+                [
+                  createActionButton(t("retry_regular_translate"), {
+                    context,
+                    routerId,
+                    data: {
+                      type: ActionType.RetryRegularTranslate,
+                    },
+                  }),
+                ],
+              ]).reply_markup,
+            };
             await replyError(
               context,
               t("translator_error", {
                 error_message: t("generic_error"),
-              })
+              }),
+              extra || undefined
             );
             return;
           }

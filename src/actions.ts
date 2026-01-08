@@ -48,6 +48,7 @@ export enum ActionType {
   ChooseLanguage = "CHOOSE_LANGUAGE",
   ChooseSourceLanguage = "CHOOSE_SOURCE_LANGUAGE",
   ToggleEnhancedTranslate = "TOGGLE_ENHANCED_TRANSLATE",
+  RetryRegularTranslate = "RETRY_REGULAR_TRANSLATE",
 }
 
 export interface ActionDataBase<T extends ActionType> {
@@ -81,7 +82,8 @@ export type ActionData =
   | TranslateActionData
   | ChooseLanguageActionData
   | ChooseSourceLanguageActionData
-  | ActionDataBase<ActionType.ToggleEnhancedTranslate>;
+  | ActionDataBase<ActionType.ToggleEnhancedTranslate>
+  | ActionDataBase<ActionType.RetryRegularTranslate>;
 
 export interface Router {
   id: string;
