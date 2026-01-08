@@ -1491,7 +1491,10 @@ bot.on(messageTextNotCommand, async (context, next) => {
   //   `Incoming translate request: ${inspect(context.update, { depth: null })}`
   // );
 
-  const router = createRouter(context, Screen.Translate, { link: linkMatch });
+  const router = createRouter(context, Screen.Translate, {
+    link: linkMatch,
+    originalMessageId: context.message.message_id,
+  });
   await route(context, router.id);
 });
 
@@ -1507,6 +1510,7 @@ bot.on(message("video"), async (context) => {
 
   const router = createRouter(context, Screen.Translate, {
     link: videoFileUrl.href,
+    originalMessageId: context.message.message_id,
   });
 
   // Note: Telegram videos don't have language detection, will show Auto
@@ -1900,27 +1904,42 @@ bot.action(/.+/, async (context) => {
               return;
             }
 
+            const originalMessageId = getRouterSessionData(
+              context,
+              routerId,
+              "originalMessageId"
+            );
+
             const isEnhanced = getEnhancedTranslatePreference(context, router);
-            const extra = isEnhanced && {
-              reply_markup: Markup.inlineKeyboard([
-                [
-                  createActionButton(t("retry_regular_translate"), {
-                    context,
-                    routerId,
-                    data: {
-                      type: ActionType.RetryRegularTranslate,
-                    },
-                  }),
-                ],
-              ]).reply_markup,
+            const extra = {
+              reply_to_message_id: originalMessageId,
+              ...(isEnhanced && {
+                reply_markup: Markup.inlineKeyboard([
+                  [
+                    createActionButton(t("retry_regular_translate"), {
+                      context,
+                      routerId,
+                      data: {
+                        type: ActionType.RetryRegularTranslate,
+                      },
+                    }),
+                  ],
+                ]).reply_markup,
+              }),
             };
+
             await replyError(
               context,
               t("translator_error", {
                 error_message: t("generic_error"),
               }),
-              extra || undefined
+              extra
             );
+
+            // Only if error message sent successfully, delete the processing message
+            try {
+              await context.deleteMessage();
+            } catch (ignored) {}
             return;
           }
 
