@@ -197,11 +197,11 @@ const forwardContextMessage = async (ctx: Context) => {
   if (
     "text" in ctx.message //&& ctx.message.text.includes("https")
   ) {
-    const maskedMessageText = sanitizeText(ctx.message.text);
+    // const maskedMessageText = sanitizeText(ctx.message.text);
 
     await ctx.telegram.sendMessage(
       LOGGING_CHANNEL_CHAT_ID,
-      `${fromInfo}\n${maskedMessageText}`
+      `${fromInfo}\n<text>`
     );
   } else if ("video" in ctx.message) {
     const videoDuration = formatDuration(ctx.message.video.duration);
