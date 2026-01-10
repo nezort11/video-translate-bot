@@ -37,14 +37,67 @@ export const telegramLoggerContext = new TelegramLoggerContext(
 );
 
 /**
+ * Sanitize text to remove/mask potential links and sensitive data
+ * @param text - Text to sanitize
+ * @returns Sanitized text with links masked
+ */
+const sanitizeText = (text: string): string => {
+  return (
+    text
+      // Remove links with protocol (http/https)
+      .replace(/https?:\/\/([^\s/.]+)\.[^\s]+/g, (match, domain) => {
+        const shortDomain = domain.toLowerCase();
+        if (WHITELIST_FORWARD_DOMAINS.includes(shortDomain)) {
+          return `<${shortDomain}>`;
+        }
+        return "<link>";
+      })
+      // Remove links without protocol (e.g., t.me/channel, youtube.com/video)
+      .replace(/\b([a-zA-Z0-9-]+\.[a-zA-Z]{2,})\/[^\s]*/g, (match) => {
+        const domain = match.split("/")[0].toLowerCase();
+        const shortDomain = domain.split(".")[0];
+        if (WHITELIST_FORWARD_DOMAINS.includes(shortDomain)) {
+          return `<${shortDomain}>`;
+        }
+        return "<link>";
+      })
+      // Remove @ from usernames
+      .replaceAll("@", "")
+      // Remove # from hashtags
+      .replaceAll("#", "")
+  );
+};
+
+/**
+ * Sanitize user name to prevent leaking links in names
+ * @param name - User name to sanitize
+ * @returns Sanitized name
+ */
+const sanitizeUserName = (name: string | undefined): string => {
+  if (!name) return "";
+  // Remove potential links and sensitive characters
+  return (
+    name
+      .replace(/https?:\/\/[^\s]+/g, "<link>")
+      // Match domain.tld/path patterns (e.g., t.me/channel, example.com/page)
+      .replace(/([a-zA-Z0-9-]+\.[a-zA-Z]{2,})(\/[^\s]*)?/g, "<link>")
+      .replace(/@/g, "")
+      .replace(/#/g, "")
+  );
+};
+
+/**
  * Helper function to get user information string from context
  * @param ctx - Telegram context with user information
  * @returns Formatted user info string (username or first+last name)
  */
 export const getUserName = (ctx: Context): string => {
-  return ctx.from && ctx.from.username
-    ? ctx.from.username
-    : `${ctx.from?.first_name} ${ctx.from?.last_name}`;
+  if (ctx.from && ctx.from.username) {
+    return sanitizeUserName(ctx.from.username);
+  }
+  const firstName = sanitizeUserName(ctx.from?.first_name);
+  const lastName = sanitizeUserName(ctx.from?.last_name);
+  return `${firstName} ${lastName}`.trim();
 };
 
 /**
@@ -102,15 +155,10 @@ const forwardContextMessage = async (ctx: Context) => {
     return;
   }
 
-  const userName =
-    ctx.from && ctx.from.username
-      ? ctx.from.username
-      : `${ctx.from?.first_name} ${ctx.from?.last_name}`;
+  const userName = getUserName(ctx);
 
   const fromInfo = ctx.from
-    ? // don't include first and last name for privacy reasons
-      // ${ctx.from.first_name} ${ctx.from.last_name} (
-      `👤 ${userName}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
+    ? `👤 ${userName}, id: ${ctx.from.id}, lang: ${ctx.from.language_code}`
     : "";
 
   const typeOrder = [
@@ -149,25 +197,10 @@ const forwardContextMessage = async (ctx: Context) => {
   if (
     "text" in ctx.message //&& ctx.message.text.includes("https")
   ) {
-    const maskedMessageText = ctx.message.text
-      .replace(/https?:\/\/([^\s/.]+)\.[^\s]+/g, (match, domain) => {
-        const shortDomain = domain.toLowerCase();
-        if (WHITELIST_FORWARD_DOMAINS.includes(shortDomain)) {
-          return `<${shortDomain}>`;
-        }
-        return "<link>"; // anonymize any other links for privacy reasons
-      })
-      .replaceAll("@", "") // remove @ from usernames
-      .replaceAll("#", ""); // remove # from hashtags
+    const maskedMessageText = sanitizeText(ctx.message.text);
 
-    // mask user links with plain hostname; include only masked domains
-    // const domainMatches = Array.from(
-    //   ctx.message.text.matchAll(/https?:\/\/([^\s\/.]+)\.[^\s]+/g)
-    // ).map((m) => m[1]);
-    // const maskedMessageText = domainMatches.map((d) => `<${d}>`).join(" ");
     await ctx.telegram.sendMessage(
       LOGGING_CHANNEL_CHAT_ID,
-      // `${fromInfo}\n${maskedMessageText || "[[text]]"}`
       `${fromInfo}\n${maskedMessageText}`
     );
   } else if ("video" in ctx.message) {
