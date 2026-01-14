@@ -1,7 +1,6 @@
 import { app } from "../app";
 import supertest from "supertest";
 import { getDriver } from "../services/ydb";
-import { clearCache } from "../services/cache";
 
 // Create a test agent for the app
 export const request = supertest(app);
@@ -26,10 +25,6 @@ export class DatabaseTestUtils {
       console.warn("[test] Full error:", error);
       return false;
     }
-  }
-
-  static async cleanupTestCache(): Promise<void> {
-    clearCache();
   }
 }
 

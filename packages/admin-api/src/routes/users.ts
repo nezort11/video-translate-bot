@@ -1,13 +1,6 @@
 import { Router, Response } from "express";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth";
-import { scanUpdates } from "../services/ydb";
-import { getOrCompute } from "../services/cache";
-import {
-  extractEvents,
-  aggregateByUser,
-  filterByDateRange,
-  UserStats,
-} from "../utils/extractor";
+import { getUsersList, getUserDetails } from "../services/ydb";
 
 const router: Router = Router();
 
@@ -52,56 +45,16 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
     const page = Math.max(1, parseInt(pageParam, 10) || 1);
     const { from, to } = parseDateRange(fromParam, toParam);
 
-    const cacheKey = `users_${from.toISOString()}_${to.toISOString()}`;
-
-    // Get all user stats (cached)
-    const allUsers = await getOrCompute<UserStats[]>(cacheKey, async () => {
-      const updates = await scanUpdates();
-      const allEvents = extractEvents(updates);
-      const rangeEvents = filterByDateRange(allEvents, from, to);
-      return aggregateByUser(rangeEvents);
-    });
-
-    // Sort users
-    const sortedUsers = [...allUsers].sort((a, b) => {
-      let comparison = 0;
-
-      switch (sort) {
-        case "userId":
-          comparison = a.userId - b.userId;
-          break;
-        case "firstSeenAt":
-          comparison = a.firstSeenAt.getTime() - b.firstSeenAt.getTime();
-          break;
-        case "lastSeenAt":
-          comparison = a.lastSeenAt.getTime() - b.lastSeenAt.getTime();
-          break;
-        case "messagesCount":
-          comparison = a.messagesCount - b.messagesCount;
-          break;
-        default:
-          comparison = a.lastSeenAt.getTime() - b.lastSeenAt.getTime();
-      }
-
-      return order === "asc" ? comparison : -comparison;
-    });
-
-    // Paginate
-    const total = sortedUsers.length;
-    const totalPages = Math.ceil(total / limit);
+    // Calculate offset for pagination
     const offset = (page - 1) * limit;
-    const items = sortedUsers.slice(offset, offset + limit);
 
-    // Format response
-    const formattedItems = items.map((user) => ({
-      userId: user.userId,
-      firstSeenAt: user.firstSeenAt.toISOString(),
-      lastSeenAt: user.lastSeenAt.toISOString(),
-      messagesCount: user.messagesCount,
-    }));
+    // Get users directly from YDB with SQL aggregations, sorting, and pagination
+    const { users, total } = await getUsersList(from, to, limit, offset, sort, order);
+
+    const totalPages = Math.ceil(total / limit);
 
     res.json({
-      items: formattedItems,
+      items: users,
       page,
       limit,
       total,
@@ -127,34 +80,15 @@ router.get("/:userId", async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    const updates = await scanUpdates();
-    const allEvents = extractEvents(updates);
+    // Get user details directly from YDB with SQL aggregations
+    const userDetails = await getUserDetails(userId);
 
-    // Filter events for this user
-    const userEvents = allEvents.filter((e) => e.userId === userId);
-
-    if (userEvents.length === 0) {
+    if (!userDetails) {
       res.status(404).json({ error: "User not found" });
       return;
     }
 
-    // Aggregate stats
-    const stats = aggregateByUser(userEvents)[0];
-
-    // Get update type breakdown
-    const typeBreakdown: Record<string, number> = {};
-    for (const event of userEvents) {
-      typeBreakdown[event.updateType] =
-        (typeBreakdown[event.updateType] || 0) + 1;
-    }
-
-    res.json({
-      userId: stats.userId,
-      firstSeenAt: stats.firstSeenAt.toISOString(),
-      lastSeenAt: stats.lastSeenAt.toISOString(),
-      messagesCount: stats.messagesCount,
-      updateTypes: typeBreakdown,
-    });
+    res.json(userDetails);
   } catch (error) {
     console.error("[users] Error fetching user:", error);
     res.status(500).json({ error: "Failed to fetch user" });
