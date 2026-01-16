@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+node_modules_prod/
+
+# Build outputs
+build/
+dist/
+.next/
+out/
+
+# Package manager
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Archives
+*.zip
+
+# Storage and cache
+storage/
+session/
+yc_env/
+yc_storage/
+
+# Generated files
+patches/

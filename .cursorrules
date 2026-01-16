@@ -1,4 +1,4 @@
-# Cursor Rules for Salary Calculator Project
+# Cursor Rules for Video Translate Bot Project
 
 ## Code Quality Checks
 
@@ -6,13 +6,20 @@ You must run the following commands to verify code quality before finishing work
 
 ### TypeScript Type Checking
 
-- Run `pnpm tsc --noEmit` to check for TypeScript compilation errors
+- Run `pnpm typecheck` to check for TypeScript compilation errors
 - This should pass without any errors before finishing work
 
 ### Linting
 
 - Run `pnpm lint` to check for ESLint violations
 - Fix any linting errors before finishing work
+- Use `pnpm lint:fix` to auto-fix fixable issues
+
+### Formatting
+
+- Run `pnpm format:check` to check for Prettier formatting issues
+- Run `pnpm format` to auto-format all source files
+- All code should be properly formatted before finishing work
 
 ### Testing
 
@@ -23,23 +30,56 @@ You must run the following commands to verify code quality before finishing work
 
 Before finishing your work session:
 
-1. Always run type checking: `pnpm tsc --noEmit`
-2. Always run linting: `pnpm lint`
-3. Run tests if you've modified functionality: `pnpm test`
+1. Always run type checking: `pnpm typecheck`
+2. Always run formatting: `pnpm format`
+3. Always run linting: `pnpm lint`
+4. Run tests if you've modified functionality: `pnpm test`
+
+## Code Style Guidelines
+
+This project uses Prettier and ESLint for consistent code style:
+
+- **Prettier** handles formatting (indentation, quotes, semicolons, etc.)
+- **ESLint** handles code quality and TypeScript-specific rules
+
+Key formatting rules (configured in `.prettierrc`):
+
+- Single quotes for strings
+- Semicolons at the end of statements
+- 2-space indentation
+- Trailing commas in ES5-compatible places
+- 100 character line width
+- LF line endings
 
 ## Project Structure
 
-This is a Next.js application with:
+This is a monorepo with multiple packages:
+
+- `src/` - Main Telegram bot application
+- `packages/admin-api/` - Admin API service
+- `packages/admin-dashboard/` - Admin dashboard (Next.js)
+- `packages/video-translate-app/` - Video translate app (Next.js)
+- `packages/video-translate-server/` - Video translate server
+- `packages/ytdl-service/` - YouTube downloader service
+
+Technologies used:
 
 - TypeScript for type safety
-- ESLint for code quality
+- ESLint + Prettier for code quality and formatting
 - Jest for testing
 - Tailwind CSS for styling
-- Telegram bot integration
-- PDF parsing capabilities
+- Telegram bot integration (Telegraf)
+- YDB for database
 
 ## Development Workflow
 
-- Use `pnpm dev` for development server
+- Use `pnpm dev` for development server (bot)
 - Use `pnpm build` for production builds
-- Use `pnpm bot` for running the Telegram bot in development
+- Use `pnpm admin:dashboard:dev` for admin dashboard development
+
+## Git Hooks
+
+This project uses Husky and lint-staged for pre-commit hooks:
+
+- Files are automatically formatted with Prettier on commit
+- ESLint runs on staged TypeScript files
