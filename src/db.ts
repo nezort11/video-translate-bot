@@ -61,33 +61,54 @@ const initUpdatesTable = async () => {
   });
 };
 
+/**
+ * Extract timestamp from Telegram update object
+ */
+const extractTimestamp = (update: Update): number => {
+  if ("message" in update && update.message) {
+    return update.message.date;
+  }
+  if ("edited_message" in update && update.edited_message) {
+    return update.edited_message.edit_date || update.edited_message.date;
+  }
+  if ("callback_query" in update && update.callback_query?.message) {
+    return update.callback_query.message.date;
+  }
+  if ("inline_query" in update && update.inline_query) {
+    // Inline queries don't have date, use current time
+    return Math.floor(Date.now() / 1000);
+  }
+  if ("my_chat_member" in update && update.my_chat_member) {
+    return update.my_chat_member.date;
+  }
+  // Fallback to current time
+  return Math.floor(Date.now() / 1000);
+};
+
 export const trackUpdate = async (update: Update) => {
   try {
     // Table is pre-provisioned; avoid schema operations on hot path
     // await initUpdatesTable();
     console.log("Table 'updates' is ready");
 
+    const eventTimestamp = extractTimestamp(update);
+
     await driver.tableClient.withSessionRetry(async (session) => {
       await session.executeQuery(
         `DECLARE $update_id AS Uint64;
        DECLARE $update_data AS Json;
-       UPSERT INTO updates (update_id, update_data)
-       VALUES ($update_id, $update_data);`,
+       DECLARE $event_timestamp AS Uint64;
+       UPSERT INTO updates (update_id, update_data, event_timestamp)
+       VALUES ($update_id, $update_data, $event_timestamp);`,
         {
           $update_id: TypedValues.uint64(update.update_id),
-          // Convert your update object to a JSON string
           $update_data: TypedValues.json(JSON.stringify(update)),
+          $event_timestamp: TypedValues.uint64(eventTimestamp),
         }
       );
       console.log("Inserted update with ID:", update.update_id);
     });
-
-    // await db.insert(updatesTable).values({
-    //   updateId: update.update_id,
-    //   updateData: update,
-    // });
   } catch (error) {
-    // handleWarnError("save update error", error);
     console.warn("save update error", error);
   }
 };
