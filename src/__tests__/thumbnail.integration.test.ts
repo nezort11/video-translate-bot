@@ -36,7 +36,9 @@ describe("Thumbnail Download Integration Test", () => {
       const result = testProxyUrlIfNeeded(youtubeUrl, "https://ehp2.deno.dev");
 
       // This should create a properly formed URL without double slashes
-      expect(result).toBe("https://ehp2.deno.dev/https://i.ytimg.com/vi/osLf4E7Rans/maxresdefault.jpg");
+      expect(result).toBe(
+        "https://ehp2.deno.dev/https://i.ytimg.com/vi/osLf4E7Rans/maxresdefault.jpg"
+      );
     });
 
     it("should proxy YouTube URLs when EHP_PROXY has trailing slash", () => {
@@ -44,12 +46,17 @@ describe("Thumbnail Download Integration Test", () => {
       const result = testProxyUrlIfNeeded(youtubeUrl, "https://ehp2.deno.dev/");
 
       // Should handle trailing slash properly and not create double slashes
-      expect(result).toBe("https://ehp2.deno.dev/https://i.ytimg.com/vi/osLf4E7Rans/maxresdefault.jpg");
+      expect(result).toBe(
+        "https://ehp2.deno.dev/https://i.ytimg.com/vi/osLf4E7Rans/maxresdefault.jpg"
+      );
     });
 
     it("should not proxy non-YouTube URLs", () => {
       const nonYoutubeUrl = "https://example.com/image.jpg";
-      const result = testProxyUrlIfNeeded(nonYoutubeUrl, "https://ehp2.deno.dev");
+      const result = testProxyUrlIfNeeded(
+        nonYoutubeUrl,
+        "https://ehp2.deno.dev"
+      );
 
       expect(result).toBe(nonYoutubeUrl);
     });
@@ -71,7 +78,9 @@ describe("Thumbnail Download Integration Test", () => {
       const proxyBase = "https://ehp2.deno.dev/".replace(/\/$/, ""); // Remove trailing slash
       const result = `${proxyBase}/${youtubeUrl}`;
 
-      expect(result).toBe("https://ehp2.deno.dev/https://i.ytimg.com/vi/osLf4E7Rans/maxresdefault.jpg");
+      expect(result).toBe(
+        "https://ehp2.deno.dev/https://i.ytimg.com/vi/osLf4E7Rans/maxresdefault.jpg"
+      );
 
       // Should not contain double slashes
       expect(result).not.toContain("//https://");

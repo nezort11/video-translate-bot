@@ -45,10 +45,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
     return (
       <div className={cn("space-y-3", className)}>
         {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="bg-card rounded-xl p-4 border border-border"
-          >
+          <div key={i} className="bg-card rounded-xl p-4 border border-border">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
                 <div className="skeleton h-5 w-24 rounded" />
@@ -92,7 +89,8 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                 <p>
                   First seen:{" "}
                   <span className="text-foreground">
-                    {formatDate(user.firstSeenAt)} {formatTime(user.firstSeenAt)}
+                    {formatDate(user.firstSeenAt)}{" "}
+                    {formatTime(user.firstSeenAt)}
                   </span>
                 </p>
                 <p>
@@ -135,4 +133,3 @@ export const UsersTable: React.FC<UsersTableProps> = ({
     </div>
   );
 };
-

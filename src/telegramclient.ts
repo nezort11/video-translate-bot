@@ -151,7 +151,9 @@ export const getClient = async (sessionString: string) => {
     if (error instanceof RPCError) {
       throw new CorruptedSessionStringError(
         "Telegram client session has been corrupted!",
-        { cause: error }
+        {
+          cause: error,
+        }
       );
     } else {
       throw error;

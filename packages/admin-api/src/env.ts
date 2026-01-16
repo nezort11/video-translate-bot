@@ -31,7 +31,8 @@ export const ADMIN_IDS = (process.env.ADMIN_IDS || "")
   .split(",")
   .map((id) => id.trim())
   .filter(Boolean);
-export const DEBUG_ADMIN_ID = process.env.DEBUG_ADMIN_ID || parseInt(ADMIN_IDS[0]) || 123456789;
+export const DEBUG_ADMIN_ID =
+  process.env.DEBUG_ADMIN_ID || parseInt(ADMIN_IDS[0]) || 123456789;
 export const BOT_TOKEN = process.env.BOT_TOKEN || "";
 export const JWT_SECRET = process.env.JWT_SECRET || "dev-jwt-secret-change-me";
 export const JWT_EXPIRES_IN = "24h";
@@ -49,4 +50,8 @@ export const YDB_SERVICE_ACCOUNT_KEY_PATH = path.resolve(
 console.log("[admin-api] NODE_ENV:", NODE_ENV);
 console.log("[admin-api] ADMIN_IDS:", ADMIN_IDS);
 console.log("[admin-api] YDB_ENDPOINT:", YDB_ENDPOINT);
-console.log("[admin-api] YDB_DATABASE:", YDB_DATABASE);console.log("[admin-api] YDB_SERVICE_ACCOUNT_KEY_PATH:", YDB_SERVICE_ACCOUNT_KEY_PATH);
+console.log("[admin-api] YDB_DATABASE:", YDB_DATABASE);
+console.log(
+  "[admin-api] YDB_SERVICE_ACCOUNT_KEY_PATH:",
+  YDB_SERVICE_ACCOUNT_KEY_PATH
+);

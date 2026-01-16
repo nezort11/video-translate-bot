@@ -26,10 +26,7 @@ export const NewUsersChart: React.FC<NewUsersChartProps> = ({
   if (loading) {
     return (
       <div
-        className={cn(
-          "bg-card rounded-xl p-4 border border-border",
-          className
-        )}
+        className={cn("bg-card rounded-xl p-4 border border-border", className)}
       >
         <div className="skeleton h-5 w-32 rounded mb-4" />
         <div className="skeleton h-48 w-full rounded" />
@@ -98,4 +95,3 @@ export const NewUsersChart: React.FC<NewUsersChartProps> = ({
     </div>
   );
 };
-

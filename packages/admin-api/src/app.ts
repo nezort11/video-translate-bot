@@ -20,7 +20,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });

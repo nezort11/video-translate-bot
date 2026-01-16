@@ -96,7 +96,7 @@ export const formatDuration = (seconds: number): string => {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
 
-  const pad = (num: number) => String(num).padStart(2, '0');
+  const pad = (num: number) => String(num).padStart(2, "0");
 
   return `${hours}:${pad(minutes)}:${pad(secs)}`;
 };
@@ -107,4 +107,3 @@ export const formatDuration = (seconds: number): string => {
 export const isValidDate = (date: any): boolean => {
   return date instanceof Date && !isNaN(date.getTime());
 };
-

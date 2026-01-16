@@ -143,9 +143,7 @@ export const getVideoInfo = async (link: string) => {
     const videoThumbnailFileId = videoUrl.searchParams.get("thumbnail");
 
     logger.info(
-      `Processing Telegram video thumbnail: fileId=${
-        videoThumbnailFileId || "NOT_PRESENT"
-      }`
+      `Processing Telegram video thumbnail: fileId=${videoThumbnailFileId || "NOT_PRESENT"}`
     );
 
     let videoThumbnail: string | null = null;
@@ -183,9 +181,7 @@ export const getVideoInfo = async (link: string) => {
     // const videoInfo = await getVideoInfo(link);
     const videoInfo = await getVideoInfoYtdl(link);
     logger.info(
-      `YouTube video info retrieved, thumbnails count: ${
-        videoInfo.thumbnails?.length || 0
-      }`
+      `YouTube video info retrieved, thumbnails count: ${videoInfo.thumbnails?.length || 0}`
     );
 
     const videoThumbnail = findMaxJpgYoutubeThumbnail(

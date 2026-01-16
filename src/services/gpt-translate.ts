@@ -238,9 +238,7 @@ export const translateWithGPT = async (
       code: error?.code,
     });
     throw new Error(
-      `GPT translation failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      `GPT translation failed: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 };

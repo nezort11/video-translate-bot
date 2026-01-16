@@ -29,10 +29,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   if (loading) {
     return (
       <div
-        className={cn(
-          "bg-card rounded-xl p-4 border border-border",
-          className
-        )}
+        className={cn("bg-card rounded-xl p-4 border border-border", className)}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="skeleton h-4 w-24 rounded" />
@@ -92,4 +89,3 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ children, className }) => {
     <div className={cn("grid grid-cols-2 gap-3", className)}>{children}</div>
   );
 };
-

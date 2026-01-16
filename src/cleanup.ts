@@ -15,9 +15,7 @@ async function deleteOlderThanMinutes(
   );
   const cutoffTimestamp = Date.now() - minutes * 60 * 1000;
   console.log(
-    `[DEBUG] Cutoff timestamp: ${cutoffTimestamp} (${new Date(
-      cutoffTimestamp
-    ).toISOString()})`
+    `[DEBUG] Cutoff timestamp: ${cutoffTimestamp} (${new Date(cutoffTimestamp).toISOString()})`
   );
 
   const candidateKeys: string[] = [];
@@ -114,9 +112,7 @@ async function deleteOlderThanMinutes(
   for (let i = 0; i < candidateKeys.length; i += 1000) {
     const chunk = candidateKeys.slice(i, i + 1000);
     console.log(
-      `[DEBUG] Processing deletion chunk ${Math.floor(i / 1000) + 1}, size: ${
-        chunk.length
-      } keys`
+      `[DEBUG] Processing deletion chunk ${Math.floor(i / 1000) + 1}, size: ${chunk.length} keys`
     );
 
     if (chunk.length === 0) {

@@ -37,7 +37,10 @@ const main = async () => {
         console.log("⚠️  Could not detect language, using auto-detection");
       }
     } catch (error) {
-      console.warn("⚠️  Failed to detect language, using auto-detection", error);
+      console.warn(
+        "⚠️  Failed to detect language, using auto-detection",
+        error
+      );
     }
 
     const translatedUrl = await translateVideoPreferLiveVoices(translateUrl, {

@@ -49,7 +49,14 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
     const offset = (page - 1) * limit;
 
     // Get users directly from YDB with SQL aggregations, sorting, and pagination
-    const { users, total } = await getUsersList(from, to, limit, offset, sort, order);
+    const { users, total } = await getUsersList(
+      from,
+      to,
+      limit,
+      offset,
+      sort,
+      order
+    );
 
     const totalPages = Math.ceil(total / limit);
 

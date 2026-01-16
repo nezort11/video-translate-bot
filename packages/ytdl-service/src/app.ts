@@ -7,7 +7,7 @@ import ytdl, { videoInfo } from "@distube/ytdl-core";
 
 // https://github.com/TypeStrong/ts-node/discussions/1290
 const dynamicImport = new Function("specifier", "return import(specifier)") as <
-  T
+  T,
 >(
   module: string
 ) => Promise<T>;
@@ -46,9 +46,10 @@ app.post(
       const videoInfo = await ytdl.getBasicInfo(videoUrl, { agent: ytdlAgent });
       res.json(videoInfo);
     } catch (error) {
-      const { serializeError } = await dynamicImport<
-        typeof import("serialize-error")
-      >("serialize-error");
+      const { serializeError } =
+        await dynamicImport<typeof import("serialize-error")>(
+          "serialize-error"
+        );
       const serializedError = serializeError(error);
       // https://docs.pynt.io/documentation/api-security-testing/pynt-security-tests-coverage/stack-trace-in-response
       delete serializedError.stack;

@@ -497,9 +497,8 @@ export default function Home() {
     ) {
       console.log("requesting upload url...");
       setTranslateProgress("Отправка переведенного видео...");
-      const videoStorageResponse = await client.post<VideoUploadResponseData>(
-        "/upload"
-      );
+      const videoStorageResponse =
+        await client.post<VideoUploadResponseData>("/upload");
       const videoStorageUrl = videoStorageResponse.data.url;
       console.log("uploading translate result to the bucket...");
       await axios.put(videoStorageUrl, resultBlob, {

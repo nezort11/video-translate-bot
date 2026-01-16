@@ -37,9 +37,21 @@ export default function UsersPage() {
       setError(null);
     } catch (err: unknown) {
       console.error("Failed to fetch users:", err);
-      const errorMessage = err instanceof Error && typeof err === 'object' && err !== null && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data
-        ? (err.response.data as { error: string }).error || err.message
-        : err instanceof Error ? err.message : "Failed to load users";
+      const errorMessage =
+        err instanceof Error &&
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "error" in err.response.data
+          ? (err.response.data as { error: string }).error || err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to load users";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -59,9 +71,7 @@ export default function UsersPage() {
 
   // Filter users by search query (client-side for now)
   const filteredUsers = searchQuery
-    ? users.filter((user) =>
-        String(user.userId).includes(searchQuery)
-      )
+    ? users.filter((user) => String(user.userId).includes(searchQuery))
     : users;
 
   if (error && users.length === 0) {
@@ -136,4 +146,3 @@ export default function UsersPage() {
     </div>
   );
 }
-

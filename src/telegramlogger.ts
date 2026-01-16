@@ -18,7 +18,10 @@ type Getter<U extends Deunionize<Update>, P extends string> = PropOr<
 >;
 
 export class TelegramLoggerContext extends Context {
-  constructor(readonly telegram: Telegram, readonly botInfo: UserFromGetMe) {
+  constructor(
+    readonly telegram: Telegram,
+    readonly botInfo: UserFromGetMe
+  ) {
     super({} as any, telegram, botInfo);
   }
 

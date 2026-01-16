@@ -41,7 +41,11 @@ describe("YDB Service Unit Tests", () => {
     }
 
     // Helper to get ISO date string for local date
-    function toLocalDateString(year: number, month: number, day: number): string {
+    function toLocalDateString(
+      year: number,
+      month: number,
+      day: number
+    ): string {
       const d = localMidnight(year, month, day);
       return d.toISOString().split("T")[0];
     }
@@ -168,7 +172,9 @@ describe("YDB Service Unit Tests", () => {
 
   describe("User extraction from Telegram update JSON", () => {
     // These paths match the COALESCE logic in the YDB queries
-    const extractUserId = (updateData: Record<string, unknown>): number | null => {
+    const extractUserId = (
+      updateData: Record<string, unknown>
+    ): number | null => {
       const paths = [
         ["message", "from", "id"],
         ["callback_query", "from", "id"],

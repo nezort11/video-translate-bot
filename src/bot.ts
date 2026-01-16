@@ -1116,7 +1116,10 @@ bot.command("me", async (context) => {
 
   await context.reply(
     `Your user id: <code>${userId}</code>\nUsername: ${username}`,
-    { parse_mode: "HTML", disable_notification: true }
+    {
+      parse_mode: "HTML",
+      disable_notification: true,
+    }
   );
 });
 
@@ -1708,9 +1711,7 @@ bot.action(/.+/, async (context) => {
     // Format video duration as MM:SS
     const minutes = Math.floor(videoDuration / 60);
     const seconds = Math.floor(videoDuration % 60);
-    const formattedDuration = `${minutes}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
+    const formattedDuration = `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
     await replyError(
       context,
@@ -2007,9 +2008,7 @@ bot.action(/.+/, async (context) => {
 
     const videoThumbnailUrl = videoInfo.thumbnail;
     logger.info(
-      `Video thumbnail URL (${videoPlatform}): ${
-        videoThumbnailUrl || "NOT AVAILABLE"
-      }`
+      `Video thumbnail URL (${videoPlatform}): ${videoThumbnailUrl || "NOT AVAILABLE"}`
     );
 
     let thumbnailBuffer: Buffer | undefined;
@@ -2472,9 +2471,8 @@ bot.action(/.+/, async (context) => {
         // const outputBuffer: Buffer | null = Buffer.from(outputFile);
         outputBuffer.name = `${videoTitle}.mp4`;
 
-        let videoCaption:
-          | string
-          | undefined = `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`;
+        let videoCaption: string | undefined =
+          `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`;
         if (videoPlatform === VideoPlatform.Telegram) {
           videoCaption = undefined;
         }

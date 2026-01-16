@@ -100,9 +100,7 @@ export const verifyInitData = (
       // For Mini Apps, we allow older auth_date since it's set at app open
       // Just log a warning but don't fail
       console.warn(
-        `[telegram] initData auth_date is ${
-          now - authDate
-        }s old (max ${maxAge}s)`
+        `[telegram] initData auth_date is ${now - authDate}s old (max ${maxAge}s)`
       );
     }
 

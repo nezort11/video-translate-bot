@@ -123,9 +123,21 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
         setIsInitializing(false);
       } catch (err: unknown) {
         console.error("[AuthHandler] Auth initialization error:", err);
-        const errorMessage = err instanceof Error && typeof err === 'object' && err !== null && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response && err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data
-          ? (err.response.data as { error: string }).error || err.message
-          : err instanceof Error ? err.message : "Authentication failed";
+        const errorMessage =
+          err instanceof Error &&
+          typeof err === "object" &&
+          err !== null &&
+          "response" in err &&
+          err.response &&
+          typeof err.response === "object" &&
+          "data" in err.response &&
+          err.response.data &&
+          typeof err.response.data === "object" &&
+          "error" in err.response.data
+            ? (err.response.data as { error: string }).error || err.message
+            : err instanceof Error
+              ? err.message
+              : "Authentication failed";
         setInitError(errorMessage);
         setIsInitializing(false);
       }

@@ -3,9 +3,7 @@ import { bot } from "./bot";
 const LONG_SPACE_CHARACTER = " ";
 
 export const createDescription = (icon: string, description: string) =>
-  `${LONG_SPACE_CHARACTER}${icon}${LONG_SPACE_CHARACTER.repeat(
-    2
-  )}${description}`;
+  `${LONG_SPACE_CHARACTER}${icon}${LONG_SPACE_CHARACTER.repeat(2)}${description}`;
 
 const commands = [
   // {

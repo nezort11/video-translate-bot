@@ -105,8 +105,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         "error" in err.response.data
           ? (err.response.data as { error: string }).error || err.message
           : err instanceof Error
-          ? err.message
-          : "Authentication failed";
+            ? err.message
+            : "Authentication failed";
       console.error("[AuthContext] Authentication failed:", err);
       setError(errorMessage);
       setIsAuthenticated(false);
@@ -147,8 +147,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         "error" in err.response.data
           ? (err.response.data as { error: string }).error || err.message
           : err instanceof Error
-          ? err.message
-          : "Debug authentication failed";
+            ? err.message
+            : "Debug authentication failed";
       console.error("[AuthContext] Debug authentication failed:", errorMessage);
       setError(errorMessage);
       setIsAuthenticated(false);

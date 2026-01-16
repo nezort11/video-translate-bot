@@ -17,8 +17,7 @@ const BOT_TIMEOUT = duration.seconds(EXECUTION_TIMEOUT - 30);
 // extend bot context from action scene and wizard context
 
 export interface BotContext
-  extends Omit<SceneActionContext, "scene">,
-    WizardContext<WizardSessionData> {
+  extends Omit<SceneActionContext, "scene">, WizardContext<WizardSessionData> {
   session: SceneActionSession; // Ensure session is always present and satisfies both types
   scene: SceneContextScene<BotContext, WizardSessionData>; // Ensure compatibility with WizardContext
 }
