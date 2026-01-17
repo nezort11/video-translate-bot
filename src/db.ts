@@ -85,6 +85,62 @@ const extractTimestamp = (update: Update): number => {
   return Math.floor(Date.now() / 1000);
 };
 
+/**
+ * User info extracted from Telegram update
+ */
+interface UserInfo {
+  userId: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  languageCode?: string;
+  isBot: boolean;
+}
+
+/**
+ * Extract user info from Telegram update object
+ */
+const extractUserInfo = (update: Update): UserInfo | null => {
+  let from:
+    | {
+        id: number;
+        is_bot: boolean;
+        username?: string;
+        first_name?: string;
+        last_name?: string;
+        language_code?: string;
+      }
+    | undefined;
+
+  if ("message" in update && update.message?.from) {
+    from = update.message.from;
+  } else if ("callback_query" in update && update.callback_query?.from) {
+    from = update.callback_query.from;
+  } else if ("inline_query" in update && update.inline_query?.from) {
+    from = update.inline_query.from;
+  } else if ("my_chat_member" in update && update.my_chat_member?.from) {
+    from = update.my_chat_member.from;
+  } else if ("edited_message" in update && update.edited_message?.from) {
+    from = update.edited_message.from;
+  } else if (
+    "chosen_inline_result" in update &&
+    update.chosen_inline_result?.from
+  ) {
+    from = update.chosen_inline_result.from;
+  }
+
+  if (!from) return null;
+
+  return {
+    userId: from.id,
+    username: from.username,
+    firstName: from.first_name,
+    lastName: from.last_name,
+    languageCode: from.language_code,
+    isBot: from.is_bot,
+  };
+};
+
 export const trackUpdate = async (update: Update) => {
   try {
     // Table is pre-provisioned; avoid schema operations on hot path
@@ -108,7 +164,66 @@ export const trackUpdate = async (update: Update) => {
       );
       console.log("Inserted update with ID:", update.update_id);
     });
+
+    // Also track new users (insert only, don't update existing)
+    await trackNewUser(update, eventTimestamp);
   } catch (error) {
     console.warn("save update error", error);
+  }
+};
+
+/**
+ * Insert a new user into the users table (only if they don't exist yet).
+ * This keeps the users table up-to-date for "Total Users" count.
+ * Existing users are NOT updated (to preserve original message counts from migration).
+ */
+const trackNewUser = async (update: Update, eventTimestamp: number) => {
+  try {
+    const userInfo = extractUserInfo(update);
+
+    // Skip if no user info or if it's a bot
+    if (!userInfo || userInfo.isBot) {
+      return;
+    }
+
+    await driver.tableClient.withSessionRetry(async (session) => {
+      // Use INSERT with NOT EXISTS check - only insert if user doesn't exist
+      // This ensures existing users are never updated
+      await session.executeQuery(
+        `DECLARE $user_id AS Uint64;
+         DECLARE $first_seen_at AS Uint64;
+         DECLARE $last_seen_at AS Uint64;
+         DECLARE $username AS Utf8;
+         DECLARE $first_name AS Utf8;
+         DECLARE $last_name AS Utf8;
+         DECLARE $language_code AS Utf8;
+
+         -- Only insert if user doesn't already exist
+         UPSERT INTO users (user_id, first_seen_at, last_seen_at, username, first_name, last_name, language_code)
+         SELECT
+           $user_id,
+           $first_seen_at,
+           $last_seen_at,
+           IF($username = "", NULL, $username),
+           IF($first_name = "", NULL, $first_name),
+           IF($last_name = "", NULL, $last_name),
+           IF($language_code = "", NULL, $language_code)
+         WHERE NOT EXISTS (
+           SELECT 1 FROM users WHERE user_id = $user_id
+         );`,
+        {
+          $user_id: TypedValues.uint64(userInfo.userId),
+          $first_seen_at: TypedValues.uint64(eventTimestamp),
+          $last_seen_at: TypedValues.uint64(eventTimestamp),
+          $username: TypedValues.utf8(userInfo.username || ""),
+          $first_name: TypedValues.utf8(userInfo.firstName || ""),
+          $last_name: TypedValues.utf8(userInfo.lastName || ""),
+          $language_code: TypedValues.utf8(userInfo.languageCode || ""),
+        }
+      );
+    });
+  } catch (error) {
+    // Don't fail the main update tracking if user tracking fails
+    console.warn("track new user error (non-fatal):", error);
   }
 };

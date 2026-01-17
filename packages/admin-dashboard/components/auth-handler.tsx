@@ -34,11 +34,12 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
       setHasAttemptedAuth(true);
 
       try {
-        // Mock Telegram environment in development
-        if (process.env.NODE_ENV === "development") {
+        // In development mode, use debug auth directly (skip Telegram validation)
+        if (process.env.NODE_ENV === "development" && debugLogin) {
           console.log(
-            "[AuthHandler] Development mode - mocking Telegram environment"
+            "[AuthHandler] Development mode - using debug authentication"
           );
+          // Mock Telegram theme for styling
           mockTelegramEnv({
             themeParams: {
               accentTextColor: "#6ab2f2",
@@ -72,32 +73,21 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
               chatType: "sender",
               chatInstance: "test",
             },
-            initDataRaw: new URLSearchParams([
-              [
-                "user",
-                JSON.stringify({
-                  id: 776696185,
-                  first_name: "Admin",
-                  last_name: "User",
-                  username: "admin",
-                  language_code: "en",
-                  is_premium: true,
-                  allows_write_to_pm: true,
-                }),
-              ],
-              ["hash", "test_hash"],
-              ["auth_date", String(Math.floor(Date.now() / 1000))],
-              ["signature", "test"],
-            ]).toString(),
+            initDataRaw: "",
             version: "7.2",
             platform: "tdesktop",
           });
+          // Use debug auth endpoint instead of Telegram validation
+          await debugLogin();
+          console.log("[AuthHandler] Debug authentication successful");
+          setIsInitializing(false);
+          return;
         }
 
         const isTma = await isTMA();
         console.log("[AuthHandler] Is Telegram Mini App:", isTma);
 
-        if (!isTma && process.env.NODE_ENV !== "development") {
+        if (!isTma) {
           console.error("[AuthHandler] Not running in Telegram Mini App");
           setInitError("This app must be opened from Telegram");
           setIsInitializing(false);
@@ -154,7 +144,7 @@ export const AuthHandler: React.FC<AuthHandlerProps> = ({ children }) => {
       });
       setIsInitializing(false);
     }
-  }, [isAuthenticated, isLoading, hasAttemptedAuth, login]);
+  }, [isAuthenticated, isLoading, hasAttemptedAuth, login, debugLogin]);
 
   // Loading state
   if (isInitializing || isLoading) {

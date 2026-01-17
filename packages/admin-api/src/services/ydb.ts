@@ -179,6 +179,31 @@ export const countUpdates = async (): Promise<number> => {
   return count;
 };
 
+/**
+ * Count total users from the users table (all-time)
+ * This is a fast O(1) query since it uses the dedicated users table
+ */
+export const countTotalUsers = async (): Promise<number> => {
+  const driver = getDriver();
+  let count = 0;
+
+  await driver.tableClient.withSessionRetry(async (session) => {
+    const result = await session.executeQuery(`
+      SELECT COUNT(*) as cnt FROM users;
+    `);
+
+    if (result.resultSets && result.resultSets[0]) {
+      const resultSet = result.resultSets[0];
+      const rows = TypedData.createNativeObjects(resultSet) as any[];
+      if (rows[0]) {
+        count = Number(rows[0].cnt);
+      }
+    }
+  });
+
+  return count;
+};
+
 // ============================================================================
 // NEW: SQL-BASED AGGREGATION FUNCTIONS (optimized for millions of rows)
 // ============================================================================
@@ -205,6 +230,7 @@ export interface OverviewMetrics {
 /**
  * Get overview metrics (DAU, WAU, MAU, unique users, new users, messages count)
  * OPTIMIZED: Uses indexed event_timestamp column for pre-filtering (no full table scan!)
+ * Total unique users now comes from the dedicated users table (all-time count)
  */
 export const getOverviewMetrics = async (
   from: Date,
@@ -235,6 +261,8 @@ export const getOverviewMetrics = async (
   };
 
   try {
+    // Get total users count from the dedicated users table (all-time, fast O(1) query)
+    metrics.totalUniqueUsers = await countTotalUsers();
     // OPTIMIZED: Filter by indexed event_timestamp FIRST, then parse JSON only for matched rows
     const mainQuery = `
       DECLARE $fromTimestamp AS Uint64;
@@ -296,7 +324,7 @@ export const getOverviewMetrics = async (
     });
 
     if (mainRows[0]) {
-      metrics.totalUniqueUsers = Number(mainRows[0].total_unique_users || 0);
+      // Note: totalUniqueUsers comes from countTotalUsers() above (all-time from users table)
       metrics.messagesCount = Number(mainRows[0].messages_count || 0);
       metrics.dau = Number(mainRows[0].dau || 0);
       metrics.wau = Number(mainRows[0].wau || 0);
