@@ -65,8 +65,11 @@ describe("Admin API Integration Tests", () => {
       }
     });
 
-    it.skip("should get metrics overview (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    it("should get metrics overview", async () => {
+      if (!dbAvailable) {
+        console.log("⚠️ Database not available - skipping test");
+        return;
+      }
 
       const response = await authorizedRequest.get("/api/metrics/overview");
 
@@ -91,10 +94,13 @@ describe("Admin API Integration Tests", () => {
       console.log(
         `📊 Metrics Overview: ${response.body.totalUniqueUsers} users, ${response.body.messagesCount} messages, DAU: ${response.body.dau}`
       );
-    });
+    }, 60000); // 60 second timeout for YDB queries
 
-    it.skip("should get new users metrics (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    it("should get new users metrics", async () => {
+      if (!dbAvailable) {
+        console.log("⚠️ Database not available - skipping test");
+        return;
+      }
 
       const response = await authorizedRequest.get("/api/metrics/new-users");
 
@@ -113,10 +119,13 @@ describe("Admin API Integration Tests", () => {
       console.log(
         `👥 New Users Data: ${response.body.data.length} data points`
       );
-    });
+    }, 60000); // 60 second timeout for YDB queries
 
-    it.skip("should get active users metrics (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    it("should get active users metrics", async () => {
+      if (!dbAvailable) {
+        console.log("⚠️ Database not available - skipping test");
+        return;
+      }
 
       const response = await authorizedRequest.get(
         "/api/metrics/active?period=7d"
@@ -132,10 +141,13 @@ describe("Admin API Integration Tests", () => {
       expect(response.body.days).toBe(7);
 
       console.log(`📊 Active Users (7d): ${response.body.activeUsers} users`);
-    });
+    }, 60000); // 60 second timeout for YDB queries
 
-    it.skip("should get DAU history (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    it("should get DAU history", async () => {
+      if (!dbAvailable) {
+        console.log("⚠️ Database not available - skipping test");
+        return;
+      }
 
       const response = await authorizedRequest.get("/api/metrics/dau-history");
 
@@ -152,7 +164,80 @@ describe("Admin API Integration Tests", () => {
       }
 
       console.log(`📈 DAU History: ${response.body.data.length} data points`);
-    });
+    }, 60000); // 60 second timeout for YDB queries
+
+    it("should get metrics overview with date range", async () => {
+      if (!dbAvailable) {
+        console.log("⚠️ Database not available - skipping test");
+        return;
+      }
+
+      const to = new Date();
+      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+
+      const response = await authorizedRequest.get(
+        `/api/metrics/overview?from=${from.toISOString()}&to=${to.toISOString()}`
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty("period");
+      expect(response.body.period).toHaveProperty("from");
+      expect(response.body.period).toHaveProperty("to");
+
+      console.log(
+        `📊 Metrics with date range: ${response.body.totalUniqueUsers} users`
+      );
+    }, 60000);
+
+    it("should get new users with date range", async () => {
+      if (!dbAvailable) {
+        console.log("⚠️ Database not available - skipping test");
+        return;
+      }
+
+      const to = new Date();
+      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+
+      const response = await authorizedRequest.get(
+        `/api/metrics/new-users?from=${from.toISOString()}&to=${to.toISOString()}`
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty("data");
+      expect(response.body).toHaveProperty("period");
+
+      // Should have entries for the date range
+      expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+
+      console.log(
+        `👥 New Users (7 days): ${response.body.data.length} data points`
+      );
+    }, 60000);
+
+    it("should get DAU history with date range", async () => {
+      if (!dbAvailable) {
+        console.log("⚠️ Database not available - skipping test");
+        return;
+      }
+
+      const to = new Date();
+      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+
+      const response = await authorizedRequest.get(
+        `/api/metrics/dau-history?from=${from.toISOString()}&to=${to.toISOString()}`
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty("data");
+      expect(response.body).toHaveProperty("period");
+
+      // Should have entries for the date range
+      expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+
+      console.log(
+        `📈 DAU History (7 days): ${response.body.data.length} data points`
+      );
+    }, 60000);
   });
 
   describe("Users Endpoints (Authenticated)", () => {

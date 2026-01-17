@@ -413,13 +413,24 @@ export const getNewUsersTimeSeries = async (
       );
 
       $filtered = (
-        SELECT DateTime::Format(DateTime::FromSeconds(CAST(first_seen AS Uint32)), "%Y-%m-%d") AS date
+        SELECT
+          user_id,
+          first_seen
         FROM $first_seen_per_user
         WHERE first_seen >= $fromTimestamp AND first_seen <= $toTimestamp
       );
 
-      SELECT date, COUNT(*) AS count
-      FROM $filtered
+      $with_dates = (
+        SELECT
+          user_id,
+          DateTime::MakeDate(DateTime::FromSeconds(CAST(first_seen AS Uint32))) AS date
+        FROM $filtered
+      );
+
+      SELECT
+        CAST(date AS String) AS date,
+        COUNT(*) AS count
+      FROM $with_dates
       GROUP BY date
       ORDER BY date;
     `;
@@ -479,7 +490,7 @@ export const getDauHistory = async (
           AND event_timestamp IS NOT NULL
       );
 
-      -- Extract user_id only for filtered rows
+      -- Extract user_id and compute date for filtered rows
       $range_events = (
         SELECT
           COALESCE(
@@ -488,7 +499,7 @@ export const getDauHistory = async (
             CAST(JSON_VALUE(update_data, "$.inline_query.from.id") AS Uint64),
             CAST(JSON_VALUE(update_data, "$.my_chat_member.from.id") AS Uint64)
           ) AS user_id,
-          event_timestamp
+          DateTime::MakeDate(DateTime::FromSeconds(CAST(event_timestamp AS Uint32))) AS date
         FROM $filtered_updates
         WHERE COALESCE(
           JSON_VALUE(update_data, "$.message.from.is_bot"),
@@ -499,11 +510,11 @@ export const getDauHistory = async (
       );
 
       SELECT
-        DateTime::Format(DateTime::FromSeconds(CAST(event_timestamp AS Uint32)), "%Y-%m-%d") AS date,
+        CAST(date AS String) AS date,
         COUNT(DISTINCT user_id) AS count
       FROM $range_events
       WHERE user_id IS NOT NULL
-      GROUP BY DateTime::Format(DateTime::FromSeconds(CAST(event_timestamp AS Uint32)), "%Y-%m-%d")
+      GROUP BY date
       ORDER BY date;
     `;
 
