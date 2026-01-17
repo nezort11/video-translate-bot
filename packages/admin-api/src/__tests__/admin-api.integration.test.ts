@@ -1,19 +1,38 @@
 /**
  * Integration tests for Admin API endpoints using Jest
  * Tests all major API endpoints including auth, metrics, and users
+ *
+ * These tests connect to the real YDB database and are expensive to run.
+ *
+ * To run integration tests:
+ *   RUN_INTEGRATION_TESTS=true pnpm test --filter=admin-api
+ *
+ * By default, expensive YDB tests are skipped.
  */
 
 import { request, TestUtils, DatabaseTestUtils } from "./setup";
 
+// Check if integration tests should run
+const RUN_INTEGRATION_TESTS = process.env.RUN_INTEGRATION_TESTS === "true";
+
+// Helper to conditionally skip expensive tests
+const itIntegration = RUN_INTEGRATION_TESTS ? it : it.skip;
+
 describe("Admin API Integration Tests", () => {
   let authToken: string;
-  let authorizedRequest: any;
+  let authorizedRequest: ReturnType<typeof TestUtils.getAuthorizedRequest>;
   let dbAvailable = false;
 
   beforeAll(async () => {
-    // Check database availability for tests that need it
-    dbAvailable = await DatabaseTestUtils.ensureDatabaseConnection();
-    console.log(`[admin-api-test] Database available: ${dbAvailable}`);
+    if (RUN_INTEGRATION_TESTS) {
+      // Check database availability for tests that need it
+      dbAvailable = await DatabaseTestUtils.ensureDatabaseConnection();
+      console.log(`[admin-api-test] Database available: ${dbAvailable}`);
+    } else {
+      console.log(
+        "[admin-api-test] Integration tests skipped. Set RUN_INTEGRATION_TESTS=true to enable."
+      );
+    }
   });
 
   describe("Health Check", () => {
@@ -65,179 +84,209 @@ describe("Admin API Integration Tests", () => {
       }
     });
 
-    it("should get metrics overview", async () => {
-      if (!dbAvailable) {
-        console.log("⚠️ Database not available - skipping test");
-        return;
-      }
+    itIntegration(
+      "should get metrics overview",
+      async () => {
+        if (!dbAvailable) {
+          console.log("⚠️ Database not available - skipping test");
+          return;
+        }
 
-      const response = await authorizedRequest.get("/api/metrics/overview");
+        const response = await authorizedRequest.get("/api/metrics/overview");
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("totalUniqueUsers");
-      expect(response.body).toHaveProperty("messagesCount");
-      expect(response.body).toHaveProperty("dau");
-      expect(response.body).toHaveProperty("wau");
-      expect(response.body).toHaveProperty("mau");
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("totalUniqueUsers");
+        expect(response.body).toHaveProperty("messagesCount");
+        expect(response.body).toHaveProperty("dau");
+        expect(response.body).toHaveProperty("wau");
+        expect(response.body).toHaveProperty("mau");
 
-      // Validate data types
-      expect(typeof response.body.totalUniqueUsers).toBe("number");
-      expect(typeof response.body.messagesCount).toBe("number");
-      expect(typeof response.body.dau).toBe("number");
-      expect(typeof response.body.wau).toBe("number");
-      expect(typeof response.body.mau).toBe("number");
+        // Validate data types
+        expect(typeof response.body.totalUniqueUsers).toBe("number");
+        expect(typeof response.body.messagesCount).toBe("number");
+        expect(typeof response.body.dau).toBe("number");
+        expect(typeof response.body.wau).toBe("number");
+        expect(typeof response.body.mau).toBe("number");
 
-      // Ensure we have real data
-      expect(response.body.totalUniqueUsers).toBeGreaterThanOrEqual(0);
-      expect(response.body.messagesCount).toBeGreaterThanOrEqual(0);
+        // Ensure we have real data
+        expect(response.body.totalUniqueUsers).toBeGreaterThanOrEqual(0);
+        expect(response.body.messagesCount).toBeGreaterThanOrEqual(0);
 
-      console.log(
-        `📊 Metrics Overview: ${response.body.totalUniqueUsers} users, ${response.body.messagesCount} messages, DAU: ${response.body.dau}`
-      );
-    }, 60000); // 60 second timeout for YDB queries
+        console.log(
+          `📊 Metrics Overview: ${response.body.totalUniqueUsers} users, ${response.body.messagesCount} messages, DAU: ${response.body.dau}`
+        );
+      },
+      60000
+    ); // 60 second timeout for YDB queries
 
-    it("should get new users metrics", async () => {
-      if (!dbAvailable) {
-        console.log("⚠️ Database not available - skipping test");
-        return;
-      }
+    itIntegration(
+      "should get new users metrics",
+      async () => {
+        if (!dbAvailable) {
+          console.log("⚠️ Database not available - skipping test");
+          return;
+        }
 
-      const response = await authorizedRequest.get("/api/metrics/new-users");
+        const response = await authorizedRequest.get("/api/metrics/new-users");
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("data");
-      expect(Array.isArray(response.body.data)).toBe(true);
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("data");
+        expect(Array.isArray(response.body.data)).toBe(true);
 
-      // Check data structure - may be empty but should be valid array
-      for (const item of response.body.data) {
-        expect(item).toHaveProperty("date");
-        expect(item).toHaveProperty("count");
-        expect(typeof item.count).toBe("number");
-        expect(item.count).toBeGreaterThanOrEqual(0);
-      }
+        // Check data structure - may be empty but should be valid array
+        for (const item of response.body.data) {
+          expect(item).toHaveProperty("date");
+          expect(item).toHaveProperty("count");
+          expect(typeof item.count).toBe("number");
+          expect(item.count).toBeGreaterThanOrEqual(0);
+        }
 
-      console.log(
-        `👥 New Users Data: ${response.body.data.length} data points`
-      );
-    }, 60000); // 60 second timeout for YDB queries
+        console.log(
+          `👥 New Users Data: ${response.body.data.length} data points`
+        );
+      },
+      60000
+    ); // 60 second timeout for YDB queries
 
-    it("should get active users metrics", async () => {
-      if (!dbAvailable) {
-        console.log("⚠️ Database not available - skipping test");
-        return;
-      }
+    itIntegration(
+      "should get active users metrics",
+      async () => {
+        if (!dbAvailable) {
+          console.log("⚠️ Database not available - skipping test");
+          return;
+        }
 
-      const response = await authorizedRequest.get(
-        "/api/metrics/active?period=7d"
-      );
+        const response = await authorizedRequest.get(
+          "/api/metrics/active?period=7d"
+        );
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("activeUsers");
-      expect(response.body).toHaveProperty("days");
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("activeUsers");
+        expect(response.body).toHaveProperty("days");
 
-      expect(typeof response.body.activeUsers).toBe("number");
-      expect(typeof response.body.days).toBe("number");
-      expect(response.body.activeUsers).toBeGreaterThanOrEqual(0);
-      expect(response.body.days).toBe(7);
+        expect(typeof response.body.activeUsers).toBe("number");
+        expect(typeof response.body.days).toBe("number");
+        expect(response.body.activeUsers).toBeGreaterThanOrEqual(0);
+        expect(response.body.days).toBe(7);
 
-      console.log(`📊 Active Users (7d): ${response.body.activeUsers} users`);
-    }, 60000); // 60 second timeout for YDB queries
+        console.log(`📊 Active Users (7d): ${response.body.activeUsers} users`);
+      },
+      60000
+    ); // 60 second timeout for YDB queries
 
-    it("should get DAU history", async () => {
-      if (!dbAvailable) {
-        console.log("⚠️ Database not available - skipping test");
-        return;
-      }
+    itIntegration(
+      "should get DAU history",
+      async () => {
+        if (!dbAvailable) {
+          console.log("⚠️ Database not available - skipping test");
+          return;
+        }
 
-      const response = await authorizedRequest.get("/api/metrics/dau-history");
+        const response = await authorizedRequest.get(
+          "/api/metrics/dau-history"
+        );
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("data");
-      expect(Array.isArray(response.body.data)).toBe(true);
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("data");
+        expect(Array.isArray(response.body.data)).toBe(true);
 
-      // Check data structure - may be empty but should be valid array
-      for (const item of response.body.data) {
-        expect(item).toHaveProperty("date");
-        expect(item).toHaveProperty("count");
-        expect(typeof item.count).toBe("number");
-        expect(item.count).toBeGreaterThanOrEqual(0);
-      }
+        // Check data structure - may be empty but should be valid array
+        for (const item of response.body.data) {
+          expect(item).toHaveProperty("date");
+          expect(item).toHaveProperty("count");
+          expect(typeof item.count).toBe("number");
+          expect(item.count).toBeGreaterThanOrEqual(0);
+        }
 
-      console.log(`📈 DAU History: ${response.body.data.length} data points`);
-    }, 60000); // 60 second timeout for YDB queries
+        console.log(`📈 DAU History: ${response.body.data.length} data points`);
+      },
+      60000
+    ); // 60 second timeout for YDB queries
 
-    it("should get metrics overview with date range", async () => {
-      if (!dbAvailable) {
-        console.log("⚠️ Database not available - skipping test");
-        return;
-      }
+    itIntegration(
+      "should get metrics overview with date range",
+      async () => {
+        if (!dbAvailable) {
+          console.log("⚠️ Database not available - skipping test");
+          return;
+        }
 
-      const to = new Date();
-      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+        const to = new Date();
+        const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
 
-      const response = await authorizedRequest.get(
-        `/api/metrics/overview?from=${from.toISOString()}&to=${to.toISOString()}`
-      );
+        const response = await authorizedRequest.get(
+          `/api/metrics/overview?from=${from.toISOString()}&to=${to.toISOString()}`
+        );
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("period");
-      expect(response.body.period).toHaveProperty("from");
-      expect(response.body.period).toHaveProperty("to");
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("period");
+        expect(response.body.period).toHaveProperty("from");
+        expect(response.body.period).toHaveProperty("to");
 
-      console.log(
-        `📊 Metrics with date range: ${response.body.totalUniqueUsers} users`
-      );
-    }, 60000);
+        console.log(
+          `📊 Metrics with date range: ${response.body.totalUniqueUsers} users`
+        );
+      },
+      60000
+    );
 
-    it("should get new users with date range", async () => {
-      if (!dbAvailable) {
-        console.log("⚠️ Database not available - skipping test");
-        return;
-      }
+    itIntegration(
+      "should get new users with date range",
+      async () => {
+        if (!dbAvailable) {
+          console.log("⚠️ Database not available - skipping test");
+          return;
+        }
 
-      const to = new Date();
-      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+        const to = new Date();
+        const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
 
-      const response = await authorizedRequest.get(
-        `/api/metrics/new-users?from=${from.toISOString()}&to=${to.toISOString()}`
-      );
+        const response = await authorizedRequest.get(
+          `/api/metrics/new-users?from=${from.toISOString()}&to=${to.toISOString()}`
+        );
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("data");
-      expect(response.body).toHaveProperty("period");
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("data");
+        expect(response.body).toHaveProperty("period");
 
-      // Should have entries for the date range
-      expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+        // Should have entries for the date range
+        expect(response.body.data.length).toBeGreaterThanOrEqual(1);
 
-      console.log(
-        `👥 New Users (7 days): ${response.body.data.length} data points`
-      );
-    }, 60000);
+        console.log(
+          `👥 New Users (7 days): ${response.body.data.length} data points`
+        );
+      },
+      60000
+    );
 
-    it("should get DAU history with date range", async () => {
-      if (!dbAvailable) {
-        console.log("⚠️ Database not available - skipping test");
-        return;
-      }
+    itIntegration(
+      "should get DAU history with date range",
+      async () => {
+        if (!dbAvailable) {
+          console.log("⚠️ Database not available - skipping test");
+          return;
+        }
 
-      const to = new Date();
-      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+        const to = new Date();
+        const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
 
-      const response = await authorizedRequest.get(
-        `/api/metrics/dau-history?from=${from.toISOString()}&to=${to.toISOString()}`
-      );
+        const response = await authorizedRequest.get(
+          `/api/metrics/dau-history?from=${from.toISOString()}&to=${to.toISOString()}`
+        );
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("data");
-      expect(response.body).toHaveProperty("period");
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("data");
+        expect(response.body).toHaveProperty("period");
 
-      // Should have entries for the date range
-      expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+        // Should have entries for the date range
+        expect(response.body.data.length).toBeGreaterThanOrEqual(1);
 
-      console.log(
-        `📈 DAU History (7 days): ${response.body.data.length} data points`
-      );
-    }, 60000);
+        console.log(
+          `📈 DAU History (7 days): ${response.body.data.length} data points`
+        );
+      },
+      60000
+    );
   });
 
   describe("Users Endpoints (Authenticated)", () => {
@@ -250,38 +299,44 @@ describe("Admin API Integration Tests", () => {
       }
     });
 
-    it.skip("should get users list (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
-      const response = await authorizedRequest.get("/api/users?page=1&limit=5");
+    itIntegration(
+      "should get users list",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
+        const response = await authorizedRequest.get(
+          "/api/users?page=1&limit=5"
+        );
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("items");
-      expect(response.body).toHaveProperty("total");
-      expect(response.body).toHaveProperty("page");
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("items");
+        expect(response.body).toHaveProperty("total");
+        expect(response.body).toHaveProperty("page");
 
-      expect(Array.isArray(response.body.items)).toBe(true);
-      expect(typeof response.body.total).toBe("number");
-      expect(typeof response.body.page).toBe("number");
-      expect(response.body.page).toBe(1);
+        expect(Array.isArray(response.body.items)).toBe(true);
+        expect(typeof response.body.total).toBe("number");
+        expect(typeof response.body.page).toBe("number");
+        expect(response.body.page).toBe(1);
 
-      // Should have users data
-      expect(response.body.total).toBeGreaterThanOrEqual(0);
+        // Should have users data
+        expect(response.body.total).toBeGreaterThanOrEqual(0);
 
-      // Check user structure if users exist
-      if (response.body.items.length > 0) {
-        const firstUser = response.body.items[0];
-        expect(firstUser).toHaveProperty("userId");
-        expect(firstUser).toHaveProperty("firstSeenAt");
-        expect(firstUser).toHaveProperty("lastSeenAt");
-        expect(typeof firstUser.userId).toBe("number");
-        expect(typeof firstUser.firstSeenAt).toBe("string");
-        expect(typeof firstUser.lastSeenAt).toBe("string");
-      }
+        // Check user structure if users exist
+        if (response.body.items.length > 0) {
+          const firstUser = response.body.items[0];
+          expect(firstUser).toHaveProperty("userId");
+          expect(firstUser).toHaveProperty("firstSeenAt");
+          expect(firstUser).toHaveProperty("lastSeenAt");
+          expect(typeof firstUser.userId).toBe("number");
+          expect(typeof firstUser.firstSeenAt).toBe("string");
+          expect(typeof firstUser.lastSeenAt).toBe("string");
+        }
 
-      console.log(
-        `👥 Users List: ${response.body.items.length} users returned, total: ${response.body.total}`
-      );
-    });
+        console.log(
+          `👥 Users List: ${response.body.items.length} users returned, total: ${response.body.total}`
+        );
+      },
+      60000
+    );
   });
 
   describe("Error Handling", () => {

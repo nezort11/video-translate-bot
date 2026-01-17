@@ -62,7 +62,7 @@
     "admin:dashboard:build": "cd packages/admin-dashboard && pnpm build",
     "admin:dashboard:deploy": "cd packages/admin-dashboard && vercel --prod",
     "test": "jest",
-    "test:thumbnail": "jest src/__tests__/thumbnail.integration.test.ts"
+    "test:thumbnail": "jest src/__tests__/thumbnail.integration.test.ts --runInBand"
   },
   "comments": {
     "server:serverless:info": "cd packages/video-translate-server && pnpm serverless:info",

@@ -23,8 +23,30 @@ You must run the following commands to verify code quality before finishing work
 
 ### Testing
 
-- Run `pnpm test` to execute the test suite
+- Run `pnpm test` to execute the fast unit test suite
 - All tests should pass before finishing work
+- **Note**: Integration tests that connect to YDB are expensive and slow. They are skipped by default.
+
+### Integration Tests (Optional - for debugging production issues)
+
+Integration tests connect to the real YDB database and can be slow/resource-intensive.
+They are useful for:
+
+- Reproducing production errors
+- Testing YDB query changes
+- Verifying API endpoints work with real data
+
+To run integration tests:
+
+```bash
+# Run admin-api integration tests
+pnpm --filter=admin-api test:integration
+
+# Or set the environment variable directly
+RUN_INTEGRATION_TESTS=true pnpm test --filter=admin-api
+```
+
+**Important**: Don't run integration tests as part of regular development workflow - they're too expensive.
 
 ## Automated Quality Assurance
 
@@ -33,7 +55,8 @@ Before finishing your work session:
 1. Always run type checking: `pnpm typecheck`
 2. Always run formatting: `pnpm format`
 3. Always run linting: `pnpm lint`
-4. Run tests if you've modified functionality: `pnpm test`
+4. Run unit tests if you've modified functionality: `pnpm test`
+5. Run integration tests only when debugging production issues or testing YDB changes
 
 ## Code Style Guidelines
 

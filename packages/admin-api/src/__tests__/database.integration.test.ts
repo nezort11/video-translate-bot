@@ -1,6 +1,13 @@
 /**
  * Database Integration Tests for Admin API
  * Tests all database operations including YDB connectivity and SQL aggregations
+ *
+ * These tests connect to the real YDB database and are expensive to run.
+ *
+ * To run integration tests:
+ *   RUN_INTEGRATION_TESTS=true pnpm test --filter=admin-api
+ *
+ * By default, expensive YDB tests are skipped.
  */
 
 import {
@@ -15,23 +22,33 @@ import {
 } from "../services/ydb";
 import { DatabaseTestUtils } from "./setup";
 
+// Check if integration tests should run
+const RUN_INTEGRATION_TESTS = process.env.RUN_INTEGRATION_TESTS === "true";
+
+// Helper to conditionally skip expensive tests
+const itIntegration = RUN_INTEGRATION_TESTS ? it : it.skip;
+
 describe("Database Integration Tests", () => {
   let dbAvailable = false;
 
   beforeAll(async () => {
-    // Check database connection quickly for tests
-    dbAvailable = await DatabaseTestUtils.ensureDatabaseConnection();
-    if (!dbAvailable) {
-      console.warn(
-        "⚠️  Database not available - skipping database integration tests"
+    if (RUN_INTEGRATION_TESTS) {
+      // Check database connection quickly for tests
+      dbAvailable = await DatabaseTestUtils.ensureDatabaseConnection();
+      if (!dbAvailable) {
+        console.warn(
+          "⚠️  Database not available - skipping database integration tests"
+        );
+      }
+    } else {
+      console.log(
+        "[database-test] Integration tests skipped. Set RUN_INTEGRATION_TESTS=true to enable."
       );
     }
   });
 
-  // No cleanup needed - we no longer use caching
-
   describe("YDB Driver Connection", () => {
-    it("should connect to YDB successfully", async () => {
+    itIntegration("should connect to YDB successfully", async () => {
       const driver = getDriver();
 
       // Test that driver can be created and is ready
@@ -39,7 +56,7 @@ describe("Database Integration Tests", () => {
       expect(driver).toBeDefined();
     });
 
-    it("should handle connection timeouts gracefully", async () => {
+    itIntegration("should handle connection timeouts gracefully", async () => {
       const driver = getDriver();
 
       // This should not throw if already connected
@@ -48,92 +65,108 @@ describe("Database Integration Tests", () => {
   });
 
   describe("Database Query Operations", () => {
-    it.skip("should count updates in database (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    itIntegration(
+      "should count updates in database",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-      const count = await countUpdates();
+        const count = await countUpdates();
 
-      expect(typeof count).toBe("number");
-      expect(count).toBeGreaterThanOrEqual(0);
+        expect(typeof count).toBe("number");
+        expect(count).toBeGreaterThanOrEqual(0);
 
-      console.log(`📊 Database contains ${count} total updates`);
-    }, 20000); // 20 second timeout for database count operation
+        console.log(`📊 Database contains ${count} total updates`);
+      },
+      20000
+    ); // 20 second timeout for database count operation
 
-    it.skip("should get updates stats (optimized - no row fetching, skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    itIntegration(
+      "should get updates stats (optimized - no row fetching)",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-      const stats = await getUpdatesStats();
+        const stats = await getUpdatesStats();
 
-      expect(stats).toHaveProperty("totalCount");
-      expect(stats).toHaveProperty("oldestUpdateId");
-      expect(stats).toHaveProperty("newestUpdateId");
-      expect(stats).toHaveProperty("dateRange");
+        expect(stats).toHaveProperty("totalCount");
+        expect(stats).toHaveProperty("oldestUpdateId");
+        expect(stats).toHaveProperty("newestUpdateId");
+        expect(stats).toHaveProperty("dateRange");
 
-      expect(typeof stats.totalCount).toBe("number");
-      expect(stats.totalCount).toBeGreaterThanOrEqual(0);
+        expect(typeof stats.totalCount).toBe("number");
+        expect(stats.totalCount).toBeGreaterThanOrEqual(0);
 
-      // If we have updates, validate ID structure
-      if (stats.totalCount > 0) {
-        expect(typeof stats.oldestUpdateId).toBe("number");
-        expect(typeof stats.newestUpdateId).toBe("number");
-        expect(stats.newestUpdateId).toBeGreaterThanOrEqual(
-          stats.oldestUpdateId!
+        // If we have updates, validate ID structure
+        if (stats.totalCount > 0) {
+          expect(typeof stats.oldestUpdateId).toBe("number");
+          expect(typeof stats.newestUpdateId).toBe("number");
+          expect(stats.newestUpdateId).toBeGreaterThanOrEqual(
+            stats.oldestUpdateId!
+          );
+        }
+
+        console.log(
+          `📈 Updates stats: ${stats.totalCount} total updates (range: ${stats.oldestUpdateId}-${stats.newestUpdateId})`
         );
-      }
+      },
+      15000
+    );
 
-      console.log(
-        `📈 Updates stats: ${stats.totalCount} total updates (range: ${stats.oldestUpdateId}-${stats.newestUpdateId})`
-      );
-    }, 15000);
+    itIntegration(
+      "should get updates stats with date filtering",
+      async () => {
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        const now = new Date();
 
-    it.skip("should get updates stats with date filtering (skipped - requires dedicated YDB resources)", async () => {
-      const oneDayAgo = new Date();
-      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-      const now = new Date();
+        const stats = await getUpdatesStats(oneDayAgo, now);
 
-      const stats = await getUpdatesStats(oneDayAgo, now);
+        expect(stats).toHaveProperty("totalCount");
+        expect(stats).toHaveProperty("oldestUpdateId");
+        expect(stats).toHaveProperty("newestUpdateId");
+        expect(stats).toHaveProperty("dateRange");
 
-      expect(stats).toHaveProperty("totalCount");
-      expect(stats).toHaveProperty("oldestUpdateId");
-      expect(stats).toHaveProperty("newestUpdateId");
-      expect(stats).toHaveProperty("dateRange");
+        expect(typeof stats.totalCount).toBe("number");
+        expect(stats.totalCount).toBeGreaterThanOrEqual(0);
 
-      expect(typeof stats.totalCount).toBe("number");
-      expect(stats.totalCount).toBeGreaterThanOrEqual(0);
+        // Verify date range is set correctly
+        expect(stats.dateRange.from).toBe(oneDayAgo.toISOString());
+        expect(stats.dateRange.to).toBe(now.toISOString());
 
-      // Verify date range is set correctly
-      expect(stats.dateRange.from).toBe(oneDayAgo.toISOString());
-      expect(stats.dateRange.to).toBe(now.toISOString());
+        // If we have updates in this range, validate structure
+        if (stats.totalCount > 0) {
+          expect(stats.oldestUpdateId).toBeTruthy();
+          expect(stats.newestUpdateId).toBeTruthy();
+        }
 
-      // If we have updates in this range, validate structure
-      if (stats.totalCount > 0) {
-        expect(stats.oldestUpdateId).toBeTruthy();
-        expect(stats.newestUpdateId).toBeTruthy();
-      }
+        console.log(
+          `📅 Updates stats for last day: ${stats.totalCount} updates (all calculations done in YDB)`
+        );
+      },
+      15000
+    );
 
-      console.log(
-        `📅 Updates stats for last day: ${stats.totalCount} updates (all calculations done in YDB)`
-      );
-    }, 15000);
+    itIntegration(
+      "should handle edge cases in date ranges",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-    it.skip("should handle edge cases in date ranges (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+        // Test with a very narrow date range (1 hour)
+        const now = new Date();
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
-      // Test with a very narrow date range (1 hour)
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        const stats = await getUpdatesStats(oneHourAgo, now);
 
-      const stats = await getUpdatesStats(oneHourAgo, now);
+        // Should not throw even with narrow date range
+        expect(stats).toHaveProperty("totalCount");
+        expect(typeof stats.totalCount).toBe("number");
+        expect(stats.totalCount).toBeGreaterThanOrEqual(0);
 
-      // Should not throw even with narrow date range
-      expect(stats).toHaveProperty("totalCount");
-      expect(typeof stats.totalCount).toBe("number");
-      expect(stats.totalCount).toBeGreaterThanOrEqual(0);
-
-      console.log(
-        `✅ Edge case test (1 hour): ${stats.totalCount} updates (aggregation handled gracefully)`
-      );
-    }, 15000);
+        console.log(
+          `✅ Edge case test (1 hour): ${stats.totalCount} updates (aggregation handled gracefully)`
+        );
+      },
+      15000
+    );
   });
 
   describe("SQL Aggregation Functions", () => {
@@ -141,160 +174,203 @@ describe("Database Integration Tests", () => {
     // due to RESOURCE_EXHAUSTED when the updates table contains millions of rows.
     // The queries are correct but need dedicated YDB resources or a smaller dataset.
 
-    it.skip("should get overview metrics with SQL aggregations (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    itIntegration(
+      "should get overview metrics with SQL aggregations",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-      const to = new Date();
-      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+        const to = new Date();
+        const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
 
-      const metrics = await getOverviewMetrics(from, to);
+        const metrics = await getOverviewMetrics(from, to);
 
-      expect(metrics).toHaveProperty("totalUniqueUsers");
-      expect(metrics).toHaveProperty("newUsersCount");
-      expect(metrics).toHaveProperty("messagesCount");
-      expect(metrics).toHaveProperty("dau");
-      expect(metrics).toHaveProperty("wau");
-      expect(metrics).toHaveProperty("mau");
-      expect(metrics).toHaveProperty("period");
+        expect(metrics).toHaveProperty("totalUniqueUsers");
+        expect(metrics).toHaveProperty("newUsersCount");
+        expect(metrics).toHaveProperty("messagesCount");
+        expect(metrics).toHaveProperty("dau");
+        expect(metrics).toHaveProperty("wau");
+        expect(metrics).toHaveProperty("mau");
+        expect(metrics).toHaveProperty("period");
 
-      expect(typeof metrics.totalUniqueUsers).toBe("number");
-      expect(typeof metrics.newUsersCount).toBe("number");
-      expect(typeof metrics.messagesCount).toBe("number");
-      expect(typeof metrics.dau).toBe("number");
-      expect(typeof metrics.wau).toBe("number");
-      expect(typeof metrics.mau).toBe("number");
+        expect(typeof metrics.totalUniqueUsers).toBe("number");
+        expect(typeof metrics.newUsersCount).toBe("number");
+        expect(typeof metrics.messagesCount).toBe("number");
+        expect(typeof metrics.dau).toBe("number");
+        expect(typeof metrics.wau).toBe("number");
+        expect(typeof metrics.mau).toBe("number");
 
-      expect(metrics.totalUniqueUsers).toBeGreaterThanOrEqual(0);
-      expect(metrics.messagesCount).toBeGreaterThanOrEqual(0);
+        expect(metrics.totalUniqueUsers).toBeGreaterThanOrEqual(0);
+        expect(metrics.messagesCount).toBeGreaterThanOrEqual(0);
 
-      console.log(
-        `📊 Overview Metrics: ${metrics.totalUniqueUsers} users, ${metrics.messagesCount} messages, DAU: ${metrics.dau}`
-      );
-    }, 30000);
+        console.log(
+          `📊 Overview Metrics: ${metrics.totalUniqueUsers} users, ${metrics.messagesCount} messages, DAU: ${metrics.dau}`
+        );
+      },
+      60000
+    );
 
-    it.skip("should get new users time series (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    itIntegration(
+      "should get new users time series",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-      const to = new Date();
-      const from = new Date(to.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (reduced for serverless limits)
+        const to = new Date();
+        const from = new Date(to.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (reduced for serverless limits)
 
-      const timeSeries = await getNewUsersTimeSeries(from, to);
+        const timeSeries = await getNewUsersTimeSeries(from, to);
 
-      expect(Array.isArray(timeSeries)).toBe(true);
+        expect(Array.isArray(timeSeries)).toBe(true);
 
-      // Should have data for each day in the range (1 day + potentially 2 days due to rounding)
-      expect(timeSeries.length).toBeGreaterThanOrEqual(1);
+        // Should have data for each day in the range (1 day + potentially 2 days due to rounding)
+        expect(timeSeries.length).toBeGreaterThanOrEqual(1);
 
-      for (const point of timeSeries) {
-        expect(point).toHaveProperty("date");
-        expect(point).toHaveProperty("count");
-        expect(typeof point.date).toBe("string");
-        expect(typeof point.count).toBe("number");
-        expect(point.count).toBeGreaterThanOrEqual(0);
-      }
+        for (const point of timeSeries) {
+          expect(point).toHaveProperty("date");
+          expect(point).toHaveProperty("count");
+          expect(typeof point.date).toBe("string");
+          expect(typeof point.count).toBe("number");
+          expect(point.count).toBeGreaterThanOrEqual(0);
+        }
 
-      console.log(`👥 New Users Time Series: ${timeSeries.length} data points`);
-    }, 30000);
+        console.log(
+          `👥 New Users Time Series: ${timeSeries.length} data points`
+        );
+      },
+      60000
+    );
 
-    it.skip("should get DAU history (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    itIntegration(
+      "should get DAU history",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-      const to = new Date();
-      const from = new Date(to.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (reduced for serverless limits)
+        const to = new Date();
+        const from = new Date(to.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (reduced for serverless limits)
 
-      const history = await getDauHistory(from, to);
+        const history = await getDauHistory(from, to);
 
-      expect(Array.isArray(history)).toBe(true);
+        expect(Array.isArray(history)).toBe(true);
 
-      // Should have data for each day in the range (1 day + potentially 2 days due to rounding)
-      expect(history.length).toBeGreaterThanOrEqual(1);
+        // Should have data for each day in the range (1 day + potentially 2 days due to rounding)
+        expect(history.length).toBeGreaterThanOrEqual(1);
 
-      for (const point of history) {
-        expect(point).toHaveProperty("date");
-        expect(point).toHaveProperty("count");
-        expect(typeof point.date).toBe("string");
-        expect(typeof point.count).toBe("number");
-        expect(point.count).toBeGreaterThanOrEqual(0);
-      }
+        for (const point of history) {
+          expect(point).toHaveProperty("date");
+          expect(point).toHaveProperty("count");
+          expect(typeof point.date).toBe("string");
+          expect(typeof point.count).toBe("number");
+          expect(point.count).toBeGreaterThanOrEqual(0);
+        }
 
-      console.log(`📈 DAU History: ${history.length} data points`);
-    }, 30000);
+        console.log(`📈 DAU History: ${history.length} data points`);
+      },
+      60000
+    );
 
-    it.skip("should get paginated users list (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    itIntegration(
+      "should get paginated users list",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-      const to = new Date();
-      const from = new Date(to.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (reduced for serverless limits)
+        const to = new Date();
+        const from = new Date(to.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (reduced for serverless limits)
 
-      const result = await getUsersList(from, to, 10, 0, "lastSeenAt", "desc");
+        const result = await getUsersList(
+          from,
+          to,
+          10,
+          0,
+          "lastSeenAt",
+          "desc"
+        );
 
-      expect(result).toHaveProperty("users");
-      expect(result).toHaveProperty("total");
-      expect(Array.isArray(result.users)).toBe(true);
-      expect(typeof result.total).toBe("number");
+        expect(result).toHaveProperty("users");
+        expect(result).toHaveProperty("total");
+        expect(Array.isArray(result.users)).toBe(true);
+        expect(typeof result.total).toBe("number");
 
-      expect(result.total).toBeGreaterThanOrEqual(0);
-      expect(result.users.length).toBeLessThanOrEqual(10);
+        expect(result.total).toBeGreaterThanOrEqual(0);
+        expect(result.users.length).toBeLessThanOrEqual(10);
 
-      // Check user structure if users exist
-      if (result.users.length > 0) {
-        const user = result.users[0];
-        expect(user).toHaveProperty("userId");
-        expect(user).toHaveProperty("firstSeenAt");
-        expect(user).toHaveProperty("lastSeenAt");
-        expect(user).toHaveProperty("messagesCount");
-        expect(typeof user.userId).toBe("number");
-        expect(typeof user.firstSeenAt).toBe("string");
-        expect(typeof user.lastSeenAt).toBe("string");
-        expect(typeof user.messagesCount).toBe("number");
-      }
+        // Check user structure if users exist
+        if (result.users.length > 0) {
+          const user = result.users[0];
+          expect(user).toHaveProperty("userId");
+          expect(user).toHaveProperty("firstSeenAt");
+          expect(user).toHaveProperty("lastSeenAt");
+          expect(user).toHaveProperty("messagesCount");
+          expect(typeof user.userId).toBe("number");
+          expect(typeof user.firstSeenAt).toBe("string");
+          expect(typeof user.lastSeenAt).toBe("string");
+          expect(typeof user.messagesCount).toBe("number");
+        }
 
-      console.log(
-        `👥 Users List: ${result.users.length} users returned, total: ${result.total}`
-      );
-    }, 30000);
+        console.log(
+          `👥 Users List: ${result.users.length} users returned, total: ${result.total}`
+        );
+      },
+      60000
+    );
 
-    it.skip("should handle pagination correctly (skipped - requires dedicated YDB resources)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    itIntegration(
+      "should handle pagination correctly",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-      const to = new Date();
-      const from = new Date(to.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (reduced for serverless limits)
+        const to = new Date();
+        const from = new Date(to.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago (reduced for serverless limits)
 
-      // Get first page
-      const page1 = await getUsersList(from, to, 5, 0, "userId", "asc");
+        // Get first page
+        const page1 = await getUsersList(from, to, 5, 0, "userId", "asc");
 
-      // Get second page
-      const page2 = await getUsersList(from, to, 5, 5, "userId", "asc");
+        // Get second page
+        const page2 = await getUsersList(from, to, 5, 5, "userId", "asc");
 
-      expect(page1.total).toBe(page2.total); // Total should be the same
+        expect(page1.total).toBe(page2.total); // Total should be the same
 
-      // If there are enough users, pages should be different
-      if (page1.total > 5) {
-        expect(page1.users).not.toEqual(page2.users);
-      }
+        // If there are enough users, pages should be different
+        if (page1.total > 5) {
+          expect(page1.users).not.toEqual(page2.users);
+        }
 
-      console.log(
-        `📄 Pagination test: ${page1.users.length} users in page 1, ${page2.users.length} in page 2`
-      );
-    }, 30000);
+        console.log(
+          `📄 Pagination test: ${page1.users.length} users in page 1, ${page2.users.length} in page 2`
+        );
+      },
+      60000
+    );
 
-    it.skip("should get user details (skipped - requires specific user ID)", async () => {
-      if (!dbAvailable) return; // Skip if database not available
+    itIntegration(
+      "should get user details",
+      async () => {
+        if (!dbAvailable) return; // Skip if database not available
 
-      // This test is skipped because we don't know a valid user ID
-      // In a real test environment, you would use a known test user ID
-      const testUserId = 123456; // Replace with actual test user ID
+        // Get a real user from the database first
+        const to = new Date();
+        const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const result = await getUsersList(from, to, 1, 0, "lastSeenAt", "desc");
 
-      const userDetails = await getUserDetails(testUserId);
+        if (result.users.length === 0) {
+          console.log("No users found to test user details");
+          return;
+        }
 
-      if (userDetails) {
-        expect(userDetails).toHaveProperty("userId");
-        expect(userDetails).toHaveProperty("firstSeenAt");
-        expect(userDetails).toHaveProperty("lastSeenAt");
-        expect(userDetails).toHaveProperty("messagesCount");
-        expect(userDetails).toHaveProperty("updateTypes");
-        expect(typeof userDetails.updateTypes).toBe("object");
-      }
-    }, 30000);
+        const testUserId = result.users[0].userId;
+        const userDetails = await getUserDetails(testUserId);
+
+        if (userDetails) {
+          expect(userDetails).toHaveProperty("userId");
+          expect(userDetails).toHaveProperty("firstSeenAt");
+          expect(userDetails).toHaveProperty("lastSeenAt");
+          expect(userDetails).toHaveProperty("messagesCount");
+          expect(userDetails).toHaveProperty("updateTypes");
+          expect(typeof userDetails.updateTypes).toBe("object");
+          console.log(
+            `👤 User details for ${testUserId}: ${userDetails.messagesCount} messages`
+          );
+        }
+      },
+      60000
+    );
   });
 });
