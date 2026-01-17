@@ -1,73 +1,83 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { UsersTable } from "@/components/users-table";
 import { getUsers, UserItem } from "@/lib/api";
 import { Search } from "lucide-react";
+import { useDataCache, invalidateCache } from "@/lib/use-data-cache";
+
+interface UsersData {
+  items: UserItem[];
+  page: number;
+  totalPages: number;
+  total: number;
+}
+
+const ITEMS_PER_PAGE = 20;
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const ITEMS_PER_PAGE = 20;
-
-  const fetchUsers = useCallback(async (pageNum: number) => {
-    setLoading(true);
-    try {
-      // Calculate date range (last 30 days)
-      const to = new Date();
-      const from = new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-      const response = await getUsers(
-        pageNum,
-        ITEMS_PER_PAGE,
-        from.toISOString(),
-        to.toISOString()
-      );
-
-      setUsers(response.items);
-      setPage(response.page);
-      setTotalPages(response.totalPages);
-      setTotal(response.total);
-      setError(null);
-    } catch (err: unknown) {
-      console.error("Failed to fetch users:", err);
-      const errorMessage =
-        err instanceof Error &&
-        typeof err === "object" &&
-        err !== null &&
-        "response" in err &&
-        err.response &&
-        typeof err.response === "object" &&
-        "data" in err.response &&
-        err.response.data &&
-        typeof err.response.data === "object" &&
-        "error" in err.response.data
-          ? (err.response.data as { error: string }).error || err.message
-          : err instanceof Error
-            ? err.message
-            : "Failed to load users";
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+  // Memoize the date range to avoid recalculating on every render
+  const { from, to } = useMemo(() => {
+    const toDate = new Date();
+    const fromDate = new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return {
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+    };
   }, []);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchUsers(1);
-  }, [fetchUsers]);
+  // Create a cache key that includes the current page
+  const cacheKey = useMemo(() => `users-page-${currentPage}`, [currentPage]);
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      fetchUsers(newPage);
+  // Memoize the fetcher for the current page
+  const fetcher = useMemo(
+    () => async (): Promise<UsersData> => {
+      const response = await getUsers(currentPage, ITEMS_PER_PAGE, from, to);
+      return {
+        items: response.items,
+        page: response.page,
+        totalPages: response.totalPages,
+        total: response.total,
+      };
+    },
+    [currentPage, from, to]
+  );
+
+  const { data, isLoading, error, refetch } = useDataCache<UsersData>({
+    cacheKey,
+    fetcher,
+    staleTime: 2 * 60 * 1000, // 2 minutes for users list (more dynamic)
+    refetchOnFocus: false, // Don't auto-refetch users list on focus
+  });
+
+  const users = data?.items ?? [];
+  const page = data?.page ?? currentPage;
+  const totalPages = data?.totalPages ?? 1;
+  const total = data?.total ?? 0;
+  const loading = isLoading;
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+        setCurrentPage(newPage);
+      }
+    },
+    [totalPages]
+  );
+
+  // Refetch current page and invalidate other pages
+  const handleRefetch = useCallback(() => {
+    // Invalidate all user pages to ensure fresh data
+    for (let i = 1; i <= totalPages; i++) {
+      if (i !== currentPage) {
+        invalidateCache(`users-page-${i}`);
+      }
     }
-  };
+    refetch();
+  }, [currentPage, totalPages, refetch]);
 
   // Filter users by search query (client-side for now)
   const filteredUsers = searchQuery
@@ -81,7 +91,7 @@ export default function UsersPage() {
           <p className="font-medium">Error loading users</p>
           <p className="text-sm mt-1">{error}</p>
           <button
-            onClick={() => fetchUsers(page)}
+            onClick={handleRefetch}
             className="mt-3 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm font-medium"
           >
             Retry
@@ -94,11 +104,32 @@ export default function UsersPage() {
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold">Users</h1>
-        <p className="text-sm text-muted-foreground">
-          View and manage bot users
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold">Users</h1>
+          <p className="text-sm text-muted-foreground">
+            View and manage bot users
+          </p>
+        </div>
+        <button
+          onClick={handleRefetch}
+          disabled={loading}
+          className="p-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50"
+        >
+          <svg
+            className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Search */}
