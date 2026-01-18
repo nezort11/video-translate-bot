@@ -1298,7 +1298,8 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
     videoTranslateApp.searchParams.set("url", link);
     videoTranslateApp.searchParams.set("lang", translateLanguage);
 
-    // Create enhanced translate toggle button
+    // Create enhanced translate toggle button (admin only)
+    const isAdmin = ADMIN_IDS.includes(String(context.from?.id ?? 0));
     const useEnhancedTranslate = getEnhancedTranslatePreference(
       context,
       router
@@ -1344,7 +1345,9 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
         [onlineVideoTranslateActionButton],
         // [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
         [translationLanguageActionButton], // No source language button for YouTube
-        [enhancedTranslateToggleButton], // Enhanced translate toggle button for YouTube only
+        ...(isAdmin && enhancedTranslateToggleButton
+          ? [[enhancedTranslateToggleButton]]
+          : []), // Enhanced translate toggle button for admins only
         // [
         //   Markup.button.callback(
         //     "📺 Видео (mp4) (дольше ⏳)",
@@ -1639,6 +1642,12 @@ bot.action(/.+/, async (context) => {
   }
 
   if (actionType === ActionType.ToggleEnhancedTranslate) {
+    // Only allow admins to toggle enhanced translate
+    const isAdmin = ADMIN_IDS.includes(String(context.from?.id ?? 0));
+    if (!isAdmin) {
+      return; // Silently ignore for non-admins
+    }
+
     // Toggle the enhanced translate preference
     toggleEnhancedTranslatePreference(context, router);
 
@@ -1850,11 +1859,12 @@ bot.action(/.+/, async (context) => {
             );
           }
 
-          // Get user's enhanced translate preference for YouTube videos
+          // Get user's enhanced translate preference for YouTube videos (admin only feature)
+          const isAdminUser = ADMIN_IDS.includes(String(context.from?.id ?? 0));
           const preferEnhanced =
-            videoPlatform === VideoPlatform.YouTube
+            videoPlatform === VideoPlatform.YouTube && isAdminUser
               ? getEnhancedTranslatePreference(context, router)
-              : undefined; // For non-YouTube, use default behavior (try enhanced, fallback to regular)
+              : undefined; // For non-YouTube or non-admins, use default behavior (try enhanced, fallback to regular)
 
           const videoTranslateData = await translateVideoFull(
             videoLink,
