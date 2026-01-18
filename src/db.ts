@@ -227,3 +227,128 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
     console.warn("track new user error (non-fatal):", error);
   }
 };
+
+/**
+ * Find user ID by username from the users table.
+ * @param username - Telegram username (with or without @)
+ * @returns user_id if found, null otherwise
+ */
+export const getUserIdByUsername = async (
+  username: string
+): Promise<number | null> => {
+  // Remove @ prefix if present
+  const cleanUsername = username.startsWith("@") ? username.slice(1) : username;
+
+  let userId: number | null = null;
+
+  await driver.tableClient.withSessionRetry(async (session) => {
+    const result = await session.executeQuery(
+      `DECLARE $username AS Utf8;
+       SELECT user_id FROM users WHERE username = $username LIMIT 1;`,
+      {
+        $username: TypedValues.utf8(cleanUsername),
+      }
+    );
+
+    const row = result.resultSets[0]?.rows?.[0];
+    if (row) {
+      // user_id is stored as Uint64
+      userId = Number(row.items?.[0]?.uint64Value ?? 0);
+    }
+  });
+
+  return userId;
+};
+
+/**
+ * Session data structure stored in telegraf-sessions table
+ */
+export interface SessionData {
+  balance?: number;
+  language?: string;
+  translateLanguage?: string;
+  preferEnhancedTranslate?: boolean;
+  routers?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/**
+ * Get user session from the telegraf-sessions table.
+ * Session key format: "${userId}:${userId}" for private chats.
+ * @param userId - Telegram user ID
+ * @returns session data if found, null otherwise
+ */
+export const getUserSession = async (
+  userId: number
+): Promise<SessionData | null> => {
+  // In Telegraf, the default session key for private chats is `${chatId}:${chatId}`
+  // For private chats, chatId equals userId
+  const sessionKey = `${userId}:${userId}`;
+
+  let sessionData: SessionData | null = null;
+
+  await driver.tableClient.withSessionRetry(async (session) => {
+    const result = await session.executeQuery(
+      `DECLARE $key AS Utf8;
+       SELECT session FROM \`telegraf-sessions\` WHERE key = $key LIMIT 1;`,
+      {
+        $key: TypedValues.utf8(sessionKey),
+      }
+    );
+
+    const row = result.resultSets[0]?.rows?.[0];
+    if (row) {
+      const jsonValue = row.items?.[0]?.textValue;
+      if (jsonValue) {
+        try {
+          sessionData = JSON.parse(jsonValue);
+        } catch {
+          console.warn("Failed to parse session JSON for user:", userId);
+        }
+      }
+    }
+  });
+
+  return sessionData;
+};
+
+/**
+ * Update user session balance by adding credits.
+ * Creates a new session if one doesn't exist.
+ * @param userId - Telegram user ID
+ * @param creditsToAdd - Number of credits to add (can be negative to subtract)
+ * @returns The new balance after update
+ */
+export const updateUserSessionBalance = async (
+  userId: number,
+  creditsToAdd: number
+): Promise<number> => {
+  const sessionKey = `${userId}:${userId}`;
+
+  // Get current session or create empty one
+  let currentSession = await getUserSession(userId);
+  if (!currentSession) {
+    currentSession = {};
+  }
+
+  // Calculate new balance
+  const currentBalance = currentSession.balance ?? 0;
+  const newBalance = currentBalance + creditsToAdd;
+  currentSession.balance = newBalance;
+
+  // Save updated session
+  await driver.tableClient.withSessionRetry(async (session) => {
+    await session.executeQuery(
+      `DECLARE $key AS Utf8;
+       DECLARE $session AS Json;
+       UPSERT INTO \`telegraf-sessions\` (key, session)
+       VALUES ($key, $session);`,
+      {
+        $key: TypedValues.utf8(sessionKey),
+        $session: TypedValues.json(JSON.stringify(currentSession)),
+      }
+    );
+  });
+
+  return newBalance;
+};

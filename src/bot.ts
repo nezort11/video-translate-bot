@@ -7,7 +7,14 @@ import yaml from "js-yaml";
 // import Database from "better-sqlite3";
 // import { count } from "drizzle-orm";
 // import { drizzle } from "drizzle-orm/better-sqlite3";
-import { Composer, Context, Markup, TelegramError, session } from "telegraf";
+import {
+  Composer,
+  Context,
+  Markup,
+  MiddlewareFn,
+  TelegramError,
+  session,
+} from "telegraf";
 // import { SQLite } from "@telegraf/session/sqlite";
 
 import { message } from "telegraf/filters";
@@ -130,7 +137,13 @@ import {
   ChooseLanguageActionData,
   ChooseSourceLanguageActionData,
 } from "./actions";
-import { driver, sessionStore, trackUpdate } from "./db";
+import {
+  driver,
+  sessionStore,
+  trackUpdate,
+  getUserIdByUsername,
+  updateUserSessionBalance,
+} from "./db";
 import { PassThrough, Readable } from "stream";
 
 type Hideable<B> = B & { hide: boolean };
@@ -2580,10 +2593,21 @@ bot.action(/.+/, async (context) => {
   }
 });
 
-bot.command("admin", async (context) => {
-  if (!ADMIN_IDS.includes(String(context.from?.id ?? 0))) {
-    return await context.reply("Sorry, you are not an admin");
-  }
+/**
+ * Middleware that checks if the user is an admin.
+ * Use this for all admin-prefixed commands.
+ */
+const adminOnly = (): MiddlewareFn<BotContext> => {
+  return async (ctx, next) => {
+    if (!ADMIN_IDS.includes(String(ctx.from?.id ?? 0))) {
+      await ctx.reply("Sorry, you are not an admin");
+      return;
+    }
+    return next();
+  };
+};
+
+bot.command("admin", adminOnly(), async (context) => {
   if (!ADMIN_DASHBOARD_URL) {
     throw new Error("ADMIN_DASHBOARD_URL is not set");
   }
@@ -2596,6 +2620,75 @@ bot.command("admin", async (context) => {
       ],
     },
   });
+});
+
+/**
+ * Admin command to top up credits for a user.
+ * Usage: /admin_topup <username or user_id> <amount>
+ * Examples:
+ *   /admin_topup @username 100
+ *   /admin_topup 123456789 50
+ */
+bot.command("admin_topup", adminOnly(), async (context) => {
+  const args = context.message.text.split(/\s+/).slice(1);
+
+  if (args.length < 2) {
+    await context.reply(
+      "Usage: /admin_topup <username or user_id> <amount>\n\n" +
+        "Examples:\n" +
+        "  /admin_topup @username 100\n" +
+        "  /admin_topup 123456789 50"
+    );
+    return;
+  }
+
+  const userArg = args[0];
+  const amountArg = args[1];
+
+  // Parse amount
+  const amount = parseInt(amountArg, 10);
+  if (isNaN(amount) || amount <= 0) {
+    await context.reply("Amount must be a positive number");
+    return;
+  }
+
+  // Determine if userArg is a username or user ID
+  let userId: number | null = null;
+  let displayName: string = userArg;
+
+  // Check if it's a numeric user ID
+  const parsedUserId = parseInt(userArg, 10);
+  if (!isNaN(parsedUserId) && String(parsedUserId) === userArg) {
+    // It's a user ID
+    userId = parsedUserId;
+  } else {
+    // It's a username - look it up in the database
+    userId = await getUserIdByUsername(userArg);
+    if (!userId) {
+      await context.reply(
+        `User not found: ${userArg}\n\n` +
+          "Make sure the user has interacted with the bot at least once."
+      );
+      return;
+    }
+    displayName = userArg.startsWith("@") ? userArg : `@${userArg}`;
+  }
+
+  try {
+    // Update the user's balance
+    const newBalance = await updateUserSessionBalance(userId, amount);
+
+    await context.reply(
+      `✅ Successfully added ${amount} credits to ${displayName} (ID: ${userId})\n\n` +
+        `New balance: ${newBalance + DEFAULT_CREDITS_BALANCE} credits ` +
+        `(${newBalance} purchased + ${DEFAULT_CREDITS_BALANCE} free)`
+    );
+  } catch (error) {
+    console.error("Failed to update user balance:", error);
+    await context.reply(
+      `Failed to update balance for ${displayName}. Please try again.`
+    );
+  }
 });
 
 bot.use(async (context) => {
