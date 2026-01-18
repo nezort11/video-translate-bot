@@ -97,11 +97,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         typeof err === "object" &&
         err !== null &&
         "response" in err &&
-        err.response &&
         typeof err.response === "object" &&
+        err.response !== null &&
         "data" in err.response &&
-        err.response.data &&
         typeof err.response.data === "object" &&
+        err.response.data !== null &&
         "error" in err.response.data
           ? (err.response.data as { error: string }).error || err.message
           : err instanceof Error
@@ -139,11 +139,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         err instanceof Error &&
         typeof err === "object" &&
         err !== null &&
-        "response" in err.response &&
+        "response" in err &&
         typeof err.response === "object" &&
+        err.response !== null &&
         "data" in err.response &&
-        err.response.data &&
         typeof err.response.data === "object" &&
+        err.response.data !== null &&
         "error" in err.response.data
           ? (err.response.data as { error: string }).error || err.message
           : err instanceof Error
