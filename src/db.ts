@@ -189,6 +189,8 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
     await driver.tableClient.withSessionRetry(async (session) => {
       // Use INSERT with NOT EXISTS check - only insert if user doesn't exist
       // This ensures existing users are never updated
+      // Note: YQL requires a FROM clause for WHERE filtering, so we use AS_TABLE
+      // to create a single-row virtual table from our parameters
       await session.executeQuery(
         `DECLARE $user_id AS Uint64;
          DECLARE $first_seen_at AS Uint64;
@@ -199,17 +201,27 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
          DECLARE $language_code AS Utf8;
 
          -- Only insert if user doesn't already exist
-         UPSERT INTO users (user_id, first_seen_at, last_seen_at, username, first_name, last_name, language_code)
+         -- Use AS_TABLE to create a virtual single-row table for WHERE filtering
+         INSERT INTO users (user_id, first_seen_at, last_seen_at, username, first_name, last_name, language_code)
          SELECT
-           $user_id,
-           $first_seen_at,
-           $last_seen_at,
-           IF($username = "", NULL, $username),
-           IF($first_name = "", NULL, $first_name),
-           IF($last_name = "", NULL, $last_name),
-           IF($language_code = "", NULL, $language_code)
+           t.user_id,
+           t.first_seen_at,
+           t.last_seen_at,
+           IF(t.username = "", NULL, t.username),
+           IF(t.first_name = "", NULL, t.first_name),
+           IF(t.last_name = "", NULL, t.last_name),
+           IF(t.language_code = "", NULL, t.language_code)
+         FROM AS_TABLE(AsList(AsStruct(
+           $user_id AS user_id,
+           $first_seen_at AS first_seen_at,
+           $last_seen_at AS last_seen_at,
+           $username AS username,
+           $first_name AS first_name,
+           $last_name AS last_name,
+           $language_code AS language_code
+         ))) AS t
          WHERE NOT EXISTS (
-           SELECT 1 FROM users WHERE user_id = $user_id
+           SELECT 1 FROM users WHERE user_id = t.user_id
          );`,
         {
           $user_id: TypedValues.uint64(userInfo.userId),
@@ -227,6 +239,12 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
     console.warn("track new user error (non-fatal):", error);
   }
 };
+
+/**
+ * Track a new user - exported for testing purposes
+ * @internal
+ */
+export const trackNewUserForTesting = trackNewUser;
 
 /**
  * Find user ID by username from the users table.
