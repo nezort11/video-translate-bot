@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 // import ytdl, { downloadOptions } from "@distube/ytdl-core";
 import { streamToBuffer } from "../core";
 import { importPRetry } from "../utils";
@@ -11,6 +11,18 @@ import {
   YTDL_API_BASE_URL,
   YTDL_FUNCTION_URL,
 } from "../env";
+
+/**
+ * Error thrown when video download fails due to temporary issues
+ * (e.g., YouTube blocking, empty file, format issues).
+ * This error should trigger a user-friendly message and admin alert.
+ */
+export class VideoDownloadTemporaryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "VideoDownloadTemporaryError";
+  }
+}
 
 // 1. Install https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc
 // 2. Go to https://youtube.com (feed index page)
@@ -125,18 +137,56 @@ export const downloadVideo = async (url: string, format?: string | number) => {
     );
   }
 
-  const videoDownloadResponse = await axios.post<VideoDownloadResponseData>(
-    functionUrl,
-    {
-      url,
-      ...(format && { format: format.toString() }),
-    },
-    {
-      timeout: 600000, // 10 minutes
-    }
-  );
+  try {
+    const videoDownloadResponse = await axios.post<VideoDownloadResponseData>(
+      functionUrl,
+      {
+        url,
+        ...(format && { format: format.toString() }),
+      },
+      {
+        timeout: 600000, // 10 minutes
+      }
+    );
 
-  return videoDownloadResponse.data.url;
+    return videoDownloadResponse.data.url;
+  } catch (error) {
+    // Check if this is a VIDEO_DOWNLOAD_EMPTY error from the ytdl service
+    if (error instanceof AxiosError && error.response?.data) {
+      const responseData = error.response.data as {
+        error?: string;
+        message?: string;
+      };
+
+      if (responseData.error === "VIDEO_DOWNLOAD_EMPTY") {
+        logger.warn(
+          "Video download failed due to empty file:",
+          responseData.message
+        );
+        throw new VideoDownloadTemporaryError(
+          responseData.message ||
+            "Video download failed due to temporary platform issues"
+        );
+      }
+
+      // Also check for the old error message format (before validation was added)
+      if (
+        typeof responseData.error === "string" &&
+        responseData.error.includes("downloaded file is empty")
+      ) {
+        logger.warn(
+          "Video download failed (legacy error format):",
+          responseData.error
+        );
+        throw new VideoDownloadTemporaryError(
+          "Video download failed due to temporary platform issues"
+        );
+      }
+    }
+
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 /**
