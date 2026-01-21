@@ -115,7 +115,8 @@ import {
 import {
   downloadVideo,
   getVideoDownloadUrl,
-  VideoDownloadTemporaryError,
+  YtdlDownloadError,
+  YtdlServiceError,
   // downloadYoutubeVideo,
   // ytdlAgent,
 } from "./services/ytdl";
@@ -721,24 +722,34 @@ const handleError = async (error: unknown, context: Context) => {
       return;
     }
 
-    // Handle video download temporary errors (YouTube blocking, empty files, etc.)
-    if (error instanceof VideoDownloadTemporaryError) {
-      logger.warn("[WARN] Video download temporary error:", error.message);
+    // Handle YTDL service errors
+    if (error instanceof YtdlServiceError) {
+      logger.warn("[WARN] YTDL service error:", (error as Error).message);
+      await replyError(context, t("video_download_temporary_error"));
+      return;
+    }
+
+    // Handle YTDL download errors (YouTube blocking, empty files, etc.)
+    if (error instanceof YtdlDownloadError) {
+      logger.warn("[WARN] YTDL download error:", (error as Error).message);
       await replyError(context, t("video_download_temporary_error"));
 
       // Send alert to admin channel
       try {
         const alertMessage =
-          `⚠️ <b>Video Download Temporary Failure</b>\n\n` +
+          `⚠️ <b>YTDL Download Failure</b>\n\n` +
           `<b>User:</b> ${context.from?.id} (@${context.from?.username || "unknown"})\n` +
-          `<b>Error:</b> <code>${error.message}</code>\n` +
+          `<b>Error:</b> <code>${(error as Error).message}</code>\n` +
           `<b>Time:</b> ${new Date().toISOString()}`;
 
         await bot.telegram.sendMessage(ALERTS_CHANNEL_CHAT_ID, alertMessage, {
           parse_mode: "HTML",
         });
       } catch (alertError) {
-        logger.warn("Failed to send video download alert:", alertError);
+        logger.warn(
+          "Failed to send YTDL download alert:",
+          (alertError as Error).message
+        );
       }
       return;
     }

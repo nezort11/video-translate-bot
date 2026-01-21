@@ -71,6 +71,6 @@ telegram_download_timeout: "⏱️ Telegram servers are taking too long to send 
 link_not_working: "Unfortunately, only mp4 file translation works at the moment, please download the video and send it here."
 unsupported_platform: "❌ This video platform is not supported. Please try YouTube videos or send mp4 video files directly."
 unsupported_language: "❌ Language '{{language}}' is not supported for video translation. Currently supported languages: {{supported}}"
-video_download_temporary_error: "⚠️ Unable to download video due to temporary issues with video platforms. Please try again in a few minutes, or send standard mp4 video file directly — it works always."
+video_download_temporary_error: "⚠️ YouTube downloading and operation are currently unavailable. Please try again later or send an mp4 video directly — it works always."
 enhanced_translate_on: "🌟 Enhanced translate (slower ⏳)"
 enhanced_translate_off: "⚡️ Regular translate (faster)"

@@ -13,14 +13,24 @@ import {
 } from "../env";
 
 /**
- * Error thrown when video download fails due to temporary issues
+ * Error thrown when ytdl download fails due to temporary issues
  * (e.g., YouTube blocking, empty file, format issues).
  * This error should trigger a user-friendly message and admin alert.
  */
-export class VideoDownloadTemporaryError extends Error {
+export class YtdlDownloadError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "VideoDownloadTemporaryError";
+    this.name = "YtdlDownloadError";
+  }
+}
+
+/**
+ * Error thrown when the external YTDL service is unavailable or returns an error.
+ */
+export class YtdlServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "YtdlServiceError";
   }
 }
 
@@ -96,15 +106,20 @@ const ytdlClient = axios.create({
 // Validate ytdl client configuration at startup
 if (!YTDL_API_BASE_URL) {
   logger.warn(
-    "YTDL_API_BASE_URL is not configured. YouTube video info requests will fail."
+    "YTDL_API_BASE_URL is not configured. YTDL video info requests will fail."
   );
 }
 
 export const getVideoInfoYtdl = async (url: string) => {
-  const videoInfoResponse = await ytdlClient.get("/info", {
-    params: { url },
-  });
-  return videoInfoResponse.data;
+  try {
+    const videoInfoResponse = await ytdlClient.get("/info", {
+      params: { url },
+    });
+    return videoInfoResponse.data;
+  } catch (error) {
+    logger.error("Failed to get video info from ytdl service", error);
+    throw new YtdlServiceError("Failed to get video info");
+  }
 };
 
 type VideoDownloadResponseData = {
@@ -163,7 +178,7 @@ export const downloadVideo = async (url: string, format?: string | number) => {
           "Video download failed due to empty file:",
           responseData.message
         );
-        throw new VideoDownloadTemporaryError(
+        throw new YtdlDownloadError(
           responseData.message ||
             "Video download failed due to temporary platform issues"
         );
@@ -178,14 +193,18 @@ export const downloadVideo = async (url: string, format?: string | number) => {
           "Video download failed (legacy error format):",
           responseData.error
         );
-        throw new VideoDownloadTemporaryError(
+        throw new YtdlDownloadError(
           "Video download failed due to temporary platform issues"
         );
       }
     }
 
-    // Re-throw other errors
-    throw error;
+    if (error instanceof YtdlDownloadError) {
+      throw error;
+    }
+
+    logger.error("Failed to download video from ytdl service", error);
+    throw new YtdlServiceError("Failed to download video");
   }
 };
 
@@ -203,15 +222,20 @@ export const getVideoDownloadUrl = async (
   url: string,
   format?: string | number
 ): Promise<VideoDownloadUrlResponseData> => {
-  const response = await ytdlClient.get<VideoDownloadUrlResponseData>(
-    "/download-url",
-    {
-      params: {
-        url,
-        ...(format && { format: format.toString() }),
-      },
-    }
-  );
+  try {
+    const response = await ytdlClient.get<VideoDownloadUrlResponseData>(
+      "/download-url",
+      {
+        params: {
+          url,
+          ...(format && { format: format.toString() }),
+        },
+      }
+    );
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    logger.error("Failed to get video download url from ytdl service", error);
+    throw new YtdlServiceError("Failed to get video download url");
+  }
 };
