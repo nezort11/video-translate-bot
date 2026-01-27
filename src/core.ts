@@ -30,9 +30,9 @@ import ffmpeg from "fluent-ffmpeg";
 // type-only import to avoid runtime dependency
 import type { TelegramClient } from "telegram";
 
-const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?\w+\.\w{2,}(?:\/\S*)?/gi;
+const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:[\w-]+\.)+\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
-  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/g;
+  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.[a-z.]{2,}|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/gi;
 
 const BILIBILI_LINK_REGEX =
   /(?:https?:\/\/)?(?:www\.)?bilibili\.com\/video\/(\S{13})/g;
