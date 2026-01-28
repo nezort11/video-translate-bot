@@ -448,6 +448,15 @@ export const translateVideoFinal = async (
   // User preference: true = prefer enhanced (live voices), false = prefer regular (faster), undefined = auto (try enhanced with fallback)
   preferEnhanced?: boolean
 ): Promise<VideoTranslateResponse> => {
+  const startTime = Date.now();
+  logger.info({
+    event: "translation_attempt_start",
+    url,
+    targetLanguage,
+    sourceLanguage,
+    preferEnhanced,
+  });
+
   try {
     // Check if the URL is a direct MP4 file
     const isDirectMp4 = url.toLowerCase().includes(".mp4");
@@ -469,20 +478,34 @@ export const translateVideoFinal = async (
       console.log(
         "⚠️  Direct MP4 file without source language detected, forcing regular translate"
       );
-      return await translateVideo(url, {
+      const res = await translateVideo(url, {
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: false,
       });
+      logger.info({
+        event: "translation_attempt_success",
+        url,
+        duration_ms: Date.now() - startTime,
+        mode: "regular_mp4",
+      });
+      return res;
     }
 
     // If user explicitly turned OFF enhanced translate, always use regular voices
     if (preferEnhanced === false) {
-      return await translateVideo(url, {
+      const res = await translateVideo(url, {
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: false,
       });
+      logger.info({
+        event: "translation_attempt_success",
+        url,
+        duration_ms: Date.now() - startTime,
+        mode: "regular_explicit",
+      });
+      return res;
     }
 
     // If user explicitly turned ON enhanced translate
@@ -493,19 +516,33 @@ export const translateVideoFinal = async (
         console.log(
           "⚠️  Source language unknown, falling back to regular voices"
         );
-        return await translateVideo(url, {
+        const res = await translateVideo(url, {
           targetLanguage,
           sourceLanguage,
           useLivelyVoice: false,
         });
+        logger.info({
+          event: "translation_attempt_success",
+          url,
+          duration_ms: Date.now() - startTime,
+          mode: "regular_unknown_source",
+        });
+        return res;
       }
 
       // Source language is known, use live voices as requested
-      return await translateVideo(url, {
+      const res = await translateVideo(url, {
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: true,
       });
+      logger.info({
+        event: "translation_attempt_success",
+        url,
+        duration_ms: Date.now() - startTime,
+        mode: "enhanced_explicit",
+      });
+      return res;
     }
 
     // If undefined (auto mode): try live voices first with fallback
@@ -514,11 +551,18 @@ export const translateVideoFinal = async (
       console.log(
         "⚠️  No source language for auto mode, using regular translate"
       );
-      return await translateVideo(url, {
+      const res = await translateVideo(url, {
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: false,
       });
+      logger.info({
+        event: "translation_attempt_success",
+        url,
+        duration_ms: Date.now() - startTime,
+        mode: "regular_auto_fallback",
+      });
+      return res;
     }
 
     try {
@@ -527,9 +571,20 @@ export const translateVideoFinal = async (
         sourceLanguage,
         useLivelyVoice: true,
       });
+      logger.info({
+        event: "translation_attempt_success",
+        url,
+        duration_ms: Date.now() - startTime,
+        mode: "enhanced",
+      });
       return res;
     } catch (firstError) {
       if (firstError instanceof TranslateInProgressException) {
+        logger.info({
+          event: "translation_attempt_pending",
+          url,
+          duration_ms: Date.now() - startTime,
+        });
         await waitForTranslation(firstError);
         // Retry with the same preference (don't hardcode to true)
         return await translateVideoFinal(
@@ -543,14 +598,26 @@ export const translateVideoFinal = async (
       console.log(
         "Enhanced translate failed, falling back to regular translate"
       );
-      return await translateVideo(url, {
+      const res = await translateVideo(url, {
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: false,
       });
+      logger.info({
+        event: "translation_attempt_success",
+        url,
+        duration_ms: Date.now() - startTime,
+        mode: "regular_fallback",
+      });
+      return res;
     }
   } catch (error) {
     if (error instanceof TranslateInProgressException) {
+      logger.info({
+        event: "translation_attempt_pending",
+        url,
+        duration_ms: Date.now() - startTime,
+      });
       await waitForTranslation(error);
       return await translateVideoFinal(
         url,
@@ -559,6 +626,12 @@ export const translateVideoFinal = async (
         preferEnhanced
       );
     }
+    logger.error({
+      event: "translation_attempt_error",
+      url,
+      duration_ms: Date.now() - startTime,
+      error,
+    });
     throw error;
   }
 };

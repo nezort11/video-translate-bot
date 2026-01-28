@@ -32,7 +32,7 @@ import fss from "fs";
 import ffmpeg, { FfprobeData } from "fluent-ffmpeg";
 import { Api } from "telegram";
 // import translate from "@iamtraction/google-translate";
-import * as Sentry from "@sentry/node";
+
 import { duration, diff, toSeconds, fromSeconds } from "./time";
 import { inspect } from "util";
 // import { TimeoutError } from "p-timeout";
@@ -56,7 +56,6 @@ import { logger } from "./logger";
 
 import {
   OWNER_USERNAME,
-  SENTRY_DSN,
   VIDEO_TRANSLATE_APP_URL,
   APP_ENV,
   STORAGE_DIR_PATH,
@@ -170,15 +169,6 @@ const messageTextNotCommand = (
 
   return true;
 };
-
-Sentry.init({
-  dsn: SENTRY_DSN,
-
-  // Set tracesSampleRate to 1.0 to capture 100%
-  // of transactions for performance monitoring.
-  // We recommend adjusting this value in production
-  tracesSampleRate: 1.0,
-});
 
 type UploadResponse = {
   chat_id: string;
@@ -625,13 +615,7 @@ bot.use(async (context, next) => {
 // handle non-fatal (warn) errors
 const handleWarnError = (message: string, error: unknown) => {
   logger.warn(message, error);
-  Sentry.captureException(new Error(message, { cause: error }), {
-    level: "warning",
-    // @ts-expect-error user object is serializable
-    user: currentUpdateContext?.from,
-    // @ts-expect-error update object is serializable
-    extra: currentUpdateContext?.update,
-  });
+  logger.warn(message, error);
 };
 
 // Disable bot in group and channel chats (group can be disabled in botfather)
@@ -651,7 +635,7 @@ bot.use(
 bot.use(async (context, next) => {
   if (APP_ENV !== "local") {
     // Save incoming update (async)
-    logger.log(`Saving update id ${context.update.update_id}`);
+    logger.info(`Saving update id ${context.update.update_id}`);
     trackUpdate(context.update);
   }
 
@@ -758,7 +742,7 @@ const handleError = async (error: unknown, context: Context) => {
   logger.error(error);
 
   if (APP_ENV !== "local") {
-    Sentry.captureException(error);
+    // Sentry.captureException(error);
   }
 
   await replyError(context, t("error_retry"));
@@ -1257,7 +1241,7 @@ const renderScreen = async (
 const renderTranslateScreen = async (context: BotContext, router: Router) => {
   let link = router.session.link as string;
   const videoPlatform = getVideoPlatform(link);
-  logger.log("Video platform:", videoPlatform);
+  logger.info("Video platform:", videoPlatform);
 
   const translateVideoMessage = t("translate_video"); //.replace("link", link);
   const voiceTranslateActionButton = createActionButton(t("voice_faster"), {
@@ -1832,10 +1816,7 @@ bot.action(/.+/, async (context) => {
   }
 
   context.session.translationStartedAt = new Date().toISOString();
-  const translateTransaction = Sentry.startTransaction({
-    op: "translate",
-    name: "Translate Transaction",
-  });
+
   let progressInterval: NodeJS.Timer | undefined;
   let ffmpegProgress = 0;
   videoTranslateProgressCount += 1;
@@ -2270,10 +2251,10 @@ bot.action(/.+/, async (context) => {
     //   return;
     // }
 
-    // logger.log(
+    // logger.info(
     //   `Requesting download stream for quality ${youtubeVideoFormatItag.video} ...`
     // );
-    // logger.log(
+    // logger.info(
     //   `Requesting download stream for quality ${youtubeVideoFormatItag.audio} ...`
     // );
     // const audioStream = ytdl(videoLink, {
@@ -2361,7 +2342,7 @@ bot.action(/.+/, async (context) => {
         //   resultFilePath,
         // );
         // ffmpeg -i input.mp4 -f null /dev/null
-        logger.log("Starting ffmpeg process...");
+        logger.info("Starting ffmpeg process...");
         // await new Promise((resolve, reject) =>
         //   ffmpeg()
         //     // add first input (video with its original audio)
@@ -2514,14 +2495,14 @@ bot.action(/.+/, async (context) => {
 
         //   resultFilePath,
         // );
-        logger.log("Starting ffmpeg process...");
+        logger.info("Starting ffmpeg process...");
         await mixTranslatedVideo(
           videoFilePath,
           translateAudioFilePath,
           resultFilePath,
           "mp4"
         );
-        logger.log("Reading ffmpeg output result file...", resultFilePath);
+        logger.info("Reading ffmpeg output result file...", resultFilePath);
         const outputBuffer = await fs.readFile(resultFilePath);
 
         // const outputFile = ffmpeg.FS("readFile", resultFilePath);
@@ -2623,7 +2604,6 @@ bot.action(/.+/, async (context) => {
     context.session.translationStartedAt = undefined;
     videoTranslateProgressCount -= 1;
     clearInterval(progressInterval);
-    translateTransaction.finish();
   }
 });
 

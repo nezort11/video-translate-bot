@@ -76,6 +76,11 @@ resource "yandex_api_gateway" "video-translate-bot-queue-gateway" {
   name        = "video-translate-bot-queue-gateway"
   description = "API Gateway that receives Telegram updates and pushes them to Yandex Message Queue."
 
+  log_options {
+    log_group_id = yandex_logging_group.video_translate_bot_logs.id
+    min_level    = "INFO"
+  }
+
   spec = <<EOF
 openapi: 3.0.0
 info:
@@ -107,6 +112,11 @@ resource "yandex_function" "video-translate-bot-function" {
   # Sync value with EXECUTION_TIMEOUT environment variable
   execution_timeout = 1800
   concurrency = 5
+
+  log_options {
+    log_group_id = yandex_logging_group.video_translate_bot_logs.id
+    min_level    = "INFO"
+  }
 
   # Configure function when invoking asynchronously (with ?integration=async)
   async_invocation {
@@ -152,6 +162,11 @@ resource "yandex_function" "ytdl-storage-cleanup" {
 
   memory = 128
   execution_timeout = 60
+
+  log_options {
+    log_group_id = yandex_logging_group.video_translate_bot_logs.id
+    min_level    = "INFO"
+  }
 
   package {
     bucket_name = yandex_storage_bucket.video-translate-bot-code.id
@@ -218,6 +233,11 @@ resource "yandex_function_trigger" "video-translate-bot-function-queue-trigger" 
 resource "yandex_api_gateway" "video-translate-bot-function-gateway" {
   name        = "video-translate-bot-function-gateway"
   description = "API Gateway for video-translate-bot-function"
+
+  log_options {
+    log_group_id = yandex_logging_group.video_translate_bot_logs.id
+    min_level    = "INFO"
+  }
   # execution timeout does not matter because of message queue
 #   execution_timeout = "120"
 
@@ -300,6 +320,11 @@ resource "yandex_function" "admin-api" {
   execution_timeout = 30
   concurrency = 3
 
+  log_options {
+    log_group_id = yandex_logging_group.video_translate_bot_logs.id
+    min_level    = "INFO"
+  }
+
   package {
     bucket_name = yandex_storage_bucket.video-translate-bot-code.id
     object_name = "admin-api.zip"
@@ -318,6 +343,11 @@ resource "yandex_function" "admin-api" {
 resource "yandex_api_gateway" "admin-api-gateway" {
   name        = "admin-api-gateway"
   description = "API Gateway for Admin Dashboard API with CORS support"
+
+  log_options {
+    log_group_id = yandex_logging_group.video_translate_bot_logs.id
+    min_level    = "INFO"
+  }
 
   spec = <<EOF
 openapi: 3.0.0
