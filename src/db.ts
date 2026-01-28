@@ -201,7 +201,7 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
          DECLARE $language_code AS Utf8;
 
          -- Only insert if user doesn't already exist
-         -- Use AS_TABLE to create a virtual single-row table for WHERE filtering
+         -- Use LEFT JOIN to filter out existing users
          INSERT INTO users (user_id, first_seen_at, last_seen_at, username, first_name, last_name, language_code)
          SELECT
            t.user_id,
@@ -220,9 +220,8 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
            $last_name AS last_name,
            $language_code AS language_code
          ))) AS t
-         WHERE NOT EXISTS (
-           SELECT 1 FROM users WHERE user_id = t.user_id
-         );`,
+         LEFT JOIN users ON users.user_id = t.user_id
+         WHERE users.user_id IS NULL;`,
         {
           $user_id: TypedValues.uint64(userInfo.userId),
           $first_seen_at: TypedValues.uint64(eventTimestamp),
