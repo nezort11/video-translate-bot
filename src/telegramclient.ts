@@ -330,7 +330,8 @@ export const delegateDownloadLargeFile = async (
       }
     }
 
-    logger.info("Downloaded video:", videoFileUrl);
+    // Dont log video url for privacy reasons
+    // logger.info("Downloaded video:", videoFileUrl);
     return videoFileUrl;
   } finally {
     logger.info("Deleting forwarded video message...");
