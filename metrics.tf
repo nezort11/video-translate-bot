@@ -59,4 +59,67 @@ resource "yandex_monitoring_dashboard" "bot_dashboard" {
       }
     }
   }
+
+  widgets {
+    position {
+      x = 0
+      y = 16
+      w = 8
+      h = 8
+    }
+    chart {
+      chart_id = "invocations"
+      queries {
+        target {
+          query = "functions.invocations_count{service_account_id=\"${var.service_account_id}\"}"
+        }
+        target {
+          query = "functions.errors_count{service_account_id=\"${var.service_account_id}\"}"
+        }
+      }
+      visualization_settings {
+        title = "Invocations & Errors"
+      }
+    }
+  }
+
+  widgets {
+    position {
+      x = 8
+      y = 16
+      w = 8
+      h = 8
+    }
+    chart {
+      chart_id = "cpu_usage"
+      queries {
+        target {
+          query = "functions.cpu_usage{service_account_id=\"${var.service_account_id}\"}"
+        }
+      }
+      visualization_settings {
+        title = "CPU Usage (%)"
+      }
+    }
+  }
+
+  widgets {
+    position {
+      x = 16
+      y = 16
+      w = 8
+      h = 8
+    }
+    chart {
+      chart_id = "ram_usage"
+      queries {
+        target {
+          query = "functions.ram_usage{service_account_id=\"${var.service_account_id}\"}"
+        }
+      }
+      visualization_settings {
+        title = "RAM Usage (MB)"
+      }
+    }
+  }
 }

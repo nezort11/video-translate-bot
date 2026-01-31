@@ -1,45 +1,61 @@
 import pino from "pino";
 import { APP_ENV } from "./env";
-// import { inspect } from "util";
 import { formatAxiosError } from "./utils";
 
-const transport =
-  APP_ENV === "local"
-    ? {
+const isLocal = APP_ENV === "local";
+
+/**
+ * Production logger that uses console.log to ensure logs are captured by Yandex Cloud Functions
+ * but formats multiple arguments correctly so data is not lost.
+ */
+const prodLog = (level: string, ...args: any[]) => {
+  let logObj: any = {
+    level,
+    timestamp: new Date().toISOString(),
+  };
+
+  if (args.length === 0) return;
+
+  // Handle first argument if it's an object (context/metadata)
+  if (
+    typeof args[0] === "object" &&
+    args[0] !== null &&
+    !Array.isArray(args[0])
+  ) {
+    Object.assign(logObj, args[0]);
+    if (args.length > 1) {
+      logObj.msg = args
+        .slice(1)
+        .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+        .join(" ");
+    }
+  } else {
+    // Join all arguments as a message string
+    logObj.msg = args
+      .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+      .join(" ");
+  }
+
+  // Print as a single JSON line
+  console.log(JSON.stringify(logObj));
+};
+
+export const logger = isLocal
+  ? pino({
+      level: process.env.LOG_LEVEL || "debug",
+      transport: {
         target: "pino-pretty",
         options: {
           colorize: true,
           ignore: "pid,hostname",
           translateTime: "SYS:standard",
         },
-      }
-    : undefined;
-
-export const logger = pino({
-  transport,
-  serializers: {
-    err: pino.stdSerializers.err,
-    error: pino.stdSerializers.err,
-  },
-  hooks: {
-    logMethod(inputArgs, method, level) {
-      if (inputArgs.length >= 1) {
-        const arg = inputArgs[0];
-        // Handle AxiosError
-        if (
-          arg &&
-          typeof arg === "object" &&
-          "isAxiosError" in arg &&
-          (arg as any).isAxiosError === true
-        ) {
-          const formattedError = formatAxiosError(arg as any, {
-            includeStack: false,
-            separator: "\n  ",
-          });
-          return method.apply(this, [formattedError, ...inputArgs.slice(1)]);
-        }
-      }
-      return method.apply(this, inputArgs as [string, ...any[]]);
-    },
-  },
-});
+      },
+    })
+  : ({
+      info: (...args: any[]) => prodLog("INFO", ...args),
+      error: (...args: any[]) => prodLog("ERROR", ...args),
+      warn: (...args: any[]) => prodLog("WARN", ...args),
+      debug: (...args: any[]) => prodLog("DEBUG", ...args),
+      trace: (...args: any[]) => prodLog("TRACE", ...args),
+    } as any);
