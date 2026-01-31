@@ -5,41 +5,40 @@ import {
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { s3Localstorage } from "./core";
+import { logger } from "./logger";
 
 async function deleteOlderThanMinutes(
   bucket: string,
   minutes: number
 ): Promise<number> {
-  console.log(
-    `[DEBUG] Starting deleteOlderThanMinutes with bucket=${bucket}, minutes=${minutes}`
+  logger.info(
+    `Starting deleteOlderThanMinutes with bucket=${bucket}, minutes=${minutes}`
   );
   const cutoffTimestamp = Date.now() - minutes * 60 * 1000;
-  console.log(
-    `[DEBUG] Cutoff timestamp: ${cutoffTimestamp} (${new Date(cutoffTimestamp).toISOString()})`
+  logger.info(
+    `Cutoff timestamp: ${cutoffTimestamp} (${new Date(cutoffTimestamp).toISOString()})`
   );
 
   const candidateKeys: string[] = [];
 
   const concurrency = Number(process.env.HEAD_CONCURRENCY || 16);
-  console.log(`[DEBUG] Using concurrency: ${concurrency}`);
+  logger.info(`Using concurrency: ${concurrency}`);
   let inFlight: Promise<void>[] = [];
   const pushTask = (task: Promise<void>) => {
     inFlight.push(task);
     if (inFlight.length >= concurrency) {
-      console.log(
-        `[DEBUG] Reached concurrency limit (${concurrency}), waiting for batch to complete`
+      logger.info(
+        `Reached concurrency limit (${concurrency}), waiting for batch to complete`
       );
       return Promise.all(inFlight).then(() => {
-        console.log(
-          `[DEBUG] Batch of ${concurrency} HEAD operations completed`
-        );
+        logger.info(`Batch of ${concurrency} HEAD operations completed`);
         inFlight = [];
       });
     }
     return Promise.resolve();
   };
 
-  console.log(`[DEBUG] Starting to list objects from storage`);
+  logger.info(`Starting to list objects from storage`);
   let listedCount = 0;
 
   // s3Localstorage.list() is a generator in local package; cast to any to use here
@@ -48,40 +47,38 @@ async function deleteOlderThanMinutes(
   ).list() as AsyncIterable<string>) {
     listedCount++;
     if (listedCount % 100 === 0) {
-      console.log(`[DEBUG] Listed ${listedCount} objects so far...`);
+      logger.info(`Listed ${listedCount} objects so far...`);
     }
 
     await pushTask(
       (async () => {
         try {
-          console.log(`[DEBUG] HEAD request for key: ${key}`);
+          logger.info(`HEAD request for key: ${key}`);
           const head = await s3Localstorage.s3Client.send(
             new HeadObjectCommand({ Bucket: bucket, Key: key })
           );
-          console.log(`[DEBUG] HEAD response for ${key}:`, {
+          logger.info(`HEAD response for ${key}:`, {
             lastModified: head.LastModified,
             size: head.ContentLength,
           });
 
           if (head.LastModified) {
             const lastModifiedTs = new Date(head.LastModified).getTime();
-            console.log(
-              `[DEBUG] ${key} lastModified: ${lastModifiedTs} (${head.LastModified.toISOString()})`
+            logger.info(
+              `${key} lastModified: ${lastModifiedTs} (${head.LastModified.toISOString()})`
             );
 
             if (lastModifiedTs < cutoffTimestamp) {
-              console.log(
-                `[DEBUG] Adding ${key} to candidateKeys (older than cutoff)`
-              );
+              logger.info(`Adding ${key} to candidateKeys (older than cutoff)`);
               candidateKeys.push(key);
             } else {
-              console.log(`[DEBUG] Skipping ${key} (newer than cutoff)`);
+              logger.info(`Skipping ${key} (newer than cutoff)`);
             }
           } else {
-            console.warn(`[DEBUG] No LastModified for key: ${key}`);
+            logger.warn(`No LastModified for key: ${key}`);
           }
         } catch (error) {
-          console.warn(
+          logger.warn(
             "Failed to HEAD object",
             key,
             (error as Error).message || error
@@ -91,40 +88,36 @@ async function deleteOlderThanMinutes(
     );
   }
 
-  console.log(`[DEBUG] Finished listing. Total objects listed: ${listedCount}`);
+  logger.info(`Finished listing. Total objects listed: ${listedCount}`);
 
   if (inFlight.length > 0) {
-    console.log(
-      `[DEBUG] Waiting for remaining ${inFlight.length} HEAD operations to complete`
+    logger.info(
+      `Waiting for remaining ${inFlight.length} HEAD operations to complete`
     );
     await Promise.all(inFlight);
-    console.log(`[DEBUG] All remaining HEAD operations completed`);
+    logger.info(`All remaining HEAD operations completed`);
   }
 
-  console.log(
-    `[DEBUG] Total candidate keys for deletion: ${candidateKeys.length}`
-  );
-  console.log(`[DEBUG] Candidate keys:`, candidateKeys.slice(0, 10)); // Log first 10 keys
+  logger.info(`Total candidate keys for deletion: ${candidateKeys.length}`);
+  logger.info(`Candidate keys:`, candidateKeys.slice(0, 10)); // Log first 10 keys
 
   let deleted = 0;
-  console.log(`[DEBUG] Starting deletion process in chunks of 1000`);
+  logger.info(`Starting deletion process in chunks of 1000`);
 
   for (let i = 0; i < candidateKeys.length; i += 1000) {
     const chunk = candidateKeys.slice(i, i + 1000);
-    console.log(
-      `[DEBUG] Processing deletion chunk ${Math.floor(i / 1000) + 1}, size: ${chunk.length} keys`
+    logger.info(
+      `Processing deletion chunk ${Math.floor(i / 1000) + 1}, size: ${chunk.length} keys`
     );
 
     if (chunk.length === 0) {
-      console.log(`[DEBUG] Empty chunk, skipping`);
+      logger.info(`Empty chunk, skipping`);
       continue;
     }
 
     try {
       const chunkObjects = chunk.map((Key) => ({ Key }));
-      console.log(
-        `[DEBUG] Sending DeleteObjects command for ${chunk.length} objects`
-      );
+      logger.info(`Sending DeleteObjects command for ${chunk.length} objects`);
 
       const delResp = await s3Localstorage.s3Client.send(
         new DeleteObjectsCommand({
@@ -138,20 +131,20 @@ async function deleteOlderThanMinutes(
           ? (delResp.Deleted?.length as number)
           : Math.max(0, chunk.length - (delResp.Errors?.length || 0));
       deleted += deletedNow;
-      console.log(
-        `[DEBUG] Delete response: ${deletedNow} objects deleted in this chunk`
+      logger.info(
+        `Delete response: ${deletedNow} objects deleted in this chunk`
       );
-      console.log(`Deleted ${deletedNow} objects (total: ${deleted})`);
+      logger.info(`Deleted ${deletedNow} objects (total: ${deleted})`);
 
       if (delResp.Errors && delResp.Errors.length > 0) {
-        console.warn(
-          `[DEBUG] DeleteObjects had ${delResp.Errors.length} errors:`,
+        logger.warn(
+          `DeleteObjects had ${delResp.Errors.length} errors:`,
           delResp.Errors
         );
       }
     } catch (error) {
-      console.error("DeleteObjects failed", (error as Error).message || error);
-      console.error(`[DEBUG] Failed chunk details:`, {
+      logger.error("DeleteObjects failed", (error as Error).message || error);
+      logger.error(`Failed chunk details:`, {
         chunkStart: i,
         chunkEnd: i + chunk.length,
         chunkSize: chunk.length,
@@ -159,27 +152,27 @@ async function deleteOlderThanMinutes(
     }
   }
 
-  console.log(`[DEBUG] Deletion process completed. Total deleted: ${deleted}`);
+  logger.info(`Deletion process completed. Total deleted: ${deleted}`);
   return deleted;
 }
 
 export const handler = async () => {
-  console.log(`[DEBUG] Handler started at ${new Date().toISOString()}`);
+  logger.info(`Handler started at ${new Date().toISOString()}`);
   const bucket = process.env.YTDL_STORAGE_BUCKET || process.env.BUCKET_NAME;
   if (!bucket) {
-    console.error(
-      `[DEBUG] Bucket environment variables not found. YTDL_STORAGE_BUCKET: ${process.env.YTDL_STORAGE_BUCKET}, BUCKET_NAME: ${process.env.BUCKET_NAME}`
+    logger.error(
+      `Bucket environment variables not found. YTDL_STORAGE_BUCKET: ${process.env.YTDL_STORAGE_BUCKET}, BUCKET_NAME: ${process.env.BUCKET_NAME}`
     );
     throw new Error("YTDL_STORAGE_BUCKET or BUCKET_NAME env is required");
   }
   const minutes = Number(process.env.CLEANUP_MINUTES || 60);
-  console.log(
+  logger.info(
     `Starting cleanup for bucket=${bucket}, older than ${minutes} minutes`
   );
 
   const deleted = await deleteOlderThanMinutes(bucket, minutes);
-  console.log(`Cleanup completed. Deleted: ${deleted}`);
+  logger.info(`Cleanup completed. Deleted: ${deleted}`);
 
-  console.log(`[DEBUG] Handler completed at ${new Date().toISOString()}`);
+  logger.info(`Handler completed at ${new Date().toISOString()}`);
   return { statusCode: 200, body: `Deleted ${deleted} objects` };
 };

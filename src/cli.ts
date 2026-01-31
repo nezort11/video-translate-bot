@@ -8,10 +8,11 @@ import {
 } from "./services/vtrans";
 import { inspect } from "util";
 import { getVideoInfo } from "./core";
+import { logger } from "./logger";
 // import { getLinkPreview } from "link-preview-js";
 
 const main = async () => {
-  console.log("process.argv", process.argv);
+  logger.info("process.argv", process.argv);
 
   // const linkPreview = await getLinkPreview(
   //   "https://www.bilibili.com/video/BV1Pt42157Th",
@@ -20,7 +21,7 @@ const main = async () => {
   // console.log("linkPreview", linkPreview);
   const translateUrl = process.argv[2];
   if (!translateUrl) {
-    console.error("🔗 Please provide a URL to translate");
+    logger.error("🔗 Please provide a URL to translate");
     process.exit(1);
   }
 
@@ -28,29 +29,26 @@ const main = async () => {
     // Detect source language from video
     let detectedLanguage: string | undefined = undefined;
     try {
-      console.log("🔍 Detecting video language...");
+      logger.info("🔍 Detecting video language...");
       const videoInfo = await getVideoInfo(translateUrl);
       detectedLanguage = videoInfo.language;
       if (detectedLanguage) {
-        console.log(`✅ Detected language: ${detectedLanguage}`);
+        logger.info(`✅ Detected language: ${detectedLanguage}`);
       } else {
-        console.log("⚠️  Could not detect language, using auto-detection");
+        logger.info("⚠️  Could not detect language, using auto-detection");
       }
     } catch (error) {
-      console.warn(
-        "⚠️  Failed to detect language, using auto-detection",
-        error
-      );
+      logger.warn("⚠️  Failed to detect language, using auto-detection", error);
     }
 
     const translatedUrl = await translateVideoPreferLiveVoices(translateUrl, {
       sourceLanguage: detectedLanguage,
       targetLanguage: "ru",
     });
-    console.log(`🎉 Translated url: ${inspect(translatedUrl)}`);
+    logger.info(`🎉 Translated url: ${inspect(translatedUrl)}`);
   } catch (error) {
     if (error instanceof TranslateInProgressException) {
-      console.log("⏳ Video translate is in progress...");
+      logger.info("⏳ Video translate is in progress...");
       return;
     }
 

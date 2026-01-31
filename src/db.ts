@@ -2,6 +2,7 @@ import { Driver, getCredentialsFromEnv, TypedValues } from "ydb-sdk";
 import { Ydb } from "telegraf-session-store-ydb";
 import path from "path";
 import { MOUNT_ROOT_DIR_PATH, YDB_DATABASE, YDB_ENDPOINT } from "./env";
+import { logger } from "./logger";
 import type { Update } from "telegraf/types";
 
 // YDB compatible with AWS DynamoDB
@@ -145,7 +146,7 @@ export const trackUpdate = async (update: Update) => {
   try {
     // Table is pre-provisioned; avoid schema operations on hot path
     // await initUpdatesTable();
-    console.log("Table 'updates' is ready");
+    logger.info("Table 'updates' is ready");
 
     const eventTimestamp = extractTimestamp(update);
 
@@ -162,13 +163,13 @@ export const trackUpdate = async (update: Update) => {
           $event_timestamp: TypedValues.uint64(eventTimestamp),
         }
       );
-      console.log("Inserted update with ID:", update.update_id);
+      logger.info("Inserted update with ID:", update.update_id);
     });
 
     // Also track new users (insert only, don't update existing)
     await trackNewUser(update, eventTimestamp);
   } catch (error) {
-    console.warn("save update error", error);
+    logger.warn("save update error", error);
   }
 };
 
@@ -235,7 +236,7 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
     });
   } catch (error) {
     // Don't fail the main update tracking if user tracking fails
-    console.warn("track new user error (non-fatal):", error);
+    logger.warn("track new user error (non-fatal):", error);
   }
 };
 
@@ -320,7 +321,7 @@ export const getUserSession = async (
         try {
           sessionData = JSON.parse(jsonValue);
         } catch {
-          console.warn("Failed to parse session JSON for user:", userId);
+          logger.warn("Failed to parse session JSON for user:", userId);
         }
       }
     }

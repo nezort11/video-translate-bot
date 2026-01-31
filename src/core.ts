@@ -241,7 +241,7 @@ export const getVideoInfo = async (link: string) => {
     if (error instanceof Error) {
       // Handle timeout errors
       if (error.message === "Request timeout") {
-        console.warn(error);
+        logger.warn(error);
         return {};
       }
 
@@ -461,21 +461,21 @@ export const translateVideoFinal = async (
     // Check if the URL is a direct MP4 file
     const isDirectMp4 = url.toLowerCase().includes(".mp4");
 
-    console.log("Requesting video translate...");
-    console.log(
+    logger.info("Requesting video translate...");
+    logger.info(
       "URL type:",
       isDirectMp4 ? "Direct MP4 file" : "Video platform URL"
     );
-    console.log(
+    logger.info(
       "Enhanced translate preference:",
       preferEnhanced === true ? "ON" : preferEnhanced === false ? "OFF" : "AUTO"
     );
-    console.log("Source language:", sourceLanguage || "auto/unknown");
+    logger.info("Source language:", sourceLanguage || "auto/unknown");
 
     // Force regular translate for MP4 files without source language
     // MP4 files typically don't have language metadata, so enhanced translate won't work
     if (isDirectMp4 && !sourceLanguage) {
-      console.log(
+      logger.info(
         "⚠️  Direct MP4 file without source language detected, forcing regular translate"
       );
       const res = await translateVideo(url, {
@@ -513,7 +513,7 @@ export const translateVideoFinal = async (
       // If source language is unknown/undefined, live voices are not supported
       // Fall back to regular voices to avoid "unknown language" error
       if (!sourceLanguage) {
-        console.log(
+        logger.info(
           "⚠️  Source language unknown, falling back to regular voices"
         );
         const res = await translateVideo(url, {
@@ -548,7 +548,7 @@ export const translateVideoFinal = async (
     // If undefined (auto mode): try live voices first with fallback
     // But only if source language is available (otherwise skip directly to regular)
     if (!sourceLanguage) {
-      console.log(
+      logger.info(
         "⚠️  No source language for auto mode, using regular translate"
       );
       const res = await translateVideo(url, {
@@ -595,7 +595,7 @@ export const translateVideoFinal = async (
         );
       }
       // Fallback to regular voices if enhanced fails
-      console.log(
+      logger.info(
         "Enhanced translate failed, falling back to regular translate"
       );
       const res = await translateVideo(url, {
@@ -658,22 +658,19 @@ export const translateVideoFull = async (
   if (sourceLanguage === undefined) {
     // Detect source language from video
     try {
-      console.log("🔍 Detecting video language...");
+      logger.info("🔍 Detecting video language...");
       const videoInfo = await getVideoInfo(url);
       sourceLanguage = videoInfo.language;
       if (sourceLanguage) {
-        console.log(`✅ Detected language: ${sourceLanguage}`);
+        logger.info(`✅ Detected language: ${sourceLanguage}`);
       } else {
-        console.log("⚠️  Could not detect language, using auto-detection");
+        logger.info("⚠️  Could not detect language, using auto-detection");
       }
     } catch (error) {
-      console.warn(
-        "⚠️  Failed to detect language, using auto-detection",
-        error
-      );
+      logger.warn("⚠️  Failed to detect language, using auto-detection", error);
     }
   } else {
-    console.log(`🔧 Using manual source language: ${sourceLanguage}`);
+    logger.info(`🔧 Using manual source language: ${sourceLanguage}`);
   }
 
   // Call translateVideoFinal with detected or manual language
@@ -758,10 +755,10 @@ export const mixTranslatedVideo = (
     command
       .save(resultFilePath)
       .on("progress", (progress) => {
-        console.log(`Ffmpeg progress: ${progress.percent}% done`);
+        logger.info(`Ffmpeg progress: ${progress.percent}% done`);
       })
       .on("end", () => {
-        console.log("Processing finished");
+        logger.info("Processing finished");
         // const outputBuffer_ = await fs.readFile(resultFilePath);
         // // await Promise.all([
         // //   fs.unlink(videoFilePath),
@@ -772,7 +769,7 @@ export const mixTranslatedVideo = (
         resolve(undefined);
       })
       .on("error", (err) => {
-        console.error("FFmpeg error:", err);
+        logger.error("FFmpeg error:", err);
         reject(err);
       });
   });

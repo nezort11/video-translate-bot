@@ -410,7 +410,7 @@ const joinSsml = (segments: string[]) => {
     // <break time='${(segment.end - segment.start).toFixed(
     //   2
     // )}s'/>
-    console.log("trans segment", segment);
+    logger.info("trans segment", segment);
     ssml += `<p>${escapeText(
       segment
       // .text
@@ -422,27 +422,27 @@ const joinSsml = (segments: string[]) => {
 };
 
 const translateAnyVideo = async (url: string, targetLanguage: string) => {
-  console.log("downloading url", url);
+  logger.info("downloading url", url);
   const videoResponse = await fetch(url);
   const videoBlob = await videoResponse.blob();
-  console.log("video blob", videoBlob.size);
+  logger.info("video blob", videoBlob.size);
 
   const videoUrl = new URL(url);
   const videoFileName = videoUrl.pathname.split("/").pop();
 
   const transcription = await transcribe(videoBlob, videoFileName!);
-  console.log("video file transcribed", transcription.segments.length);
+  logger.info("video file transcribed", transcription.segments.length);
 
   const translatedSegments = await translate(
     transcription.segments.map((segment) => segment.text),
     targetLanguage
   );
 
-  console.log("requesting speak srt...");
+  logger.info("requesting speak srt...");
   const transcriptionSsml = joinSsml(
     translatedSegments.translations.map((transSegment) => transSegment.text)
   );
-  console.log("transcription ssml", transcriptionSsml);
+  logger.info("transcription ssml", transcriptionSsml);
   // const client = new TextToSpeechClient();
   // const [synthesizedSpeechResponse] = await client.synthesizeSpeech({
   //   input: { ssml: transcriptionSsml },
@@ -1563,12 +1563,12 @@ const preCheckoutQueryUpdate = (
 };
 
 bot.on(preCheckoutQueryUpdate, async (context) => {
-  console.log("pre checkout query update", context.update);
+  logger.info("pre checkout query update", context.update);
   await context.answerPreCheckoutQuery(true);
 });
 
 bot.on(message("successful_payment"), async (context, next) => {
-  console.log("succesful payment update", context.update);
+  logger.info("succesful payment update", context.update);
 
   const starsAmountPaid = context.message.successful_payment
     .total_amount as keyof typeof starsAmountToOptionMap;
@@ -1620,14 +1620,14 @@ bot.action(/.+/, async (context) => {
   }
 
   const router = getRouter(context, routerId);
-  console.log(
+  logger.info(
     `Getting action data for router: ${routerId} and action: ${actionId}`
   );
   const actionData = getActionData(context, routerId, actionId);
   if (!actionData) {
     // Old action messages was cleared than just delete message
     try {
-      console.log("Deleting current message on NO action data found...");
+      logger.info("Deleting current message on NO action data found...");
       await context.deleteMessage();
     } catch (_) {}
     // throw new Error("Action data is undefined");
@@ -1796,7 +1796,7 @@ bot.action(/.+/, async (context) => {
   }
   if (isValidationError) {
     try {
-      console.log("Deleting current message on validation error...");
+      logger.info("Deleting current message on validation error...");
       await context.deleteMessage();
     } catch (_) {}
     return;
@@ -1838,7 +1838,7 @@ bot.action(/.+/, async (context) => {
       "translationUrl"
     ); //| undefined;
     let translationAudio: Buffer | undefined = undefined;
-    console.log("Translation url:", translationUrl);
+    logger.info("Translation url:", translationUrl);
     if (!translationUrl) {
       try {
         // translaform serialized telegram video link to mp4 link
@@ -1862,7 +1862,7 @@ bot.action(/.+/, async (context) => {
             actionType === ActionType.TranslateVideo ||
             actionType === ActionType.TranslateAudio
           ) {
-            console.log(
+            logger.info(
               `Setting action data for router: ${routerId}, action: ${actionId}`
             );
             setActionData(context, routerId, actionId, actionData);
@@ -1881,7 +1881,7 @@ bot.action(/.+/, async (context) => {
           let sourceLanguageOverride: string | undefined;
           if (videoPlatform !== VideoPlatform.YouTube) {
             sourceLanguageOverride = getSourceLanguage(context, router); // Manual selection for non-YouTube
-            console.log(
+            logger.info(
               "Manual source language:",
               sourceLanguageOverride || "auto"
             );
@@ -1902,7 +1902,7 @@ bot.action(/.+/, async (context) => {
           );
           translationUrl = videoTranslateData.url;
         } else {
-          console.warn(
+          logger.warn(
             "Cannot translate video to target language",
             targetTranslateLanguage
           );
@@ -2129,7 +2129,7 @@ bot.action(/.+/, async (context) => {
         // const speedFactor = videoInfo.duration / audioDuration;
         const speedFactor = audioDuration / videoInfo.duration;
 
-        console.log(
+        logger.info(
           `Speeding up audio duration: original: ${videoInfo.duration}, current: ${audioDuration}, factor: ${speedFactor}`
         );
         const resultStream = new PassThrough();
@@ -2141,22 +2141,22 @@ bot.action(/.+/, async (context) => {
             .audioFilters(`atempo=${Math.min(speedFactor, 2)}`)
             .format("mp3")
             .on("progress", (progress) => {
-              console.log(`Processing: ${progress.percent}% done`);
+              logger.info(`Processing: ${progress.percent}% done`);
             })
             .on("error", (error) => {
               logger.error("Failed to process", error);
               reject(error);
             })
             .on("end", (data) => {
-              console.log("Finished processing");
+              logger.info("Finished processing");
               resolve(data);
             })
             .pipe(resultStream, { end: true })
         );
 
-        console.log("streamChunks length", streamChunks.length);
+        logger.info("streamChunks length", streamChunks.length);
         const resultBuffer = Buffer.concat(streamChunks);
-        console.log("speedup result buffer bytes", resultBuffer.byteLength);
+        logger.info("speedup result buffer bytes", resultBuffer.byteLength);
 
         translateAudioBuffer = resultBuffer;
       }
@@ -2211,7 +2211,7 @@ bot.action(/.+/, async (context) => {
         `🤖 to ${userInfo}\n<✅🎧 audio translated>`
       );
       try {
-        console.log(
+        logger.info(
           "Deleting current message on finish after sending translated audio..."
         );
         await context.deleteMessage();
@@ -2557,7 +2557,7 @@ bot.action(/.+/, async (context) => {
       `🤖 to ${userInfo}\n<✅📺 video translated, ${videoDurationFormatted}>`
     );
 
-    console.log("Deleting result translated video...");
+    logger.info("Deleting result translated video...");
     await useTelegramClient(async (telegramClient) => {
       // reupdate translated file message with new client
       [translatedFileMessage] = await telegramClient.getMessages(
@@ -2569,13 +2569,13 @@ bot.action(/.+/, async (context) => {
       // Delete translated video message from the channel (for copyrights/privacy reasons)
       await translatedFileMessage.delete({ revoke: true });
       // Cleanup: delete old messages in the storage channel
-      console.log("Cleaning up old storage channel messages...");
+      logger.info("Cleaning up old storage channel messages...");
       try {
         await cleanupOldChannelMessages(
           telegramClient,
           STORAGE_CHANNEL_CHAT_ID
         );
-        console.log("Cleaned up messages older than 1 hour in storage channel");
+        logger.info("Cleaned up messages older than 1 hour in storage channel");
       } catch (error) {
         logger.warn("Failed to cleanup old storage channel messages", error);
       }
@@ -2589,14 +2589,14 @@ bot.action(/.+/, async (context) => {
       (context.session.balance ?? 0) - videoDurationCredits;
 
     try {
-      console.log("Deleting in-progress message on the end...");
+      logger.info("Deleting in-progress message on the end...");
       await context.deleteMessage();
     } catch (_) {}
   } catch (error) {
     logger.error("Catched action error:", error);
     // delete in progress message in case of error
     try {
-      console.log("Deleting in-progress message on error...");
+      logger.info("Deleting in-progress message on error...");
       await context.deleteMessage();
     } catch (_) {}
     throw error;
@@ -2698,7 +2698,7 @@ bot.command("admin_topup", adminOnly(), async (context) => {
         `(${newBalance} purchased + ${DEFAULT_CREDITS_BALANCE} free)`
     );
   } catch (error) {
-    console.error("Failed to update user balance:", error);
+    logger.error("Failed to update user balance:", error);
     await context.reply(
       `Failed to update balance for ${displayName}. Please try again.`
     );

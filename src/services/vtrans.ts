@@ -7,6 +7,7 @@ import protobuf, { Message } from "protobufjs";
 import crypto from "crypto";
 import axios from "axios";
 import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "../env";
+import { logger } from "../logger";
 
 const YANDEX_VIDEO_TRANSLATE_URL =
   "https://api.browser.yandex.ru/video-translation/translate";
@@ -303,7 +304,7 @@ export const translateVideo = async (
     videoTranslateResponse
   );
   // console.log("Video translate response data:", videoTranslateResponseData);
-  console.log(
+  logger.info(
     "Video translate response status:",
     videoTranslateResponseData.status
   );

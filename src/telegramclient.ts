@@ -4,6 +4,7 @@ import fs from "fs";
 import axios from "axios";
 import { importPTimeout } from "./utils";
 import { diff, duration } from "./time";
+import { logger } from "./logger";
 // // // @ts-expect-error no types
 // import input from "input";
 import {
@@ -134,7 +135,7 @@ export const getClient = async (sessionString: string) => {
           // password: async () => await input.text("Please enter your password: "),
           // phoneCode: async () =>
           //   await input.text("Please enter the code you received: "),
-          onError: (error) => console.error(error),
+          onError: (error) => logger.error(error),
         });
         resolve();
       } catch (error) {
@@ -168,7 +169,7 @@ type TelegramClientHandler = (client: TelegramClient) => Promise<void>;
 export const useTelegramClient = async (handler: TelegramClientHandler) => {
   let telegramSessionsStore: TelegramSessionsStore =
     (await store.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
-  console.log(
+  logger.info(
     "telegram sessions store",
     JSON.stringify(telegramSessionsStore, null, 0)
   );
@@ -179,7 +180,7 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
     sessionStringIndex = await getAvailableSessionStringIndex(
       telegramSessionsStore
     );
-    console.log("available telegram session index:", sessionStringIndex);
+    logger.info("available telegram session index:", sessionStringIndex);
     const sessionString = telegramSessionStrings[sessionStringIndex];
     telegramSessionsStore[sessionStringIndex] ??= {};
 
@@ -187,7 +188,7 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
       client = await getClient(sessionString);
     } catch (error) {
       if (error instanceof CorruptedSessionStringError) {
-        console.log("session string is corrupted", sessionStringIndex);
+        logger.info("session string is corrupted", sessionStringIndex);
         telegramSessionsStore[sessionStringIndex].isInvalid = true;
         await store.set(TELEGRAM_SESSIONS_KEY_NAME, telegramSessionsStore);
       } else {
@@ -200,7 +201,7 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
     telegramSessionsStore[sessionStringIndex].lastConnectedAt =
       new Date().toISOString();
     await store.set(TELEGRAM_SESSIONS_KEY_NAME, telegramSessionsStore);
-    console.log(
+    logger.info(
       "available session store item",
       telegramSessionsStore[sessionStringIndex]
     );
@@ -211,7 +212,7 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
 
     telegramSessionsStore = (await store.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
     delete telegramSessionsStore[sessionStringIndex].lastConnectedAt;
-    console.log(
+    logger.info(
       "available session store item",
       telegramSessionsStore[sessionStringIndex]
     );
@@ -250,7 +251,7 @@ export const downloadLargeFile = async (chatId: number, messageId: number) => {
     try {
       await fileMessage.delete({ revoke: true });
     } catch (error) {
-      console.warn("Failed to delete file message", error);
+      logger.warn("Failed to delete file message", error);
     }
   }
   // } finally {
@@ -266,7 +267,7 @@ export const delegateDownloadLargeFile = async (
   // 1. Check telegram client before forwarding message
   // 2. Disconnect to prevent 406: AUTH_KEY_DUPLICATED
   await useTelegramClient(async () => {
-    console.log("Available valid telegram client exists!");
+    logger.info("Available valid telegram client exists!");
   });
 
   const channelFileMessage = await bot.telegram.copyMessage(
@@ -282,7 +283,7 @@ export const delegateDownloadLargeFile = async (
     `tg://video/${channelFileMessage.message_id}`
   );
   try {
-    console.log("downloading video using worker api...");
+    logger.info("downloading video using worker api...");
     const { default: pTimeout } = await importPTimeout();
     const downloadTimeoutMilliseconds = duration.seconds(
       EXECUTION_TIMEOUT - 60
@@ -329,10 +330,10 @@ export const delegateDownloadLargeFile = async (
       }
     }
 
-    console.log("Downloaded video:", videoFileUrl);
+    logger.info("Downloaded video:", videoFileUrl);
     return videoFileUrl;
   } finally {
-    console.log("Deleting forwarded video message...");
+    logger.info("Deleting forwarded video message...");
     await useTelegramClient(async (telegramClient) => {
       const [fileMessage] = await telegramClient.getMessages(
         STORAGE_CHANNEL_CHAT_ID,
@@ -344,26 +345,26 @@ export const delegateDownloadLargeFile = async (
       if (fileMessage) {
         try {
           await fileMessage.delete({ revoke: true });
-          console.log("Deleted forwarded video message");
+          logger.info("Deleted forwarded video message");
         } catch (error) {
-          console.warn("Failed to delete forwarded video message", error);
+          logger.warn("Failed to delete forwarded video message", error);
         }
       } else {
-        console.warn(
+        logger.warn(
           "Forwarded video message not found, might be already deleted"
         );
       }
 
       // Cleanup: delete old messages in the storage channel
-      console.log("Cleaning up old storage channel messages...");
+      logger.info("Cleaning up old storage channel messages...");
       try {
         await cleanupOldChannelMessages(
           telegramClient,
           STORAGE_CHANNEL_CHAT_ID
         );
-        console.log("Cleaned up messages older than 1 hour in storage channel");
+        logger.info("Cleaned up messages older than 1 hour in storage channel");
       } catch (error) {
-        console.warn("Failed to cleanup old storage channel messages", error);
+        logger.warn("Failed to cleanup old storage channel messages", error);
       }
 
       await telegramClient.disconnect();
@@ -382,7 +383,7 @@ export const downloadMessageFile = async (
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Downloading file (attempt ${attempt}/${maxRetries})...`);
+      logger.info(`Downloading file (attempt ${attempt}/${maxRetries})...`);
 
       let fileBuffer: Buffer;
       await useTelegramClient(async (telegramClient) => {
@@ -402,7 +403,7 @@ export const downloadMessageFile = async (
         })) as Buffer;
       });
 
-      console.log(`File downloaded successfully on attempt ${attempt}`);
+      logger.info(`File downloaded successfully on attempt ${attempt}`);
       return fileBuffer!;
     } catch (error) {
       lastError = error as Error;
@@ -422,12 +423,12 @@ export const downloadMessageFile = async (
       if ((isTimeoutError || isNetworkError) && attempt < maxRetries) {
         // Exponential backoff: 2s, 4s, 8s
         const delaySeconds = Math.pow(2, attempt);
-        console.warn(
+        logger.warn(
           `Download failed with ${
             isTimeoutError ? "Telegram timeout" : "network error"
           }: ${error.message}`
         );
-        console.log(`Retrying in ${delaySeconds}s...`);
+        logger.info(`Retrying in ${delaySeconds}s...`);
         await new Promise((resolve) =>
           setTimeout(resolve, delaySeconds * 1000)
         );

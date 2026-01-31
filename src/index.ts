@@ -156,16 +156,16 @@ handlerApp.use(express.json());
 // Global error handlers
 //
 process.on("uncaughtException", (error) => {
-  console.error("Uncaught Exception:", error);
+  logger.error("Uncaught Exception:", error);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  logger.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 
 process.on("warning", (warning) => {
-  console.warn("Warning:", warning.name, warning.message, warning.stack);
+  logger.warn("Warning:", warning.name, warning.message, warning.stack);
 });
 
 const main = async () => {
@@ -181,7 +181,7 @@ const main = async () => {
   try {
     // await telegramLoggerContext.reply(`🚀 Started bot server`);
   } catch (error) {
-    console.warn(error);
+    logger.warn(error);
   }
 };
 
@@ -263,14 +263,14 @@ if (require.main === module) {
       QUEUE_WEBHOOK_PATH,
       async (req: Request<{}, {}, MessageQueue.Event>, res) => {
         try {
-          console.log(
+          logger.info(
             "queue webhook incoming request body",
             typeof req,
             typeof req.body,
             req.body
           );
           const messages = req.body.messages;
-          console.log("queue webhook messages received", messages);
+          logger.info("queue webhook messages received", messages);
           // only handle single message from queue. adjust according to trigger `batch_size`
           const message = messages[0];
 
@@ -296,17 +296,17 @@ if (require.main === module) {
 
   // fallback middleware to debug all other requests
   handlerApp.use(async (req, res) => {
-    console.log("received fallen request url", req.method, req.url);
-    console.log(
+    logger.info("received fallen request url", req.method, req.url);
+    logger.info(
       "received fallen request body",
       inspect(req.body, undefined, 5)
     );
-    console.log("received fallen request headers", req.headers);
+    logger.info("received fallen request headers", req.headers);
 
     res.sendStatus(200);
   });
 
   handlerApp.listen(PORT, () => {
-    console.log(`🚀 Started express server on port ${PORT}`);
+    logger.info(`🚀 Started express server on port ${PORT}`);
   });
 }

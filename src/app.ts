@@ -103,8 +103,8 @@ app.post(
       const targetLanguageCode = req.query.lang;
       const videoFileUrl = req.query.videoUrl;
       const subtitlesFileUrl = req.query.subtitlesUrl;
-      console.log("videoUrl", videoUrl);
-      console.log("languageCode", targetLanguageCode);
+      logger.info("videoUrl", videoUrl);
+      logger.info("languageCode", targetLanguageCode);
 
       // "https://www.youtube.com/watch?v=5bId3N7QZec"
       const translateResult = await translateVideoPreferLiveVoices(videoUrl, {
@@ -164,9 +164,9 @@ app.post(
       const videoFileUrl = req.query.videoUrl;
       const preferEnhanced = req.query.preferEnhanced === "true"; // Convert string to boolean, defaults to false
       // const subtitlesFileUrl = req.query.subtitlesUrl;
-      console.log("videoUrl", videoUrl);
-      console.log("languageCode", targetLanguageCode);
-      console.log("preferEnhanced", preferEnhanced);
+      logger.info("videoUrl", videoUrl);
+      logger.info("languageCode", targetLanguageCode);
+      logger.info("preferEnhanced", preferEnhanced);
 
       // "https://www.youtube.com/watch?v=5bId3N7QZec"
       if (!videoUrl || !videoFileUrl) {
@@ -223,7 +223,7 @@ app.post(
 
       res.json({ url: resultVideoUrl });
     } catch (error: unknown) {
-      console.log("Handling full translate exception error...");
+      logger.info("Handling full translate exception error...");
       if (error instanceof TranslateException) {
         const serializedTranslateError = await serializeErrorAsync(error);
 
@@ -249,7 +249,7 @@ app.get(
   ) => {
     try {
       const videoUrl = req.query.url;
-      console.log("videoUrl", videoUrl);
+      logger.info("videoUrl", videoUrl);
 
       // // "https://www.youtube.com/watch?v=5bId3N7QZec"
       // const translateResult = await translateVideo(videoUrl);
@@ -278,7 +278,7 @@ app.post(
   ) => {
     try {
       const videoLink = req.query.url;
-      console.log("videoUrl", videoLink);
+      logger.info("videoUrl", videoLink);
 
       // // "https://www.youtube.com/watch?v=5bId3N7QZec"
       // const translateResult = await translateVideo(videoUrl);
@@ -303,18 +303,18 @@ app.post(
         // });
 
         // Download video using ytdl service (direct function invocation bypasses API Gateway timeout)
-        console.log("Downloading video using ytdl service...");
+        logger.info("Downloading video using ytdl service...");
         videoFileUrl = await downloadVideo(videoLink, format);
-        console.log("Video downloaded and uploaded to storage:", videoFileUrl);
+        logger.info("Video downloaded and uploaded to storage:", videoFileUrl);
       } else if (videoPlatform === VideoPlatform.Telegram) {
         const videoUrl = new URL(videoLink);
         const videoMessageId = +videoUrl.pathname.slice(1);
-        console.log(
+        logger.info(
           "requesting download video with message id",
           videoMessageId
         );
         const videoBuffer = await downloadMessageFile(videoMessageId);
-        console.log(
+        logger.info(
           "downloaded video from telegram buffer",
           videoBuffer.byteLength
         );
@@ -336,7 +336,7 @@ app.post(
       // videoInfo.formats;
       // res.json(videoInfo);
 
-      console.log("video file url", videoFileUrl);
+      logger.info("video file url", videoFileUrl);
 
       res.json({
         url: videoFileUrl,
@@ -380,7 +380,7 @@ app.post(
       let videoTitle = videoInfo.title;
       if (videoTitle) {
         try {
-          console.log("Translating video title...");
+          logger.info("Translating video title...");
           videoTitle = await translateText(videoTitle, "ru", {
             channelName: videoInfo.artist,
             channelDescription: videoInfo.channelDescription,
@@ -388,7 +388,7 @@ app.post(
             contentType: "title",
           });
         } catch (error) {
-          console.warn("Error during title translation", error);
+          logger.warn("Error during title translation", error);
         }
       }
 
@@ -396,14 +396,14 @@ app.post(
       let artist = originalArtist;
       if (artist) {
         try {
-          console.log("Translating video artist...");
+          logger.info("Translating video artist...");
           artist = await translateText(artist, "ru", {
             channelDescription: videoInfo.channelDescription,
             videoDescription: videoInfo.description,
             contentType: "channel_name",
           });
         } catch (error) {
-          console.warn("Error during artist translation", error);
+          logger.warn("Error during artist translation", error);
         }
       }
       const videoThumbnailUrl = videoInfo.thumbnail;
@@ -473,13 +473,13 @@ app.post(
   ) => {
     try {
       const { link } = req.body;
-      console.log("getting video info...");
+      logger.info("getting video info...");
       const videoInfo = await getVideoInfo(link);
-      console.log("got video info thumbnail", videoInfo.thumbnail);
+      logger.info("got video info thumbnail", videoInfo.thumbnail);
       if (videoInfo.thumbnail) {
-        console.log("downloading video thumbnail...");
+        logger.info("downloading video thumbnail...");
         const thumbnail = await getVideoThumbnail(videoInfo.thumbnail);
-        console.log("downloaded thumbnail size", thumbnail?.byteLength);
+        logger.info("downloaded thumbnail size", thumbnail?.byteLength);
 
         return res.status(200).json({ thumbnail: thumbnail?.byteLength });
       }

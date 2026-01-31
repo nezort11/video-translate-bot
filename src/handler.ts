@@ -1,5 +1,6 @@
 import express from "express";
 import { bot } from "./bot";
+import { logger } from "./logger";
 
 const app = express();
 
@@ -7,5 +8,5 @@ const app = express();
 // app.use(await bot.webhookCallback());
 
 app.listen(process.env.PORT, () =>
-  console.log("Listening on port", process.env.PORT)
+  logger.info("Listening on port", process.env.PORT)
 );
