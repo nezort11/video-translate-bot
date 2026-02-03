@@ -41,6 +41,9 @@ import type { Http } from "@yandex-cloud/function-types/dist/src/http";
 import type { MessageQueue } from "@yandex-cloud/function-types/dist/src/triggers/";
 import { inspect } from "util";
 import { Update } from "telegraf/types";
+import { Context } from "aws-lambda";
+import { MetricsService } from "./services/metrics";
+import { setGlobalMetricsService } from "./services/metricsglobal";
 import { handleInternalErrorExpress } from "./utils";
 
 // import { telegramLoggerContext } from "./telegramlogger";
@@ -109,7 +112,20 @@ export default function generateWebhook(
 }
 
 // export const handler = http(bot.webhookCallback("/webhook"));
-export const handler: Handler.MessageQueue = (event, context) => {
+export const handler: Handler.MessageQueue = async (event, context) => {
+  // Extract IAM token from context
+  // @ts-ignore - Yandex Cloud specific property
+  const iamToken = context.token?.access_token;
+  if (iamToken) {
+    logger.info("IAM token found in context");
+    setGlobalMetricsService(new MetricsService(iamToken));
+  } else {
+    // Local dev or missing token
+    logger.warn("No IAM token found in context");
+  }
+
+  // logger.info({ event, context }, "handler");
+  logger.info("handler");
   const queueMessage = event.messages[0];
   const queueEvent = queueMessage.details.message;
   // Transform the original message queue event object to event to lambda-compatible http event object

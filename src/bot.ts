@@ -1186,7 +1186,13 @@ bot.command("debug_vtrans", async (context) => {
   logger.info("Request translation...");
   let translationUrl: string; //| undefined;
   try {
-    const videoTranslateData = await translateVideoFull(mockVideoLink);
+    const videoTranslateData = await translateVideoFull(
+      mockVideoLink,
+      undefined,
+      undefined,
+      undefined,
+      "video"
+    );
     translationUrl = videoTranslateData.url;
   } catch (error: unknown) {
     await context.reply(`Error while translating: ${error?.toString()}`);
@@ -1894,11 +1900,20 @@ bot.action(/.+/, async (context) => {
               ? getEnhancedTranslatePreference(context, router)
               : undefined; // For non-YouTube or non-admins, use default behavior (try enhanced, fallback to regular)
 
+          // Determine translation type for metrics
+          let translateType: "video" | "audio" | "voice" = "video";
+          if (actionType === ActionType.TranslateVoice) {
+            translateType = "voice";
+          } else if (actionType === ActionType.TranslateAudio) {
+            translateType = "audio";
+          }
+
           const videoTranslateData = await translateVideoFull(
             videoLink,
             targetTranslateLanguage,
             preferEnhanced,
-            sourceLanguageOverride
+            sourceLanguageOverride,
+            translateType
           );
           translationUrl = videoTranslateData.url;
         } else {

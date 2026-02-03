@@ -13,6 +13,7 @@ import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
 import { getVideoInfoYtdl } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
+import { getGlobalMetricsService } from "./services/metricsglobal";
 import { delay, importNanoid, importPTimeout, percent } from "./utils";
 import { translate } from "./services/translate";
 import { translateWithGPT } from "./services/gpt-translate";
@@ -446,15 +447,18 @@ export const translateVideoFinal = async (
   targetLanguage?: string,
   sourceLanguage?: string,
   // User preference: true = prefer enhanced (live voices), false = prefer regular (faster), undefined = auto (try enhanced with fallback)
-  preferEnhanced?: boolean
+  preferEnhanced?: boolean,
+  type: "video" | "audio" | "voice" = "video"
 ): Promise<VideoTranslateResponse> => {
   const startTime = Date.now();
+  const baseLabels = { type };
   logger.info({
     event: "translation_attempt_start",
     url,
     targetLanguage,
     sourceLanguage,
     preferEnhanced,
+    type,
   });
 
   try {
@@ -475,9 +479,6 @@ export const translateVideoFinal = async (
     // Force regular translate for MP4 files without source language
     // MP4 files typically don't have language metadata, so enhanced translate won't work
     if (isDirectMp4 && !sourceLanguage) {
-      logger.info(
-        "⚠️  Direct MP4 file without source language detected, forcing regular translate"
-      );
       const res = await translateVideo(url, {
         targetLanguage,
         sourceLanguage,
@@ -487,6 +488,14 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
+        mode: "regular_mp4",
+      });
+      getGlobalMetricsService()?.writeSuccess({
+        ...baseLabels,
+        mode: "regular_mp4",
+      });
+      getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
+        ...baseLabels,
         mode: "regular_mp4",
       });
       return res;
@@ -503,6 +512,14 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
+        mode: "regular_explicit",
+      });
+      getGlobalMetricsService()?.writeSuccess({
+        ...baseLabels,
+        mode: "regular_explicit",
+      });
+      getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
+        ...baseLabels,
         mode: "regular_explicit",
       });
       return res;
@@ -527,6 +544,14 @@ export const translateVideoFinal = async (
           duration_ms: Date.now() - startTime,
           mode: "regular_unknown_source",
         });
+        getGlobalMetricsService()?.writeSuccess({
+          ...baseLabels,
+          mode: "regular_unknown_source",
+        });
+        getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
+          ...baseLabels,
+          mode: "regular_unknown_source",
+        });
         return res;
       }
 
@@ -540,6 +565,14 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
+        mode: "enhanced_explicit",
+      });
+      getGlobalMetricsService()?.writeSuccess({
+        ...baseLabels,
+        mode: "enhanced_explicit",
+      });
+      getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
+        ...baseLabels,
         mode: "enhanced_explicit",
       });
       return res;
@@ -562,6 +595,14 @@ export const translateVideoFinal = async (
         duration_ms: Date.now() - startTime,
         mode: "regular_auto_fallback",
       });
+      getGlobalMetricsService()?.writeSuccess({
+        ...baseLabels,
+        mode: "regular_auto_fallback",
+      });
+      getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
+        ...baseLabels,
+        mode: "regular_auto_fallback",
+      });
       return res;
     }
 
@@ -575,6 +616,14 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
+        mode: "enhanced",
+      });
+      getGlobalMetricsService()?.writeSuccess({
+        ...baseLabels,
+        mode: "enhanced",
+      });
+      getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
+        ...baseLabels,
         mode: "enhanced",
       });
       return res;
@@ -591,7 +640,8 @@ export const translateVideoFinal = async (
           url,
           targetLanguage,
           sourceLanguage,
-          preferEnhanced
+          preferEnhanced,
+          type
         );
       }
       // Fallback to regular voices if enhanced fails
@@ -609,6 +659,14 @@ export const translateVideoFinal = async (
         duration_ms: Date.now() - startTime,
         mode: "regular_fallback",
       });
+      getGlobalMetricsService()?.writeSuccess({
+        ...baseLabels,
+        mode: "regular_fallback",
+      });
+      getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
+        ...baseLabels,
+        mode: "regular_fallback",
+      });
       return res;
     }
   } catch (error) {
@@ -623,7 +681,8 @@ export const translateVideoFinal = async (
         url,
         targetLanguage,
         sourceLanguage,
-        preferEnhanced
+        preferEnhanced,
+        type
       );
     }
     logger.error({
@@ -631,6 +690,10 @@ export const translateVideoFinal = async (
       url,
       duration_ms: Date.now() - startTime,
       error,
+    });
+    getGlobalMetricsService()?.writeError({
+      ...baseLabels,
+      error: error instanceof Error ? error.name : "unknown",
     });
     throw error;
   }
@@ -650,7 +713,8 @@ export const translateVideoFull = async (
   url: string,
   targetLanguage?: string,
   preferEnhanced?: boolean,
-  sourceLanguageOverride?: string
+  sourceLanguageOverride?: string,
+  type: "video" | "audio" | "voice" = "video"
 ): Promise<VideoTranslateResponse> => {
   let sourceLanguage: string | undefined = sourceLanguageOverride;
 
@@ -678,7 +742,8 @@ export const translateVideoFull = async (
     url,
     targetLanguage,
     sourceLanguage,
-    preferEnhanced
+    preferEnhanced,
+    type
   );
 };
 

@@ -164,6 +164,7 @@
   },
   "devDependencies": {
     "@distube/ytdl-core": "4.16.4",
+    "@types/aws-lambda": "8.10.160",
     "@types/better-sqlite3": "7.6.12",
     "@types/debug": "^4.1.12",
     "@types/express": "4.17.17",

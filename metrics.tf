@@ -28,10 +28,12 @@ resource "yandex_monitoring_dashboard" "bot_dashboard" {
       queries {
         # Using folder_id directly to capture metrics once they are created
         target {
-          query = "log_based_metric.translation_success_count{folder_id=\"${var.yc_folder_id}\"}"
+          query = "translation_success_count{folder_id=\"${var.yc_folder_id}\", service=\"custom\"}"
+          text_mode = true
         }
         target {
-          query = "log_based_metric.translation_error_count{folder_id=\"${var.yc_folder_id}\"}"
+          query = "translation_error_count{folder_id=\"${var.yc_folder_id}\", service=\"custom\"}"
+          text_mode = true
         }
       }
       visualization_settings {
@@ -51,11 +53,12 @@ resource "yandex_monitoring_dashboard" "bot_dashboard" {
       chart_id = "duration_stats"
       queries {
         target {
-          query = "log_based_metric.translation_duration_ms{folder_id=\"${var.yc_folder_id}\"}"
+          query = "translation_duration_ms{folder_id=\"${var.yc_folder_id}\", service=\"custom\"}"
+          text_mode = true
         }
       }
       visualization_settings {
-        title = "Avg Translation Duration (ms)"
+        title = "Translation Duration"
       }
     }
   }
