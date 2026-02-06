@@ -1,4 +1,6 @@
-import { bot } from "./bot";
+import { bot } from "./botinstance";
+import { driver } from "./db";
+import { importPTimeout } from "./utils";
 
 const LONG_SPACE_CHARACTER = " ";
 
@@ -13,13 +15,13 @@ const commands = [
   //     en: createDescription("🌍", "Translate video to another language"),
   //   },
   // },
-  {
-    command: "search",
-    description: {
-      ru: createDescription("🔍", "Искать видео на другом языке"),
-      en: createDescription("🔍", "Search for videos on another language"),
-    },
-  },
+  // {
+  //   command: "search",
+  //   description: {
+  //     ru: createDescription("🔍", "Искать видео на другом языке"),
+  //     en: createDescription("🔍", "Search for videos on another language"),
+  //   },
+  // },
   // {
   //   command: "help",
   //   description: {
@@ -37,46 +39,103 @@ const commands = [
 ];
 
 const main = async () => {
-  await Promise.all([
-    // bot.telegram.setMyName(
-    //   "Video Translator 🤖: voice-over 🔄 video translation 🇬🇧🇨🇳🇷🇺"
-    // ),
-    // bot.telegram.setMyName(
-    //   "Видео Переводчик 🤖: закадровый 🔄 перевод видео с 🇬🇧🇨🇳🇯🇵🇰🇷",
-    //   "ru"
-    // ),
+  const { default: pTimeout } = await importPTimeout();
+  const TIMEOUT = 15000; // 15 seconds per call
 
-    // bot.telegram.setMyShortDescription(
-    //   "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @nezort11"
-    // ),
-    // bot.telegram.setMyShortDescription(
-    //   "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @nezort11",
-    //   "ru"
-    // ),
+  const runWithLog = async (name: string, task: Promise<any>) => {
+    console.log(`Starting: ${name}...`);
+    try {
+      await pTimeout(task, { milliseconds: TIMEOUT });
+      console.log(`✅ Finished: ${name}`);
+    } catch (error) {
+      console.error(`❌ Failed: ${name}`, error);
+      throw error;
+    }
+  };
 
-    // bot.telegram.setMyDescription(
-    //   "[Beta🏗] 🤖 a bot for voice-over 🔄 video translation from 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ Online 24/7 . 💬 feeback/contact @nezort11"
-    // ),
-    // bot.telegram.setMyDescription(
-    //   "[Beta🏗] 🤖 Бот для озвученного 🔄 перевода видео с 🇬🇧🇨🇳🇪🇸🇫🇷🇸🇦🇷🇺🇩🇪🇯🇵🇰🇷 на 🇬🇧🇷🇺🇰🇿. ✅ Онлайн 24/7. 💬 Обратная связь/контакт @nezort11",
-    //   "ru"
-    // ),
+  try {
+    console.log("Initializing bot settings...");
 
-    bot.telegram.setMyCommands(
-      commands.map((command) => ({
-        command: command.command,
-        description: command.description.en,
-      }))
-      // { language_code: "en" }
-    ),
-    bot.telegram.setMyCommands(
-      commands.map((command) => ({
-        command: command.command,
-        description: command.description.ru,
-      })),
-      { language_code: "ru" }
-    ),
-  ]);
+    await Promise.all([
+      // runWithLog("setName (default)", bot.telegram.setMyName(
+      //   "Video Translator 🤖: voice-over 🔄 video translation 🇬🇧🇨🇳🇷🇺"
+      // )),
+      // runWithLog("setName (ru)", bot.telegram.setMyName(
+      //   "Видео Переводчик 🤖: закадровый 🔄 перевод видео с 🇬🇧🇨🇳🇯🇵🇰🇷",
+      //   "ru"
+      // )),
+
+      runWithLog(
+        "setShortDescription (default)",
+        bot.telegram.setMyShortDescription(
+          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew"
+        )
+      ),
+      runWithLog(
+        "setShortDescription (ru)",
+        bot.telegram.setMyShortDescription(
+          "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @vidtransnew",
+          "ru"
+        )
+      ),
+
+      runWithLog(
+        "setDescription (default)",
+        bot.telegram.setMyDescription(
+          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew"
+        )
+      ),
+      runWithLog(
+        "setDescription (ru)",
+        bot.telegram.setMyDescription(
+          "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @vidtransnew",
+          "ru"
+        )
+      ),
+
+      runWithLog(
+        "setCommands (en)",
+        bot.telegram.setMyCommands(
+          commands.map((command) => ({
+            command: command.command,
+            description: command.description.en,
+          })),
+          { language_code: "en" }
+        )
+      ),
+      runWithLog(
+        "setCommands (ru)",
+        bot.telegram.setMyCommands(
+          commands.map((command) => ({
+            command: command.command,
+            description: command.description.ru,
+          })),
+          { language_code: "ru" }
+        )
+      ),
+
+      runWithLog(
+        "setChatMenuButton",
+        bot.telegram.setChatMenuButton({ menuButton: { type: "default" } })
+      ),
+    ]);
+
+    console.log("Successfully initialized bot.");
+  } catch (error) {
+    console.error("Error initializing bot:", error);
+  } finally {
+    console.log("Destroying DB driver...");
+    try {
+      await pTimeout(driver.destroy(), { milliseconds: 5000 });
+      console.log("DB driver destroyed.");
+    } catch (error) {
+      console.error("Error destroying DB driver:", error);
+    }
+    process.exit(0);
+  }
 };
 
-main();
+main().catch((err) => {
+  console.error("Unhandle error in main:", err);
+  process.exit(1);
+});
