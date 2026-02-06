@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@ffmpeg/ffmpeg@0.12.15':
-    hash: fdb5e61d5270aae7cc96c64c21abe5972f8b6375ec75c664cecefd327dd85b23
+    hash: 25pz63perxdmp632uc4ue6hora
     path: patches/@ffmpeg__ffmpeg@0.12.15.patch
 
 importers:
@@ -21,7 +21,7 @@ importers:
         version: 0.12.9
       '@ffmpeg/ffmpeg':
         specifier: 0.12.15
-        version: 0.12.15(patch_hash=fdb5e61d5270aae7cc96c64c21abe5972f8b6375ec75c664cecefd327dd85b23)
+        version: 0.12.15(patch_hash=25pz63perxdmp632uc4ue6hora)
       '@ffmpeg/util':
         specifier: ^0.12.2
         version: 0.12.2
@@ -3352,7 +3352,7 @@ snapshots:
 
   '@ffmpeg/core@0.12.10': {}
 
-  '@ffmpeg/ffmpeg@0.12.15(patch_hash=fdb5e61d5270aae7cc96c64c21abe5972f8b6375ec75c664cecefd327dd85b23)':
+  '@ffmpeg/ffmpeg@0.12.15(patch_hash=25pz63perxdmp632uc4ue6hora)':
     dependencies:
       '@ffmpeg/types': 0.12.4
 
