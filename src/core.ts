@@ -488,15 +488,15 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
-        mode: "regular_mp4",
+        mode: "regular",
       });
       getGlobalMetricsService()?.writeSuccess({
         ...baseLabels,
-        mode: "regular_mp4",
+        mode: "regular",
       });
       getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
         ...baseLabels,
-        mode: "regular_mp4",
+        mode: "regular",
       });
       return res;
     }
@@ -512,15 +512,15 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
-        mode: "regular_explicit",
+        mode: "regular",
       });
       getGlobalMetricsService()?.writeSuccess({
         ...baseLabels,
-        mode: "regular_explicit",
+        mode: "regular",
       });
       getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
         ...baseLabels,
-        mode: "regular_explicit",
+        mode: "regular",
       });
       return res;
     }
@@ -542,15 +542,15 @@ export const translateVideoFinal = async (
           event: "translation_attempt_success",
           url,
           duration_ms: Date.now() - startTime,
-          mode: "regular_unknown_source",
+          mode: "regular",
         });
         getGlobalMetricsService()?.writeSuccess({
           ...baseLabels,
-          mode: "regular_unknown_source",
+          mode: "regular",
         });
         getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
           ...baseLabels,
-          mode: "regular_unknown_source",
+          mode: "regular",
         });
         return res;
       }
@@ -565,15 +565,15 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
-        mode: "enhanced_explicit",
+        mode: "enhanced",
       });
       getGlobalMetricsService()?.writeSuccess({
         ...baseLabels,
-        mode: "enhanced_explicit",
+        mode: "enhanced",
       });
       getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
         ...baseLabels,
-        mode: "enhanced_explicit",
+        mode: "enhanced",
       });
       return res;
     }
@@ -593,15 +593,15 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
-        mode: "regular_auto_fallback",
+        mode: "regular",
       });
       getGlobalMetricsService()?.writeSuccess({
         ...baseLabels,
-        mode: "regular_auto_fallback",
+        mode: "regular",
       });
       getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
         ...baseLabels,
-        mode: "regular_auto_fallback",
+        mode: "regular",
       });
       return res;
     }
@@ -657,15 +657,15 @@ export const translateVideoFinal = async (
         event: "translation_attempt_success",
         url,
         duration_ms: Date.now() - startTime,
-        mode: "regular_fallback",
+        mode: "regular",
       });
       getGlobalMetricsService()?.writeSuccess({
         ...baseLabels,
-        mode: "regular_fallback",
+        mode: "regular",
       });
       getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
         ...baseLabels,
-        mode: "regular_fallback",
+        mode: "regular",
       });
       return res;
     }
