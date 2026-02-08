@@ -21,6 +21,7 @@
     "command:ts": "pnpm tsx",
     "run:js": "pnpm command:js ./build/index.js",
     "run:ts": "pnpm command:ts .",
+    "run:cli": "pnpm command:ts ./src/cli.ts",
     "run:deamon": "pnpm nodemon --exec \"pnpm command:ts\" --watch \"./.env\" --watch \"./src\" .",
     "dev": "APP_ENV='local' NODE_ENV='development' pnpm run:deamon",
     "dev:prod": "APP_ENV='local' NODE_ENV='production' pnpm run:deamon",
