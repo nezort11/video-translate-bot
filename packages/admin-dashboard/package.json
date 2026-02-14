@@ -1,0 +1,40 @@
+{
+  "name": "admin-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.1.1",
+    "@telegram-apps/bridge": "^1.9.2",
+    "@telegram-apps/sdk": "^2.11.3",
+    "@telegram-apps/sdk-react": "^2.0.25",
+    "axios": "^1.7.9",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eruda": "^3.4.3",
+    "lucide-react": "^0.469.0",
+    "next": "14.2.16",
+    "react": "^18",
+    "react-dom": "^18",
+    "recharts": "^2.14.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.16",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}

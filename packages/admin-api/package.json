@@ -1,0 +1,40 @@
+{
+  "name": "admin-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "./build/index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/index.ts",
+    "start": "node build/index.js",
+    "print-dashboard": "tsx src/print-dashboard.ts",
+    "test": "jest",
+    "test:integration": "RUN_INTEGRATION_TESTS=true jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:legacy": "tsx src/test-integration.ts"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^10.1.0",
+    "serverless-http": "^3.2.0",
+    "ydb-sdk": "^5.11.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.11",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^18.15.3",
+    "@types/supertest": "^6.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "ts-jest": "^29.1.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.4.5"
+  }
+}

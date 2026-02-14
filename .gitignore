@@ -5,10 +5,10 @@ node_modules*
 
 .DS_Store
 
-.env*
-!.env.example
-*.json
-!.example.json
+**/.env*
+!**/.env.example
+env/*.json
+yc_env/*.json
 
 *.log
 
