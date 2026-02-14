@@ -112,7 +112,7 @@ This project uses Husky and lint-staged for pre-commit hooks:
 ## Deployment
 
 - **Preferred**: Use `pnpm video-translate-bot:deploy:full:cached` for deploying the function.
-- **Only when node_modules changed**: Use `pnpm video-translate-bot:deploy:full`.
+- **Only when packages/dependencies are changed/added (package.json, pnpm-lock.yaml)**: Use `pnpm video-translate-bot:deploy:full`.
 
 ## Yandex Cloud Infrastructure
 
