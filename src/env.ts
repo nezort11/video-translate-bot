@@ -4,14 +4,14 @@ import fs from "fs";
 import { getChatId } from "./utils";
 
 export const NODE_ENV = process.env.NODE_ENV;
-console.log("NODE_ENV", NODE_ENV);
+// console.log("NODE_ENV", NODE_ENV);
 export const IS_PRODUCTION = process.env.NODE_ENV !== "development";
 
 export let IS_PUBLIC = true;
 export const setIsPublic = (isPublic: boolean) => (IS_PUBLIC = isPublic);
 
 export const LAMBDA_TASK_ROOT = process.env.LAMBDA_TASK_ROOT;
-console.log("LAMBDA_TASK_ROOT", LAMBDA_TASK_ROOT);
+// console.log("LAMBDA_TASK_ROOT", LAMBDA_TASK_ROOT);
 // env directory path relative to package.json
 
 // Yandex Cloud Function fs:
@@ -33,12 +33,12 @@ export const MOUNT_ROOT_DIR_PATH = path.resolve(
   LAMBDA_TASK_ROOT ? "../storage" : "."
 );
 // export const DOTENV_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./env");
-console.log("MOUNT_ROOT_DIR_PATH", MOUNT_ROOT_DIR_PATH);
+// console.log("MOUNT_ROOT_DIR_PATH", MOUNT_ROOT_DIR_PATH);
 export const DOTENV_DIR_PATH = path.resolve(MOUNT_ROOT_DIR_PATH, "env");
-console.log("DOTENV_DIR_PATH", DOTENV_DIR_PATH);
+// console.log("DOTENV_DIR_PATH", DOTENV_DIR_PATH);
 export const STORAGE_DIR_PATH = path.join(MOUNT_ROOT_DIR_PATH, "./storage");
 
-console.log("logging all files in env directory...", DOTENV_DIR_PATH);
+// console.log("logging all files in env directory...", DOTENV_DIR_PATH);
 const files = fs.readdirSync(DOTENV_DIR_PATH);
 // files.forEach((file) => {
 //   console.log("dotenv dir file", file);
@@ -51,10 +51,6 @@ const files = fs.readdirSync(DOTENV_DIR_PATH);
 const GOOGLE_APPLICATION_CREDENTIALS_PATH = path.resolve(
   DOTENV_DIR_PATH,
   "gcp-universal-sa.json"
-);
-console.log(
-  "GOOGLE_APPLICATION_CREDENTIALS_PATH",
-  GOOGLE_APPLICATION_CREDENTIALS_PATH
 );
 // "/app/env/gcp-universal-sa.json";
 process.env.GOOGLE_APPLICATION_CREDENTIALS =

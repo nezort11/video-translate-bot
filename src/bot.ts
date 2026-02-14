@@ -1824,7 +1824,7 @@ bot.action(/.+/, async (context) => {
   context.session.translationStartedAt = new Date().toISOString();
 
   let progressInterval: NodeJS.Timer | undefined;
-  let ffmpegProgress = 0;
+  const ffmpegProgress = 0;
   videoTranslateProgressCount += 1;
   try {
     await handleTranslateInProgress(context, ffmpegProgress);
@@ -1843,7 +1843,7 @@ bot.action(/.+/, async (context) => {
       routerId,
       "translationUrl"
     ); //| undefined;
-    let translationAudio: Buffer | undefined = undefined;
+    const translationAudio: Buffer | undefined = undefined;
     logger.info("Translation url:", translationUrl);
     if (!translationUrl) {
       try {
@@ -2332,7 +2332,7 @@ bot.action(/.+/, async (context) => {
       videoLink = "";
     }
 
-    let translatedFileMessage: Api.Message;
+    let translatedFileMessage: Api.Message | undefined;
     await {
       [ActionType.TranslateVoice]: async () => {},
       [ActionType.TranslateAudio]: async () => {
@@ -2558,7 +2558,7 @@ bot.action(/.+/, async (context) => {
       },
       [TranslateType.ChooseVideoQuality]: async () => {},
     }[actionType]();
-    logger.info("Uploaded to telegram message id:", translatedFileMessage!?.id);
+    logger.info("Uploaded to telegram message id:", translatedFileMessage?.id);
 
     await bot.telegram.copyMessage(
       context.chat?.id ?? 0,

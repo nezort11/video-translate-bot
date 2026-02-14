@@ -1,7 +1,6 @@
 // Load variables from env file before start
 import {
   setIsPublic,
-  NODE_ENV,
   DEBUG,
   BOT_PUBLIC_USERNAME,
   PORT,
@@ -35,7 +34,6 @@ import { logger } from "./logger";
 
 import { Telegraf } from "telegraf";
 import { duration } from "./time";
-import type { Handler } from "@yandex-cloud/function-types";
 // import type { MessageQueue } from "@yandex-cloud/function-types/dist/src/triggers/messageQueue";
 import type { Http } from "@yandex-cloud/function-types/dist/src/http";
 import type { MessageQueue } from "@yandex-cloud/function-types/dist/src/triggers/";
@@ -245,7 +243,7 @@ debugBot.start(async (context) => await context.reply("Hi, lol"));
 
 debugBot.command("debug_timeout", async (context) => {
   // pending promise
-  await new Promise((resolve, reject) => {
+  await new Promise((_resolve, _reject) => {
     setInterval(() => {
       logger.info(`Debug timeout ${new Date().toLocaleString()}`);
     }, 5000);
@@ -292,10 +290,6 @@ interface YandexQueueEvent {
   details: QueueMessageDetails;
 }
 
-interface YandexQueueRequest {
-  messages: YandexQueueEvent[];
-}
-
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
   // Start long polling server locally and webhook handler on the server
@@ -309,7 +303,7 @@ if (require.main === module) {
     // webhook callback called by trigger from message queue
     handlerApp.post(
       QUEUE_WEBHOOK_PATH,
-      async (req: Request<{}, {}, MessageQueue.Event>, res) => {
+      async (req: Request<object, object, MessageQueue.Event>, res) => {
         try {
           logger.info(
             "queue webhook incoming request body",
