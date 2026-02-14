@@ -115,33 +115,29 @@ export const getClient = async (sessionString: string) => {
 
   const isLoggedIn = await _telegramClient.isUserAuthorized();
   if (!isLoggedIn) {
-    await new Promise<void>(async (resolve, reject) => {
-      const rejectOnSessionExpire = async () => {
-        reject(
-          new CorruptedSessionStringError(
-            "Telegram client session has expired!"
-          )
-        );
-        // Set mock credentials and etc. (will produce exception instead of halting) in case session is expired
-        return "";
-      };
+    const rejectOnSessionExpire = async () => {
+      throw new CorruptedSessionStringError(
+        "Telegram client session has expired!"
+      );
+    };
 
-      try {
-        await _telegramClient.start({
-          phoneNumber: rejectOnSessionExpire,
-          password: rejectOnSessionExpire,
-          phoneCode: rejectOnSessionExpire,
-          // phoneNumber: async () => await input.text("Please enter your number: "),
-          // password: async () => await input.text("Please enter your password: "),
-          // phoneCode: async () =>
-          //   await input.text("Please enter the code you received: "),
-          onError: (error) => logger.error(error),
-        });
-        resolve();
-      } catch (error) {
-        reject(error);
+    try {
+      await _telegramClient.start({
+        phoneNumber: rejectOnSessionExpire,
+        password: rejectOnSessionExpire,
+        phoneCode: rejectOnSessionExpire,
+        // phoneNumber: async () => await input.text("Please enter your number: "),
+        // password: async () => await input.text("Please enter your password: "),
+        // phoneCode: async () =>
+        //   await input.text("Please enter the code you received: "),
+        onError: (error) => logger.error(error),
+      });
+    } catch (error) {
+      if (error instanceof CorruptedSessionStringError) {
+        throw error;
       }
-    });
+      throw error;
+    }
   }
 
   // Test some client method to check ahead for RPCError: 406: AUTH_KEY_DUPLICATED

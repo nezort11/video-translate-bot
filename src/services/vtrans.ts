@@ -3,7 +3,7 @@
   Requirements: Node.js 18+ (crypto), protobufjs, axios
  */
 
-import protobuf, { Message } from "protobufjs";
+import protobuf from "protobufjs";
 import crypto from "crypto";
 import axios from "axios";
 import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "../env";
@@ -317,7 +317,7 @@ export const translateVideo = async (
         translateErrorOptions
       );
     case VideoTranslationStatus.FINISHED:
-    case VideoTranslationStatus.PART_CONTENT:
+    case VideoTranslationStatus.PART_CONTENT: {
       // FINISHED or PART_CONTENT - both indicate successful translation with available content
       const hasUrl =
         videoTranslateResponseData.url !== undefined &&
@@ -329,6 +329,7 @@ export const translateVideo = async (
         "Audio link not received",
         translateErrorOptions
       );
+    }
     case VideoTranslationStatus.WAITING:
     case VideoTranslationStatus.LONG_WAITING:
     case VideoTranslationStatus.AUDIO_REQUESTED:

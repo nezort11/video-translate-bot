@@ -186,7 +186,7 @@
     "abort-controller": "^3.0.0",
     "bottleneck": "^2.19.5",
     "drizzle-kit": "0.30.4",
-    "eslint": "9.39.2",
+    "eslint": "8.57.1",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-prettier": "5.5.5",
     "husky": "8.0.3",

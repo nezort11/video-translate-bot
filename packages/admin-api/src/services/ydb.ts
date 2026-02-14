@@ -105,7 +105,7 @@ export const getUpdatesStats = async (
     `[ydb] Getting updates stats between ${effectiveFromDate.toISOString()} and ${effectiveToDate.toISOString()}`
   );
 
-  let stats = {
+  const stats = {
     totalCount: 0,
     oldestUpdateId: null as number | null,
     newestUpdateId: null as number | null,
