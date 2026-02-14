@@ -108,3 +108,16 @@ This project uses Husky and lint-staged for pre-commit hooks:
 
 - Files are automatically formatted with Prettier on commit
 - ESLint runs on staged TypeScript files
+
+## Deployment
+
+- **Preferred**: Use `pnpm video-translate-bot:deploy:full:cached` for deploying the function.
+- **Only when node_modules changed**: Use `pnpm video-translate-bot:deploy:full`.
+
+## Yandex Cloud Infrastructure
+
+- This project is hosted on **Yandex Cloud**.
+- Use the `yc` CLI tool to inspect and manage resources.
+  - Check functions: `yc serverless function list`
+  - Check logs: `yc serverless function logs <function-id>`
+- While Terraform manages infrastructure, `yc` is excellent for verification and debugging.
