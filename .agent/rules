@@ -1,0 +1,110 @@
+# Agent Rules for Video Translate Bot Project
+
+(Ported from .cursorrules)
+
+## Code Quality Checks
+
+You must run the following commands to verify code quality before finishing work:
+
+### TypeScript Type Checking
+
+- Run `pnpm typecheck` to check for TypeScript compilation errors
+- This should pass without any errors before finishing work
+
+### Linting
+
+- Run `pnpm lint` to check for ESLint violations
+- Fix any linting errors before finishing work
+- Use `pnpm lint:fix` to auto-fix fixable issues
+
+### Formatting
+
+- Run `pnpm format:check` to check for Prettier formatting issues
+- Run `pnpm format` to auto-format all source files
+- All code should be properly formatted before finishing work
+
+### Testing
+
+- Run `pnpm test` to execute the fast unit test suite
+- All tests should pass before finishing work
+- **Note**: Integration tests that connect to YDB are expensive and slow. They are skipped by default.
+
+### Integration Tests (Optional - for debugging production issues)
+
+Integration tests connect to the real YDB database and can be slow/resource-intensive.
+They are useful for:
+
+- Reproducing production errors
+- Testing YDB query changes
+- Verifying API endpoints work with real data
+
+To run integration tests:
+
+```bash
+# Run admin-api integration tests
+pnpm --filter=admin-api test:integration
+
+# Or set the environment variable directly
+RUN_INTEGRATION_TESTS=true pnpm test --filter=admin-api
+```
+
+**Important**: Don't run integration tests as part of regular development workflow - they're too expensive.
+
+## Automated Quality Assurance
+
+Before finishing your work session:
+
+1. Always run type checking: `pnpm typecheck`
+2. Always run formatting: `pnpm format`
+3. Always run linting: `pnpm lint`
+4. Run unit tests if you've modified functionality: `pnpm test`
+5. Run integration tests only when debugging production issues or testing YDB changes
+
+## Code Style Guidelines
+
+This project uses Prettier and ESLint for consistent code style:
+
+- **Prettier** handles formatting (indentation, quotes, semicolons, etc.)
+- **ESLint** handles code quality and TypeScript-specific rules
+
+Key formatting rules (configured in `.prettierrc`):
+
+- Single quotes for strings
+- Semicolons at the end of statements
+- 2-space indentation
+- Trailing commas in ES5-compatible places
+- 100 character line width
+- LF line endings
+
+## Project Structure
+
+This is a monorepo with multiple packages:
+
+- `src/` - Main Telegram bot application
+- `packages/admin-api/` - Admin API service
+- `packages/admin-dashboard/` - Admin dashboard (Next.js)
+- `packages/video-translate-app/` - Video translate app (Next.js)
+- `packages/video-translate-server/` - Video translate server
+- `packages/ytdl-service/` - YouTube downloader service
+
+Technologies used:
+
+- TypeScript for type safety
+- ESLint + Prettier for code quality and formatting
+- Jest for testing
+- Tailwind CSS for styling
+- Telegram bot integration (Telegraf)
+- YDB for database
+
+## Development Workflow
+
+- Use `pnpm dev` for development server (bot)
+- Use `pnpm build` for production builds
+- Use `pnpm admin:dashboard:dev` for admin dashboard development
+
+## Git Hooks
+
+This project uses Husky and lint-staged for pre-commit hooks:
+
+- Files are automatically formatted with Prettier on commit
+- ESLint runs on staged TypeScript files
