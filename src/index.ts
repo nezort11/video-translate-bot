@@ -39,9 +39,19 @@ import type { Handler } from "@yandex-cloud/function-types";
 // import type { MessageQueue } from "@yandex-cloud/function-types/dist/src/triggers/messageQueue";
 import type { Http } from "@yandex-cloud/function-types/dist/src/http";
 import type { MessageQueue } from "@yandex-cloud/function-types/dist/src/triggers/";
+import type YandexContext from "@yandex-cloud/function-types/dist/src/context";
 import { inspect } from "util";
 import { Update } from "telegraf/types";
 import { Context } from "aws-lambda";
+
+/**
+ * Extended Yandex Cloud HTTP Event with missing 'path' property
+ */
+interface YandexHttpEvent extends Http.Event {
+  path: string;
+}
+
+type HandledEvent = MessageQueue.Event | YandexHttpEvent;
 import { MetricsService } from "./services/metrics";
 import { setGlobalMetricsService } from "./services/metricsglobal";
 import { handleInternalErrorExpress } from "./utils";
@@ -112,9 +122,11 @@ export default function generateWebhook(
 }
 
 // export const handler = http(bot.webhookCallback("/webhook"));
-export const handler: Handler.MessageQueue = async (event, context) => {
+export const handler = async (
+  event: HandledEvent,
+  context: Context & YandexContext
+) => {
   // Extract IAM token from context
-  // @ts-ignore - Yandex Cloud specific property
   const iamToken = context.token?.access_token;
   if (iamToken) {
     logger.info("IAM token found in context");
@@ -124,9 +136,28 @@ export const handler: Handler.MessageQueue = async (event, context) => {
     logger.warn("No IAM token found in context");
   }
 
+  // Handle HTTP Ping Request
+  if ("httpMethod" in event && event.httpMethod === "GET") {
+    if (event.path === "/ping") {
+      logger.info("pong");
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "text/plain" },
+        body: "pong",
+      };
+    }
+  }
+
   // logger.info({ event, context }, "handler");
   logger.info("handler");
-  const queueMessage = event.messages[0];
+
+  if (!("messages" in event)) {
+    logger.warn("Unknown event type or missing messages", event);
+    return { statusCode: 400, body: "Unknown event" };
+  }
+
+  const queueEventMessage = event;
+  const queueMessage = queueEventMessage.messages[0];
   const queueEvent = queueMessage.details.message;
   // Transform the original message queue event object to event to lambda-compatible http event object
   const lambdaEvent: Http.Event = {
@@ -139,6 +170,7 @@ export const handler: Handler.MessageQueue = async (event, context) => {
     multiValueQueryStringParameters: {},
     requestContext: {
       ...context,
+      requestId: context.requestId,
       httpMethod: "POST",
       requestTime: queueMessage.event_metadata.created_at,
       requestTimeEpoch: 0,
