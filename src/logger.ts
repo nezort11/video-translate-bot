@@ -1,61 +1,100 @@
-import pino from "pino";
-import { APP_ENV } from "./env";
-import { formatAxiosError } from "./utils";
-
-const isLocal = APP_ENV === "local";
+type LogLevel = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "FATAL";
 
 /**
- * Production logger that uses console.log to ensure logs are captured by Yandex Cloud Functions
- * but formats multiple arguments correctly so data is not lost.
+ * Enhanced formatter for log arguments.
  */
-const prodLog = (level: string, ...args: any[]) => {
-  let logObj: any = {
-    level,
-    timestamp: new Date().toISOString(),
-  };
+function formatArgs(args: unknown[]): {
+  message: string;
+  context?: Record<string, unknown>;
+} {
+  if (args.length === 0) return { message: "" };
 
-  if (args.length === 0) return;
+  let context: Record<string, unknown> | undefined;
+  let messageArgs = args;
 
-  // Handle first argument if it's an object (context/metadata)
   if (
     typeof args[0] === "object" &&
     args[0] !== null &&
-    !Array.isArray(args[0])
+    !Array.isArray(args[0]) &&
+    !(args[0] instanceof Error)
   ) {
-    Object.assign(logObj, args[0]);
-    if (args.length > 1) {
-      logObj.msg = args
-        .slice(1)
-        .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
-        .join(" ");
-    }
-  } else {
-    // Join all arguments as a message string
-    logObj.msg = args
-      .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
-      .join(" ");
+    context = args[0] as Record<string, unknown>;
+    messageArgs = args.slice(1);
   }
 
-  // Print as a single JSON line
-  console.log(JSON.stringify(logObj));
-};
-
-export const logger = isLocal
-  ? pino({
-      level: process.env.LOG_LEVEL || "debug",
-      transport: {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          ignore: "pid,hostname",
-          translateTime: "SYS:standard",
-        },
-      },
+  const message = messageArgs
+    .map((a) => {
+      if (a instanceof Error) {
+        return `${a.name}: ${a.message}\n${a.stack}`;
+      }
+      if (typeof a === "object") {
+        try {
+          return JSON.stringify(a);
+        } catch {
+          return String(a);
+        }
+      }
+      return String(a);
     })
-  : ({
-      info: (...args: any[]) => prodLog("INFO", ...args),
-      error: (...args: any[]) => prodLog("ERROR", ...args),
-      warn: (...args: any[]) => prodLog("WARN", ...args),
-      debug: (...args: any[]) => prodLog("DEBUG", ...args),
-      trace: (...args: any[]) => prodLog("TRACE", ...args),
-    } as any);
+    .join(" ");
+
+  return { message, context };
+}
+
+/**
+ * Standardized log writing logic.
+ */
+function writeLog(level: LogLevel, args: unknown[]): void {
+  const { message, context } = formatArgs(args);
+  const appEnv = process.env.APP_ENV ?? "local";
+  const isLocal = appEnv === "local";
+
+  if (isLocal) {
+    const consoleFn =
+      level === "ERROR" || level === "FATAL"
+        ? console.error
+        : level === "WARN"
+          ? console.warn
+          : level === "DEBUG" || level === "TRACE"
+            ? console.debug
+            : console.log;
+
+    const timestamp = new Date().toLocaleTimeString();
+    consoleFn(`[${timestamp}] [${level}]`, message, context || "");
+    return;
+  }
+
+  // Production: Yandex Cloud Structured Logging
+  // Requirements:
+  // 1. Logs must be written to stdout (console.log) or stderr (console.error).
+  // 2. To be parsed as structured logs, they must be a single-line JSON.
+  // 3. 'message' (or 'msg') is the primary field for the log text.
+  // 4. 'level' defines the severity (TRACE, DEBUG, INFO, WARN, ERROR, FATAL).
+  //
+  // Reference: https://yandex.cloud/en/docs/functions/operations/function/logs-write
+  // Reference: https://yandex.cloud/en/docs/functions/concepts/logs#structured-logs
+  const entry: Record<string, unknown> = {
+    message,
+    msg: message, // Support both common naming conventions (msg is often used by pino/winston)
+    level,
+    time: new Date().toISOString(),
+    ...context,
+  };
+
+  const line = JSON.stringify(entry);
+
+  if (level === "ERROR" || level === "FATAL") {
+    console.error(line);
+  } else {
+    console.log(line);
+  }
+}
+
+export const logger = {
+  trace: (...args: unknown[]) => writeLog("TRACE", args),
+  debug: (...args: unknown[]) => writeLog("DEBUG", args),
+  info: (...args: unknown[]) => writeLog("INFO", args),
+  warn: (...args: unknown[]) => writeLog("WARN", args),
+  error: (...args: unknown[]) => writeLog("ERROR", args),
+  fatal: (...args: unknown[]) => writeLog("FATAL", args),
+};

@@ -151,6 +151,10 @@ resource "yandex_function" "video-translate-bot-function" {
       bucket = yandex_storage_bucket.video-translate-bot-storage.bucket
     }
   }
+
+  environment = {
+    APP_ENV = "production"
+  }
 }
 
 resource "yandex_function" "ytdl-storage-cleanup" {
