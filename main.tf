@@ -78,7 +78,7 @@ resource "yandex_api_gateway" "video-translate-bot-queue-gateway" {
 
   log_options {
     log_group_id = yandex_logging_group.video_translate_bot_logs.id
-    min_level    = "INFO"
+    # min_level    = "INFO"
   }
 
   spec = <<EOF
@@ -115,7 +115,7 @@ resource "yandex_function" "video-translate-bot-function" {
 
   log_options {
     log_group_id = yandex_logging_group.video_translate_bot_logs.id
-    min_level    = "INFO"
+    # min_level    = "INFO" # All logs are sent to Yandex Logging regardless of the level
   }
 
   # Configure function when invoking asynchronously (with ?integration=async)
@@ -169,7 +169,7 @@ resource "yandex_function" "ytdl-storage-cleanup" {
 
   log_options {
     log_group_id = yandex_logging_group.video_translate_bot_logs.id
-    min_level    = "INFO"
+    # min_level    = "INFO"
   }
 
   package {
@@ -240,7 +240,7 @@ resource "yandex_api_gateway" "video-translate-bot-function-gateway" {
 
   log_options {
     log_group_id = yandex_logging_group.video_translate_bot_logs.id
-    min_level    = "INFO"
+    # min_level    = "INFO"
   }
   # execution timeout does not matter because of message queue
   #   execution_timeout = "120"
@@ -336,7 +336,7 @@ resource "yandex_function" "admin-api" {
 
   log_options {
     log_group_id = yandex_logging_group.video_translate_bot_logs.id
-    min_level    = "INFO"
+    # min_level    = "INFO"
   }
 
   package {
@@ -360,7 +360,7 @@ resource "yandex_api_gateway" "admin-api-gateway" {
 
   log_options {
     log_group_id = yandex_logging_group.video_translate_bot_logs.id
-    min_level    = "INFO"
+    # min_level    = "INFO"
   }
 
   spec = <<EOF
@@ -442,7 +442,7 @@ resource "yandex_function" "vtrans-service" {
 
   log_options {
     log_group_id = yandex_logging_group.video_translate_bot_logs.id
-    min_level    = "INFO"
+    # min_level    = "INFO"
   }
 
   package {
@@ -465,7 +465,7 @@ resource "yandex_api_gateway" "vtrans-service-gateway" {
 
   log_options {
     log_group_id = yandex_logging_group.video_translate_bot_logs.id
-    min_level    = "INFO"
+    # min_level    = "INFO"
   }
 
   spec = <<EOF
