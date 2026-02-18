@@ -6,13 +6,16 @@
 import protobuf from "protobufjs";
 import crypto from "crypto";
 import axios from "axios";
-import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "../env";
+import {
+  // YANDEX_TRANSLATE_HMAC_SHA254_SECRET,
+  VTRANS_SERVICE_URL,
+} from "../env";
 import { logger } from "../logger";
 
-const YANDEX_VIDEO_TRANSLATE_URL =
-  "https://api.browser.yandex.ru/video-translation/translate";
-const YANDEX_BROWSER_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 YaBrowser/24.4.0.0 Safari/537.36";
+// const YANDEX_VIDEO_TRANSLATE_URL =
+//   "https://api.browser.yandex.ru/video-translation/translate";
+// const YANDEX_BROWSER_USER_AGENT =
+//   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 YaBrowser/24.4.0.0 Safari/537.36";
 
 export const YANDEX_VIDEO_TRANSLATE_LANGUAGES = ["ru", "en", "kk"];
 
@@ -200,12 +203,35 @@ const generateUuid = () => {
   return uuid;
 };
 
+/**
+ * @deprecated Local translation logic is deprecated in favor of vtrans-service
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const translateVideoRequest = async (opts: VideoTranslateOptions) => {
+  if (VTRANS_SERVICE_URL) {
+    const response = await axios.post(VTRANS_SERVICE_URL, {
+      url: opts.url,
+      sourceLanguage: opts.sourceLanguage,
+      targetLanguage: opts.targetLanguage,
+      videoFileUrl: opts.videoFileUrl,
+      subtitlesFileUrl: opts.subtitlesFileUrl,
+      forceRegular: !(opts.useLivelyVoice ?? false),
+    });
+
+    return response.data;
+  }
+
+  // Fallback to local logic if NO service url provided (legacy behavior)
+  // But strictly we should use the service now.
+
+  /*
   // const deviceId = generateUuid();
   const videoTranslateRequest = encodeVideoTranslateRequest(opts);
 
   // const decoder = new TextDecoder();
   const utf8Encoder = new TextEncoder();
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } = require("../env");
   const videoTranslateHmacKey = await crypto.subtle.importKey(
     "raw",
     utf8Encoder.encode(YANDEX_TRANSLATE_HMAC_SHA254_SECRET),
@@ -269,6 +295,7 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
   });
 
   return videoTranslateResponse.data;
+  */
 };
 
 type VideoTranslateErrorOptions = ErrorOptions & {
@@ -300,9 +327,11 @@ export const translateVideo = async (
     ...opts,
     url,
   });
-  const videoTranslateResponseData = decodeVideoTranslateResponse(
-    videoTranslateResponse
-  );
+  const videoTranslateResponseData =
+    VTRANS_SERVICE_URL && videoTranslateResponse
+      ? videoTranslateResponse // Service returns already parsed JSON
+      : decodeVideoTranslateResponse(videoTranslateResponse);
+
   // console.log("Video translate response data:", videoTranslateResponseData);
   logger.info(
     "Video translate response status:",

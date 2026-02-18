@@ -92,6 +92,7 @@ export const WORKER_BOT_SERVER_WEBHOOK_URL =
 export const WORKER_APP_SERVER_URL = process.env.WORKER_APP_SERVER_URL;
 
 export const VIDEO_TRANSLATE_APP_URL = process.env.VIDEO_TRANSLATE_APP_URL;
+export const VTRANS_SERVICE_URL = process.env.VTRANS_SERVICE_URL;
 
 export const VIDEO_TRANSLATE_API_URL = process.env.VIDEO_TRANSLATE_API_URL;
 export const YTDL_API_URL = process.env.YTDL_API_URL;
