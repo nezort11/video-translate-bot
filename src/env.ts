@@ -65,7 +65,13 @@ dotenv.config({ path: path.join(DOTENV_DIR_PATH, ".env") });
 export const PORT = process.env.PORT ?? 3000;
 export const EXECUTION_TIMEOUT = +(process.env.EXECUTION_TIMEOUT ?? 120);
 
-export const APP_ENV = process.env.APP_ENV ?? "local";
+if (!process.env.APP_ENV) {
+  throw new Error(
+    "APP_ENV is not defined. Please explicitly set APP_ENV to 'local' or 'production'."
+  );
+}
+
+export const APP_ENV = process.env.APP_ENV;
 export const DEBUG_ENV = process.env.DEBUG_ENV;
 
 export const PROXY_SERVER_URI = process.env.PROXY_SERVER_URI;
@@ -103,9 +109,10 @@ export const YANDEX_TRANSLATE_HMAC_SHA254_SECRET =
 export const STORAGE_CHANNEL_ID = process.env.STORAGE_CHANNEL_ID!;
 export const STORAGE_CHANNEL_CHAT_ID = getChatId(STORAGE_CHANNEL_ID);
 
-export const BOT_TOKEN = (
-  IS_PRODUCTION ? process.env.BOT_TOKEN_PROD : process.env.BOT_TOKEN_DEV
-)!;
+export const BOT_TOKEN_PROD = process.env.BOT_TOKEN_PROD!;
+export const BOT_TOKEN_DEV = process.env.BOT_TOKEN_DEV!;
+
+export const BOT_TOKEN = (IS_PRODUCTION ? BOT_TOKEN_PROD : BOT_TOKEN_DEV)!;
 
 export const OWNER_USERNAME = process.env.OWNER_USERNAME!;
 

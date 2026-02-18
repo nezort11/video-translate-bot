@@ -5,6 +5,7 @@ import {
   BOT_PUBLIC_USERNAME,
   PORT,
   BOT_TOKEN,
+  BOT_TOKEN_PROD,
   APP_ENV,
 } from "./env";
 
@@ -215,6 +216,14 @@ process.on("warning", (warning) => {
 });
 
 const main = async () => {
+  if (BOT_TOKEN === BOT_TOKEN_PROD) {
+    logger.error(
+      "❌ CRITICAL ERROR: Attempting to run PRODUCTION bot locally with polling! This will delete the webhook."
+    );
+    logger.error("Please use BOT_TOKEN_DEV or set NODE_ENV=development.");
+    process.exit(1);
+  }
+
   logger.info(`VERSION: ${process.version}`);
   logger.info(`DEBUG: ${DEBUG}`);
 
@@ -222,6 +231,7 @@ const main = async () => {
 
   bot.launch();
   const botInfo = await bot.telegram.getMe();
+
   setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
   logger.info(`🚀 Started bot server on https://t.me/${botInfo.username}`);
   try {
