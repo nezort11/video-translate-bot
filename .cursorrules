@@ -106,3 +106,33 @@ This project uses Husky and lint-staged for pre-commit hooks:
 
 - Files are automatically formatted with Prettier on commit
 - ESLint runs on staged TypeScript files
+
+## Yandex Cloud Infrastructure
+
+- This project is hosted on **Yandex Cloud**.
+- Use the `yc` CLI tool to inspect and manage resources.
+  - Check functions: `yc serverless function list`
+  - Check operations: `yc serverless function operations <function-id>`
+- While Terraform manages infrastructure, `yc` is excellent for verification and debugging.
+
+## Logging and Debugging
+
+When debugging issues in Yandex Cloud, **NEVER** rely solely on `yc serverless function logs` as it may miss context from multiple instances or associated resources.
+
+**Always use Log Groups** for a comprehensive view of the system logs:
+
+- **Primary Log Group**: `video-translate-bot-logs`
+- **Watch logs in real-time**:
+  ```bash
+  yc logging read --group-name video-translate-bot-logs --follow
+  ```
+- **Filter logs for errors**:
+  ```bash
+  yc logging read --group-name video-translate-bot-logs --filter "level >= ERROR"
+  ```
+- **Search for specific request/transaction**:
+  ```bash
+  yc logging read --group-name video-translate-bot-logs --filter "message: <search-term>"
+  ```
+
+This approach allows you to see logs from multiple functions/containers if they share the same log group, making it much easier to trace issues across the microservices.
