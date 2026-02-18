@@ -39,6 +39,12 @@ resource "yandex_storage_bucket" "video-translate-bot-code" {
   max_size  = 1073741824 # 1GB
 }
 
+resource "yandex_storage_bucket" "video-translate-bot-deps" {
+  bucket    = "video-translate-bot-deps"
+  folder_id = var.yc_folder_id
+  max_size  = 1073741824 # 1GB
+}
+
 # resource "null_resource" "upload_function" {
 #   provisioner "local-exec" {
 #     command = "npm run app:upload"
@@ -151,6 +157,13 @@ resource "yandex_function" "video-translate-bot-function" {
       bucket = yandex_storage_bucket.video-translate-bot-storage.bucket
     }
   }
+  #   mounts {
+  #     name = "deps" # /function/storage/deps
+  #     mode = "ro"
+  #     object_storage {
+  #       bucket = yandex_storage_bucket.video-translate-bot-deps.bucket
+  #     }
+  #   }
 
   environment = {
     APP_ENV = "production"
