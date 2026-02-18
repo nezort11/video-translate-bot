@@ -159,6 +159,7 @@ enum VideoTranslationStatus {
   WAITING = 2,
   LONG_WAITING = 3,
   PART_CONTENT = 5,
+  // Probably the public IP address gets throttled or blocked
   AUDIO_REQUESTED = 6,
   // New status code observed in production
   // probably related to authorization issues
