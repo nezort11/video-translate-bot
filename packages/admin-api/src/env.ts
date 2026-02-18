@@ -33,7 +33,9 @@ export const ADMIN_IDS = (process.env.ADMIN_IDS || "")
   .filter(Boolean);
 export const DEBUG_ADMIN_ID =
   process.env.DEBUG_ADMIN_ID || parseInt(ADMIN_IDS[0]) || 123456789;
-export const BOT_TOKEN = process.env.BOT_TOKEN || "";
+export const BOT_TOKEN_PROD = process.env.BOT_TOKEN_PROD || "";
+export const BOT_TOKEN_DEV = process.env.BOT_TOKEN_DEV || "";
+export const BOT_TOKEN = (IS_PRODUCTION ? BOT_TOKEN_PROD : BOT_TOKEN_DEV) || "";
 export const JWT_SECRET = process.env.JWT_SECRET || "dev-jwt-secret-change-me";
 export const JWT_EXPIRES_IN = "24h";
 
