@@ -1,4 +1,6 @@
 /*
+  @deprecated - use separate vtrans microservice
+
   Credit: https://github.com/FOSWLY/vot-cli
   Requirements: Node.js 18+ (crypto), protobufjs, axios
  */
@@ -362,7 +364,7 @@ export const translateVideo = async (
     case VideoTranslationStatus.WAITING:
     case VideoTranslationStatus.LONG_WAITING:
     case VideoTranslationStatus.AUDIO_REQUESTED:
-      // case VideoTranslationStatus.PROCESSING:
+    case VideoTranslationStatus.PROCESSING:
       // WAITING, LONG_WAITING, AUDIO_REQUESTED, and PROCESSING statuses indicate translation is in progress
       throw new TranslateInProgressException(
         "Translation is in progress...",
