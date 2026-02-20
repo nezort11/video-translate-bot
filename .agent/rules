@@ -117,6 +117,11 @@ This project uses Husky and lint-staged for pre-commit hooks:
 ## Yandex Cloud Infrastructure
 
 - This project is hosted on **Yandex Cloud**.
+- **Infrastructure Architecture**: The operations are split across several components:
+  - **Bot Function**: The main serverless function handling requests/webhooks.
+  - **Bot Container**: Containerized application handling heavy/continuous processing.
+  - **YouTube DL Service (`ytdl-service`)**: Dedicated service for downloading videos.
+  - **Video Translation Service (`vtrans-service`)**: Dedicated service for translating video content.
 - Use the `yc` CLI tool to inspect and manage resources.
   - Check functions: `yc serverless function list`
   - Check operations: `yc serverless function operations <function-id>`
@@ -126,8 +131,9 @@ This project uses Husky and lint-staged for pre-commit hooks:
 
 When debugging issues in Yandex Cloud, **NEVER** rely solely on `yc serverless function logs` as it may miss context from multiple instances or associated resources.
 
-**Always use Log Groups** for a comprehensive view of the system logs:
+**Note on Log Groups**: The infrastructure components (Bot Function, Bot Container, `ytdl-service`, `vtrans-service`) use **different log groups**. Always ensure you are checking the correct log group for the specific service you are debugging!
 
+For example, to check the primary bot function logs:
 - **Primary Log Group**: `video-translate-bot-logs`
 - **Watch logs in real-time**:
   ```bash
@@ -142,4 +148,4 @@ When debugging issues in Yandex Cloud, **NEVER** rely solely on `yc serverless f
   yc logging read --group-name video-translate-bot-logs --filter "message: <search-term>"
   ```
 
-This approach allows you to see logs from multiple functions/containers if they share the same log group, making it much easier to trace issues across the microservices.
+Remember to replace `video-translate-bot-logs` with the specific component's log group name when tracing issues across the different microservices.
