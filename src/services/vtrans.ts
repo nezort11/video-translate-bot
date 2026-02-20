@@ -218,6 +218,7 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
       videoFileUrl: opts.videoFileUrl,
       subtitlesFileUrl: opts.subtitlesFileUrl,
       forceRegular: !(opts.useLivelyVoice ?? false),
+      forceLively: opts.useLivelyVoice ?? false,
     });
 
     return response.data;

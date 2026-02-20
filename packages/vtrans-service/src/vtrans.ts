@@ -130,7 +130,8 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
 
   const requestData = {
     url: opts.url,
-    // deviceId: deviceId,
+    // deviceId is somehow used to identify the user and needed for live voices translation
+    deviceId: generateUuid(),
     firstRequest: opts.firstRequest ?? true,
     unknown0: 1,
     // language: "en",

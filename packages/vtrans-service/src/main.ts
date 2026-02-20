@@ -20,6 +20,8 @@ export const handler = async (event: Http.Event, context: Context) => {
       targetLanguage,
       videoFileUrl,
       subtitlesFileUrl,
+      firstRequest,
+      forceLively,
     } = payload;
 
     if (!url) {
@@ -30,7 +32,7 @@ export const handler = async (event: Http.Event, context: Context) => {
     }
 
     console.log(
-      `Processing translation for ${url}, forceRegular=${forceRegular}`
+      `Processing translation for ${url}, forceRegular=${forceRegular}, firstRequest=${firstRequest}`
     );
 
     let result;
@@ -41,6 +43,7 @@ export const handler = async (event: Http.Event, context: Context) => {
         targetLanguage,
         videoFileUrl,
         subtitlesFileUrl,
+        firstRequest,
       });
     } else {
       // Prefer live voices (default)
@@ -51,6 +54,7 @@ export const handler = async (event: Http.Event, context: Context) => {
           targetLanguage,
           videoFileUrl,
           subtitlesFileUrl,
+          firstRequest,
         });
       } catch (error) {
         if (error instanceof TranslateInProgressException) {
@@ -62,6 +66,13 @@ export const handler = async (event: Http.Event, context: Context) => {
             body: JSON.stringify(error.data, null, 2),
           };
         }
+        if (forceLively) {
+          console.log(
+            "Live voice failed, but forceLively is true, not falling back"
+          );
+          throw error;
+        }
+
         // Fallback to regular
         console.log("Live voice failed, falling back to regular");
         result = await translateVideo(url, {
@@ -70,6 +81,7 @@ export const handler = async (event: Http.Event, context: Context) => {
           targetLanguage,
           videoFileUrl,
           subtitlesFileUrl,
+          firstRequest,
         });
       }
     }
