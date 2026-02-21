@@ -57,6 +57,7 @@ jobs:
           revision-execution-timeout: ${{ vars.EXECUTION_TIMEOUT }} # seconds
           revision-env: |
             EXECUTION_TIMEOUT=${{ vars.EXECUTION_TIMEOUT }}
+            APP_ENV=production
           # adjust to Dockerfile WORKDIR
           revision-storage-mounts: |
             ${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only
