@@ -531,33 +531,8 @@ export const translateVideoFinal = async (
     // If user explicitly turned ON enhanced translate
     if (preferEnhanced === true) {
       // If source language is unknown/undefined, live voices are not supported
-      // Fall back to regular voices to avoid "unknown language" error
-      if (!sourceLanguage) {
-        logger.info(
-          "⚠️  Source language unknown, falling back to regular voices"
-        );
-        const res = await translateVideo(url, {
-          targetLanguage,
-          sourceLanguage,
-          useLivelyVoice: false,
-          firstRequest,
-        });
-        logger.info({
-          event: "translation_attempt_success",
-          url,
-          duration_ms: Date.now() - startTime,
-          mode: "regular",
-        });
-        getGlobalMetricsService()?.writeSuccess({
-          ...baseLabels,
-          mode: "regular",
-        });
-        getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
-          ...baseLabels,
-          mode: "regular",
-        });
-        return res;
-      }
+      // – false
+      // Yandex Translation API is perfectly capable of auto-detecting the language on its backend while still providing Live Translation
 
       // Source language is known, use live voices as requested
       const res = await translateVideo(url, {
@@ -584,33 +559,6 @@ export const translateVideoFinal = async (
     }
 
     // If undefined (auto mode): try live voices first with fallback
-    // But only if source language is available (otherwise skip directly to regular)
-    if (!sourceLanguage) {
-      logger.info(
-        "⚠️  No source language for auto mode, using regular translate"
-      );
-      const res = await translateVideo(url, {
-        targetLanguage,
-        sourceLanguage,
-        useLivelyVoice: false,
-        firstRequest,
-      });
-      logger.info({
-        event: "translation_attempt_success",
-        url,
-        duration_ms: Date.now() - startTime,
-        mode: "regular",
-      });
-      getGlobalMetricsService()?.writeSuccess({
-        ...baseLabels,
-        mode: "regular",
-      });
-      getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
-        ...baseLabels,
-        mode: "regular",
-      });
-      return res;
-    }
 
     try {
       const res = await translateVideo(url, {
