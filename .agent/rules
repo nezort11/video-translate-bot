@@ -119,7 +119,7 @@ This project uses Husky and lint-staged for pre-commit hooks:
 - This project is hosted on **Yandex Cloud**.
 - **Infrastructure Architecture**: The operations are split across several components:
   - **Bot Function**: The main serverless function handling requests/webhooks.
-  - **Bot Container**: Containerized application handling heavy/continuous processing.
+  - **Bot Container**: Containerized application handling heavy/continuous processing. **Note**: The container is currently configured, built, and deployed from CI.
   - **YouTube DL Service (`ytdl-service`)**: Dedicated service for downloading videos.
   - **Video Translation Service (`vtrans-service`)**: Dedicated service for translating video content.
 - Use the `yc` CLI tool to inspect and manage resources.
