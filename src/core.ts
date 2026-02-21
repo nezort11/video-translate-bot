@@ -448,7 +448,8 @@ export const translateVideoFinal = async (
   sourceLanguage?: string,
   // User preference: true = prefer enhanced (live voices), false = prefer regular (faster), undefined = auto (try enhanced with fallback)
   preferEnhanced?: boolean,
-  type: "video" | "audio" | "voice" = "video"
+  type: "video" | "audio" | "voice" = "video",
+  firstRequest: boolean = true
 ): Promise<VideoTranslateResponse> => {
   const startTime = Date.now();
   const baseLabels = { type };
@@ -483,6 +484,7 @@ export const translateVideoFinal = async (
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: false,
+        firstRequest,
       });
       logger.info({
         event: "translation_attempt_success",
@@ -507,6 +509,7 @@ export const translateVideoFinal = async (
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: false,
+        firstRequest,
       });
       logger.info({
         event: "translation_attempt_success",
@@ -537,6 +540,7 @@ export const translateVideoFinal = async (
           targetLanguage,
           sourceLanguage,
           useLivelyVoice: false,
+          firstRequest,
         });
         logger.info({
           event: "translation_attempt_success",
@@ -560,6 +564,7 @@ export const translateVideoFinal = async (
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: true,
+        firstRequest,
       });
       logger.info({
         event: "translation_attempt_success",
@@ -588,6 +593,7 @@ export const translateVideoFinal = async (
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: false,
+        firstRequest,
       });
       logger.info({
         event: "translation_attempt_success",
@@ -611,6 +617,7 @@ export const translateVideoFinal = async (
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: true,
+        firstRequest,
       });
       logger.info({
         event: "translation_attempt_success",
@@ -641,7 +648,8 @@ export const translateVideoFinal = async (
           targetLanguage,
           sourceLanguage,
           preferEnhanced,
-          type
+          type,
+          false
         );
       }
       // Fallback to regular voices if enhanced fails
@@ -652,6 +660,7 @@ export const translateVideoFinal = async (
         targetLanguage,
         sourceLanguage,
         useLivelyVoice: false,
+        firstRequest,
       });
       logger.info({
         event: "translation_attempt_success",
@@ -682,7 +691,8 @@ export const translateVideoFinal = async (
         targetLanguage,
         sourceLanguage,
         preferEnhanced,
-        type
+        type,
+        false
       );
     }
     logger.error({
