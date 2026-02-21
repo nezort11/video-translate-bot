@@ -326,14 +326,28 @@ export const translateVideo = async (
   url: string,
   opts?: Omit<VideoTranslateOptions, "url">
 ) => {
-  const videoTranslateResponse = await translateVideoRequest({
-    ...opts,
-    url,
-  });
-  const videoTranslateResponseData =
-    VTRANS_SERVICE_URL && videoTranslateResponse
-      ? videoTranslateResponse // Service returns already parsed JSON
-      : decodeVideoTranslateResponse(videoTranslateResponse);
+  let videoTranslateResponse;
+  let videoTranslateResponseData;
+
+  try {
+    videoTranslateResponse = await translateVideoRequest({
+      ...opts,
+      url,
+    });
+
+    videoTranslateResponseData =
+      VTRANS_SERVICE_URL && videoTranslateResponse
+        ? videoTranslateResponse // Service returns already parsed JSON
+        : decodeVideoTranslateResponse(videoTranslateResponse);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage =
+        error.response?.data?.message || `AxiosError: ${error.message}`;
+      logger.error(`vtrans-service failed: ${errorMessage}`);
+      throw new TranslateException(errorMessage);
+    }
+    throw error;
+  }
 
   // console.log("Video translate response data:", videoTranslateResponseData);
   logger.info(
