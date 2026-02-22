@@ -164,7 +164,7 @@ enum VideoTranslationStatus {
   AUDIO_REQUESTED = 6,
   // New status code observed in production
   // probably related to authorization issues
-  PROCESSING = 7,
+  UNKNOWN_PROBABLY_ERROR = 7,
 }
 
 export type VideoTranslateResponse = {
@@ -336,10 +336,16 @@ export const translateVideo = async (
     case VideoTranslationStatus.WAITING:
     case VideoTranslationStatus.LONG_WAITING:
     case VideoTranslationStatus.AUDIO_REQUESTED:
-    case VideoTranslationStatus.PROCESSING:
-      // WAITING, LONG_WAITING, AUDIO_REQUESTED, and PROCESSING statuses indicate translation is in progress
+      // WAITING, LONG_WAITING, AUDIO_REQUESTED statuses indicate translation is in progress
       throw new TranslateInProgressException(
         "Translation is in progress...",
+        translateErrorOptions
+      );
+    case VideoTranslationStatus.UNKNOWN_PROBABLY_ERROR:
+      // PROCESSING (7) observed when live voice translation fails (likely auth/unsupported)
+      // Throw regular exception so it falls back to non-live translation
+      throw new TranslateException(
+        "Live voice translation not authorized or failed (status 7)",
         translateErrorOptions
       );
     default:
