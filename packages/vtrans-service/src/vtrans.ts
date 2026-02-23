@@ -9,6 +9,7 @@ import axios from "axios";
 import {
   YANDEX_TRANSLATE_HMAC_SHA254_SECRET,
   YANDEX_COOKIES_HEADER_STRING,
+  YANDEX_OAUTH_TOKEN,
 } from "./env";
 // import { logger } from "../logger";
 
@@ -148,8 +149,7 @@ const encodeVideoTranslateRequest = (
 
   const requestData: any = {
     url: opts.url,
-    // deviceId is removed
-    // deviceId: undefined,
+    // deviceId: deviceId,
     firstRequest: opts.firstRequest ?? true,
     unknown0: 1,
     // language: "en",
@@ -361,6 +361,11 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
       "Sec-Vtrans-Sk": vtransSk,
       ...(YANDEX_COOKIES_HEADER_STRING
         ? { Cookie: YANDEX_COOKIES_HEADER_STRING }
+        : {}),
+      ...(opts.useLivelyVoice
+        ? YANDEX_OAUTH_TOKEN
+          ? { Authorization: `OAuth ${YANDEX_OAUTH_TOKEN}` }
+          : { Authorization: `Session ${vtransTokenUUID}` }
         : {}),
     },
     // withCredentials: false,

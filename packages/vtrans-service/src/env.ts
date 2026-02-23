@@ -27,3 +27,5 @@ export const YANDEX_COOKIES_HEADER_STRING =
 if (!YANDEX_TRANSLATE_HMAC_SHA254_SECRET) {
   throw new Error("YANDEX_TRANSLATE_HMAC_SHA254_SECRET is not defined");
 }
+
+export const YANDEX_OAUTH_TOKEN = process.env.YANDEX_OAUTH_TOKEN;
