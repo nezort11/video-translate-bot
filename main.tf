@@ -22,6 +22,12 @@ resource "yandex_storage_bucket" "video-translate-bot-env" {
   max_size = 1073741824 # 1GB
 }
 
+resource "yandex_storage_bucket" "video-translate-vtrans-service-env" {
+  bucket    = "video-translate-vtrans-service-env"
+  folder_id = var.yc_folder_id
+  max_size  = 1073741824 # 1GB
+}
+
 resource "yandex_storage_bucket" "video-translate-admin-api-env" {
   bucket    = "video-translate-admin-api-env"
   folder_id = var.yc_folder_id
@@ -467,7 +473,7 @@ resource "yandex_function" "vtrans-service" {
     name = "env" # /function/storage/env
     mode = "ro"
     object_storage {
-      bucket = yandex_storage_bucket.video-translate-bot-env.bucket
+      bucket = yandex_storage_bucket.video-translate-vtrans-service-env.bucket
     }
   }
 }
