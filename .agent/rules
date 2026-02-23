@@ -134,6 +134,7 @@ When debugging issues in Yandex Cloud, **NEVER** rely solely on `yc serverless f
 **Note on Log Groups**: The infrastructure components (Bot Function, Bot Container, `ytdl-service`, `vtrans-service`) use **different log groups**. Always ensure you are checking the correct log group for the specific service you are debugging!
 
 For example, to check the primary bot function logs:
+
 - **Primary Log Group**: `video-translate-bot-logs`
 - **Watch logs in real-time**:
   ```bash
@@ -149,3 +150,7 @@ For example, to check the primary bot function logs:
   ```
 
 Remember to replace `video-translate-bot-logs` with the specific component's log group name when tracing issues across the different microservices.
+
+## Source Control & CLI Tools
+
+- `git`, `gh`, and `vercel` CLI commands are configured and can be used if needed.
