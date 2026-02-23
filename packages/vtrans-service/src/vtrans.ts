@@ -9,7 +9,7 @@ import axios from "axios";
 import {
   YANDEX_TRANSLATE_HMAC_SHA254_SECRET,
   YANDEX_COOKIES_HEADER_STRING,
-  YANDEX_OAUTH_TOKEN,
+  YANDEX_OAUTH_ACCESS_TOKEN,
 } from "./env";
 // import { logger } from "../logger";
 
@@ -180,9 +180,9 @@ enum VideoTranslationStatus {
   PART_CONTENT = 5,
   // Probably the public IP address gets throttled or blocked
   AUDIO_REQUESTED = 6,
-  // New status code observed in production
-  // probably related to authorization issues
-  UNKNOWN_PROBABLY_ERROR = 7,
+  // Unauthorized error for live voice translation
+  // when no active yandex session is provided (oauth access token)
+  UNAUTHORIZED = 7,
 }
 
 export type VideoTranslateResponse = {
@@ -363,9 +363,12 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
         ? { Cookie: YANDEX_COOKIES_HEADER_STRING }
         : {}),
       ...(opts.useLivelyVoice
-        ? YANDEX_OAUTH_TOKEN
-          ? { Authorization: `OAuth ${YANDEX_OAUTH_TOKEN}` }
-          : { Authorization: `Session ${vtransTokenUUID}` }
+        ? YANDEX_OAUTH_ACCESS_TOKEN
+          ? // The token is required for the translation of the video with the voice of the original speaker (lively voice) cuz of high resource usage.
+            { Authorization: `OAuth ${YANDEX_OAUTH_ACCESS_TOKEN}` }
+          : {
+              /* Authorization: `Session ${vtransTokenUUID}` */
+            }
         : {}),
     },
     // withCredentials: false,
@@ -442,9 +445,19 @@ export const translateVideo = async (
         "Translation is in progress...",
         translateErrorOptions
       );
-    case VideoTranslationStatus.UNKNOWN_PROBABLY_ERROR:
-      // PROCESSING (7) observed when live voice translation fails (likely auth/unsupported)
-      // Throw regular exception so it falls back to non-live translation
+    case VideoTranslationStatus.UNAUTHORIZED:
+      // Status 7 (UNAUTHORIZED) is observed when live voice translation fails (likely auth)
+      if (!YANDEX_OAUTH_ACCESS_TOKEN) {
+        logger.error(
+          "SESSION ERROR: Yandex returned status 7 (UNAUTHORIZED), but YANDEX_OAUTH_ACCESS_TOKEN is missing. " +
+            "A valid OAuth token is required for voice translation of this video."
+        );
+      } else {
+        logger.error(
+          "SESSION ERROR: Yandex returned status 7 (UNAUTHORIZED), but YANDEX_OAUTH_ACCESS_TOKEN is provided. " +
+            "This may be due to an invalid or expired OAuth token."
+        );
+      }
       throw new TranslateException(
         "Live voice translation not authorized or failed (status 7)",
         translateErrorOptions
@@ -454,22 +467,5 @@ export const translateVideo = async (
         "Unknown translation error",
         translateErrorOptions
       );
-  }
-};
-
-// Try translating with live voices first. If it fails with a non-progress error,
-// fall back to old voices. If it's in progress, propagate that status to caller.
-export const translateVideoPreferLiveVoices = async (
-  url: string,
-  opts?: Omit<VideoTranslateOptions, "url">
-) => {
-  try {
-    return await translateVideo(url, { ...opts, useLivelyVoice: true });
-  } catch (error) {
-    if (error instanceof TranslateInProgressException) {
-      throw error;
-    }
-    // Fallback to old voices
-    return await translateVideo(url, { ...opts, useLivelyVoice: false });
   }
 };
