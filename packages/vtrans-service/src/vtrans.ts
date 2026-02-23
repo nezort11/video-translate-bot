@@ -6,15 +6,20 @@
 import protobuf, { Message } from "protobufjs";
 import crypto from "crypto";
 import axios from "axios";
-import { YANDEX_TRANSLATE_HMAC_SHA254_SECRET } from "./env";
+import {
+  YANDEX_TRANSLATE_HMAC_SHA254_SECRET,
+  YANDEX_COOKIES_HEADER_STRING,
+} from "./env";
 // import { logger } from "../logger";
 
 const logger = console;
 
 const YANDEX_VIDEO_TRANSLATE_URL =
   "https://api.browser.yandex.ru/video-translation/translate";
-const YANDEX_BROWSER_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 YaBrowser/24.4.0.0 Safari/537.36";
+const YANDEX_SESSION_CREATE_URL =
+  "https://api.browser.yandex.ru/session/create";
+const YANDEX_BROWSER_VERSION = "25.12.0.2215";
+const YANDEX_BROWSER_USER_AGENT = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 YaBrowser/${YANDEX_BROWSER_VERSION} Safari/537.36`;
 
 export const YANDEX_VIDEO_TRANSLATE_LANGUAGES = ["ru", "en", "kk"];
 
@@ -68,11 +73,21 @@ const VideoTranslateResponseProto = new protobuf.Type(
   .add(new protobuf.Field("language", 8, "string")) // detected language (if the wrong one is set)
   .add(new protobuf.Field("message", 9, "string"));
 
+const YandexSessionRequestProto = new protobuf.Type("YandexSessionRequest")
+  .add(new protobuf.Field("uuid", 1, "string"))
+  .add(new protobuf.Field("module", 2, "string"));
+
+const YandexSessionResponseProto = new protobuf.Type("YandexSessionResponse")
+  .add(new protobuf.Field("secretKey", 1, "string"))
+  .add(new protobuf.Field("expires", 2, "int32"));
+
 new protobuf.Root()
   .define("yandex")
   .add(VideoTranslationHelpObjectProto)
   .add(VideoTranslateRequestProto)
-  .add(VideoTranslateResponseProto);
+  .add(VideoTranslateResponseProto)
+  .add(YandexSessionRequestProto)
+  .add(YandexSessionResponseProto);
 
 enum TranslationHelp {
   VideoFileUrl = "video_file_url",
@@ -106,7 +121,10 @@ type VideoTranslateOptions = {
   firstRequest?: boolean;
 };
 
-const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
+const encodeVideoTranslateRequest = (
+  opts: VideoTranslateOptions,
+  deviceId: string
+) => {
   // Check if the URL is a direct MP4 file
   // const isDirectMp4 = opts.url.toLowerCase().includes(".mp4");
 
@@ -128,10 +146,10 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
   // Note: For direct MP4 files, we don't add to translationHelp
   // The API should be able to handle them via the url field directly
 
-  const requestData = {
+  const requestData: any = {
     url: opts.url,
-    // deviceId is somehow used to identify the user and needed for live voices translation
-    deviceId: generateUuid(),
+    // deviceId is removed
+    // deviceId: undefined,
     firstRequest: opts.firstRequest ?? true,
     unknown0: 1,
     // language: "en",
@@ -194,21 +212,68 @@ const decodeVideoTranslateResponse = (
 //   return array;
 // };
 
-const generateUuid = () => {
-  const uuid = `${1e7}${1e3}${4e3}${8e3}${1e11}`.replace(/[018]/g, (c) =>
-    (
-      +c ^
-      (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))
-    ).toString(16)
+// const generateUuid = () => {
+//   return crypto.randomUUID();
+// };
+
+let cachedSessionContext: {
+  uuid: string;
+  secretKey: string;
+  expiresAt: number;
+} | null = null;
+const getSession = async (module = "video-translation", hmacKeyRaw: string) => {
+  if (
+    cachedSessionContext &&
+    cachedSessionContext.expiresAt > Date.now() / 1000 + 60
+  ) {
+    return cachedSessionContext;
+  }
+
+  const utf8Encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    utf8Encoder.encode(hmacKeyRaw),
+    { name: "HMAC", hash: { name: "SHA-256" } },
+    false,
+    ["sign"]
   );
-  return uuid;
+
+  const uuid = crypto.randomUUID().replace(/-/g, "").toUpperCase();
+  const body = YandexSessionRequestProto.encode({ uuid, module }).finish();
+  const sigBuffer = await crypto.subtle.sign("HMAC", key, body);
+  const sig = Array.prototype.map
+    .call(new Uint8Array(sigBuffer), (x) => x.toString(16).padStart(2, "0"))
+    .join("");
+
+  const res = await axios({
+    url: "https://api.browser.yandex.ru/session/create",
+    method: "POST",
+    headers: {
+      Accept: "application/x-protobuf",
+      "Content-Type": "application/x-protobuf",
+      "User-Agent": YANDEX_BROWSER_USER_AGENT,
+      "Vtrans-Signature": sig,
+      ...(YANDEX_COOKIES_HEADER_STRING
+        ? { Cookie: YANDEX_COOKIES_HEADER_STRING }
+        : {}),
+    },
+    responseType: "arraybuffer",
+    data: Buffer.from(body),
+  });
+
+  const decoded: any = YandexSessionResponseProto.decode(
+    new Uint8Array(res.data)
+  );
+
+  cachedSessionContext = {
+    uuid,
+    secretKey: decoded.secretKey,
+    expiresAt: Date.now() / 1000 + decoded.expires,
+  };
+  return cachedSessionContext;
 };
 
 const translateVideoRequest = async (opts: VideoTranslateOptions) => {
-  // const deviceId = generateUuid();
-  const videoTranslateRequest = encodeVideoTranslateRequest(opts);
-
-  // const decoder = new TextDecoder();
   const utf8Encoder = new TextEncoder();
   const videoTranslateHmacKey = await crypto.subtle.importKey(
     "raw",
@@ -217,6 +282,16 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
     false,
     ["sign", "verify"]
   );
+
+  const session = await getSession(
+    "video-translation",
+    YANDEX_TRANSLATE_HMAC_SHA254_SECRET as string
+  );
+  const deviceId = session.uuid;
+  const vtransTokenUUID = session.uuid;
+
+  const videoTranslateRequest = encodeVideoTranslateRequest(opts, deviceId);
+
   const videoTranslateSignature = await crypto.subtle.sign(
     "HMAC",
     videoTranslateHmacKey,
@@ -247,8 +322,25 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
     .join("");
   // console.log("vtransSignature", vtransSignature);
 
-  const vtransToken = generateUuid().toUpperCase();
+  const vtransPath = new URL(YANDEX_VIDEO_TRANSLATE_URL).pathname;
+  const vtransTokenString = `${vtransTokenUUID}:${vtransPath}:${YANDEX_BROWSER_VERSION}`;
+
+  const vtransTokenSignature = await crypto.subtle.sign(
+    "HMAC",
+    videoTranslateHmacKey,
+    utf8Encoder.encode(vtransTokenString)
+  );
+
+  const vtransTokenHex = Array.prototype.map
+    .call(new Uint8Array(vtransTokenSignature), (x) =>
+      x.toString(16).padStart(2, "0")
+    )
+    .join("");
+
+  const vtransToken = `${vtransTokenHex}:${vtransTokenString}`;
   // console.log("vtransToken", vtransToken);
+
+  const vtransSk = session.secretKey;
 
   const videoTranslateResponse = await axios<Uint8Array>({
     url: YANDEX_VIDEO_TRANSLATE_URL,
@@ -261,11 +353,15 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
       Pragma: "no-cache",
       "Cache-Control": "no-cache",
       "Sec-Fetch-Mode": "no-cors",
-      "sec-ch-ua": null,
-      "sec-ch-ua-mobile": null,
-      "sec-ch-ua-platform": null,
+      "sec-ch-ua": `"Chromium";v="142", "YaBrowser";v="25.12", "Not_A Brand";v="99", "Yowser";v="2.5"`,
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": `"macOS"`,
       "Vtrans-Signature": vtransSignature,
       "Sec-Vtrans-Token": vtransToken,
+      "Sec-Vtrans-Sk": vtransSk,
+      ...(YANDEX_COOKIES_HEADER_STRING
+        ? { Cookie: YANDEX_COOKIES_HEADER_STRING }
+        : {}),
     },
     // withCredentials: false,
     responseType: "arraybuffer",

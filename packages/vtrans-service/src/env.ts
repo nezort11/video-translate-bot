@@ -21,6 +21,9 @@ if (fs.existsSync(path.join(DOTENV_DIR_PATH, ".env"))) {
 export const YANDEX_TRANSLATE_HMAC_SHA254_SECRET =
   process.env.YANDEX_TRANSLATE_HMAC_SHA254_SECRET;
 
+export const YANDEX_COOKIES_HEADER_STRING =
+  process.env.YANDEX_COOKIES_HEADER_STRING;
+
 if (!YANDEX_TRANSLATE_HMAC_SHA254_SECRET) {
   throw new Error("YANDEX_TRANSLATE_HMAC_SHA254_SECRET is not defined");
 }
