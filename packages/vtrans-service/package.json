@@ -5,7 +5,14 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node src/dev.ts"
+    "dev": "ts-node src/dev.ts",
+    "env:pull": "rclone sync yandex-cloud-nezort11:video-translate-vtrans-service-env ./env --progress",
+    "env:push": "rclone sync ./env yandex-cloud-nezort11:video-translate-vtrans-service-env --progress",
+    "package": "rm -rf node_modules && npm install --omit=dev && zip -r vtrans-service.zip package.json node_modules build && rm -rf node_modules",
+    "upload": "yc storage s3api put-object --bucket video-translate-bot-code --key vtrans-service.zip --body vtrans-service.zip",
+    "ci": "pnpm build && pnpm package && pnpm upload",
+    "cd": "cd ../.. && pnpm tf apply -auto-approve -target=yandex_function.vtrans-service -target=yandex_api_gateway.vtrans-service-gateway",
+    "cicd": "pnpm ci && pnpm cd"
   },
   "dependencies": {
     "@yandex-cloud/function-types": "2.1.2",
