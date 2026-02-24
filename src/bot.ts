@@ -1985,7 +1985,8 @@ bot.action(/.+/, async (context) => {
             await replyError(
               context,
               t("translator_error", {
-                error_message: t("generic_error"),
+                // error_message: t("generic_error"),
+                error_message: error.message,
               }),
               extra
             );
