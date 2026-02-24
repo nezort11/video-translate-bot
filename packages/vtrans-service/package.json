@@ -12,7 +12,7 @@
     "upload": "yc storage s3api put-object --bucket video-translate-bot-code --key vtrans-service.zip --body vtrans-service.zip",
     "ci": "pnpm build && pnpm package && pnpm upload",
     "cd": "cd ../.. && pnpm tf apply -auto-approve -target=yandex_function.vtrans-service -target=yandex_api_gateway.vtrans-service-gateway",
-    "cicd": "pnpm ci && pnpm cd",
+    "cicd": "pnpm run ci && pnpm run cd",
     "cli": "tsx src/cli.ts"
   },
   "dependencies": {

@@ -8,7 +8,6 @@ import crypto from "crypto";
 import axios from "axios";
 import {
   YANDEX_TRANSLATE_HMAC_SHA254_SECRET,
-  YANDEX_COOKIES_HEADER_STRING,
   YANDEX_OAUTH_ACCESS_TOKEN,
 } from "./env";
 // import { logger } from "../logger";
@@ -253,9 +252,6 @@ const getSession = async (module = "video-translation", hmacKeyRaw: string) => {
       "Content-Type": "application/x-protobuf",
       "User-Agent": YANDEX_BROWSER_USER_AGENT,
       "Vtrans-Signature": sig,
-      ...(YANDEX_COOKIES_HEADER_STRING
-        ? { Cookie: YANDEX_COOKIES_HEADER_STRING }
-        : {}),
     },
     responseType: "arraybuffer",
     data: Buffer.from(body),
@@ -359,9 +355,6 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
       "Vtrans-Signature": vtransSignature,
       "Sec-Vtrans-Token": vtransToken,
       "Sec-Vtrans-Sk": vtransSk,
-      ...(YANDEX_COOKIES_HEADER_STRING
-        ? { Cookie: YANDEX_COOKIES_HEADER_STRING }
-        : {}),
       ...(opts.useLivelyVoice
         ? YANDEX_OAUTH_ACCESS_TOKEN
           ? // The token is required for the translation of the video with the voice of the original speaker (lively voice) cuz of high resource usage.
