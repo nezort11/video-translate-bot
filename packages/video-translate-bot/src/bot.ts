@@ -66,6 +66,7 @@ import {
   OPENAI_API_BASE_URL,
   OPENAI_API_KEY,
   EXECUTION_TIMEOUT,
+  MAX_VIDEO_DURATION_MINUTES,
   ALERTS_CHANNEL_CHAT_ID,
   ADMIN_IDS,
   ADMIN_DASHBOARD_URL,
@@ -1793,7 +1794,7 @@ bot.action(/.+/, async (context) => {
     );
   } else if (
     videoInfo.duration &&
-    videoInfo.duration > toSeconds.fromHours(1)
+    videoInfo.duration > toSeconds.fromMinutes(MAX_VIDEO_DURATION_MINUTES)
   ) {
     await replyError(context, t("video_too_long"), {
       disable_notification: true,

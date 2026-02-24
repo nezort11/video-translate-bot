@@ -64,6 +64,9 @@ dotenv.config({ path: path.join(DOTENV_DIR_PATH, ".env") });
 
 export const PORT = process.env.PORT ?? 3000;
 export const EXECUTION_TIMEOUT = +(process.env.EXECUTION_TIMEOUT ?? 120);
+export const MAX_VIDEO_DURATION_MINUTES = +(
+  process.env.MAX_VIDEO_DURATION_MINUTES ?? 70
+);
 
 if (!process.env.APP_ENV) {
   throw new Error(
