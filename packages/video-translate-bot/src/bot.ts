@@ -1366,6 +1366,9 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       disable_notification: true,
       // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
+        ...(isAdmin && enhancedTranslateToggleButton
+          ? [[enhancedTranslateToggleButton]]
+          : []), // Enhanced translate toggle button for admins only
         [voiceTranslateActionButton],
         [
           createActionButton(t("audio_mp3"), {
@@ -1385,11 +1388,8 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
           // ),
         ],
         [onlineVideoTranslateActionButton],
-        // [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
         [translationLanguageActionButton], // No source language button for YouTube
-        ...(isAdmin && enhancedTranslateToggleButton
-          ? [[enhancedTranslateToggleButton]]
-          : []), // Enhanced translate toggle button for admins only
+        // [Markup.button.webApp(t("video_mp4"), videoTranslateApp.href)],
         // [
         //   Markup.button.callback(
         //     "📺 Видео (mp4) (дольше ⏳)",
