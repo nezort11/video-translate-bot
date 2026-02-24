@@ -149,11 +149,12 @@ export const getActionData = <T extends ActionType>(
 ) => {
   const actionData = context.session?.routers?.[routerId]?.actions?.[actionId];
 
-  if (actionData) {
-    // Automatically cleanup all other irrelevant actions in the action group
-    // clearActionGroup(context, actionGroupId);
-    clearRouterActions(context, routerId);
-  }
+  // Fix: DO NOT delete actions if reading them for processing navigation and translation.
+  // We should keep them so multiple clicks or subsequent reads work until a new route() replaces them.
+  // if (actionData) {
+  //   // Automatically cleanup all other irrelevant actions in the action group
+  //   // clearRouterActions(context, routerId);
+  // }
 
   return actionData;
 };

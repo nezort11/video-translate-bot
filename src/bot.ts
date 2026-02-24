@@ -1742,7 +1742,17 @@ bot.action(/.+/, async (context) => {
     quality: TranslateQuality.Mp4_360p,
   };
 
-  const videoInfo = await getVideoInfo(videoLink);
+  let videoInfo: Awaited<ReturnType<typeof getVideoInfo>>;
+  try {
+    videoInfo = await getVideoInfo(videoLink);
+  } catch (error) {
+    logger.error(`Error in getVideoInfo for ${videoLink}:`, error);
+    await replyError(context, t("generic_error"));
+    try {
+      await context.deleteMessage();
+    } catch (_) {}
+    return;
+  }
   // const originalVideoDuration = videoInfo.duration;
 
   const currentCreditsBalance = getCurrentBalance(context);
