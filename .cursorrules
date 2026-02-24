@@ -107,6 +107,11 @@ This project uses Husky and lint-staged for pre-commit hooks:
 - Files are automatically formatted with Prettier on commit
 - ESLint runs on staged TypeScript files
 
+## Environment Variables
+
+- To work with `env` files, it is needed to push it to the s3 bucket after modifications using `pnpm env:push`.
+- Use `pnpm env:pull` to pull the latest environment configuration from the s3 bucket.
+
 ## Yandex Cloud Infrastructure
 
 - This project is hosted on **Yandex Cloud**.
