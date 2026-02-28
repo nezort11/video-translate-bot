@@ -4,9 +4,6 @@ import { BotContext, bot } from "./botinstance";
 import i18next, { TFunction } from "i18next";
 import Backend from "i18next-fs-backend";
 import yaml from "js-yaml";
-// import Database from "better-sqlite3";
-// import { count } from "drizzle-orm";
-// import { drizzle } from "drizzle-orm/better-sqlite3";
 import {
   Composer,
   Context,
@@ -15,7 +12,6 @@ import {
   TelegramError,
   session,
 } from "telegraf";
-// import { SQLite } from "@telegraf/session/sqlite";
 
 import { message } from "telegraf/filters";
 import { Stage, WizardScene } from "telegraf/scenes";
@@ -151,9 +147,6 @@ type Hideable<B> = B & { hide: boolean };
 
 // const database = new Database(path.join(STORAGE_DIR_PATH, "db.sqlite"));
 // database.pragma("journal_mode = WAL"); // Helps prevent corruption https://chatgpt.com/c/67ab8ae9-bf14-8012-9c4a-3a12d682cb1d
-
-// https://orm.drizzle.team/docs/get-started-sqlite#better-sqlite3
-// const db = drizzle({ client: database });
 
 const getAudioDurationInSeconds: any = {};
 const getVideoDurationInSeconds: any = {};
@@ -643,11 +636,6 @@ bot.use(async (context, next) => {
 });
 
 // Provide a session storage provider
-// const sessionDb = new Database(path.join(STORAGE_DIR_PATH, "session.sqlite"));
-// sessionDb.pragma("journal_mode = WAL"); // Helps prevent corruption
-// const sessionStore = SQLite<{}>({ database: sessionDb });
-// bot.use(session({ store: sessionStore }));
-
 bot.use(
   session({
     store: sessionStore,

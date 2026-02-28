@@ -37,8 +37,6 @@
     "s3:storage:pull": "rclone sync yandex-cloud-nezort11:video-translate-bot-storage ./yc_storage --progress",
     "s3:storage:push": "rclone sync ./yc_storage yandex-cloud-nezort11:video-translate-bot-storage --progress",
     "s3:deps:sync": "rclone sync ./node_modules_prod yandex-cloud-nezort11:video-translate-bot-deps/node_modules --progress --transfers 32 --checkers 32 --exclude '.cache/**' --exclude '.bin/**'",
-    "db:migrate": "pnpm drizzle-kit generate && pnpm drizzle-kit push",
-    "db:migrate:s3": "APP_MODE='remote' pnpm db:migrate",
     "tf": "source ./env/.env && source ./terraform.env && terraform",
     "npm:install:comment": "Install node_modules for Cloud Function runtime https://yandex.cloud/ru/docs/functions/concepts/runtime/",
     "npm:install": "docker run --rm --platform=linux/amd64 -w /app -v \"$(pwd)/package.json:/app/package.json\" -v \"$(pwd)/node_modules:/app/node_modules\" node:18 bash -c \"npm install --omit=dev --force\"",
@@ -173,7 +171,6 @@
   "devDependencies": {
     "@distube/ytdl-core": "4.16.4",
     "@types/aws-lambda": "8.10.160",
-    "@types/better-sqlite3": "7.6.12",
     "@types/debug": "^4.1.12",
     "@types/express": "4.17.17",
     "@types/fluent-ffmpeg": "2.1.27",
@@ -186,7 +183,6 @@
     "@yandex-cloud/serverless-plugin": "1.7.25",
     "abort-controller": "^3.0.0",
     "bottleneck": "^2.19.5",
-    "drizzle-kit": "0.30.4",
     "eslint": "8.57.1",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-prettier": "5.5.5",
@@ -205,9 +201,6 @@
   "dependenciesComments": {
     "cheerio": "1.0.0-rc.12",
     "form-data": "4.0.0",
-    "kysely": "0.27.5",
-    "drizzle-orm": "0.39.1",
-    "better-sqlite3": "11.8.1",
     "@google-cloud/text-to-speech": "5.8.1",
     "@ffmpeg/core": "0.11.0",
     "@ffmpeg/ffmpeg": "0.11.6",
@@ -215,10 +208,6 @@
     "telegraf-session-s33": "1.0.2"
   },
   "overrides": {
-    "@telegraf/session": {
-      "better-sqlite3": "11.8.1",
-      "kysely": "0.27.5"
-    }
   },
   "pnpm": {
     "patchedDependencies": {

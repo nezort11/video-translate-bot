@@ -33,7 +33,7 @@ import type { TelegramClient } from "telegram";
 
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:[\w-]+\.)+\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
-  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.[a-z.]{2,}|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]+)(\S+)?/gi;
+  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.[a-z.]{2,}|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]{11})(\S+)?/gi;
 
 const BILIBILI_LINK_REGEX =
   /(?:https?:\/\/)?(?:www\.)?bilibili\.com\/video\/(\S{13})/g;
