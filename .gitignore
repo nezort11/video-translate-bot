@@ -7,8 +7,9 @@ node_modules*
 
 **/.env*
 !**/.env.example
-env/*.json
-yc_env/*.json
+**/env/*.json
+**/env/*.txt
+**/yc_env/*.json
 
 *.log
 
