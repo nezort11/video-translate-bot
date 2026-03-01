@@ -1,5 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { Readable } from "stream";
+import { createHash } from "crypto";
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { logger } from "./logger";
 import {
   APP_ENV,
@@ -416,13 +418,45 @@ export const streamToBuffer = async (stream: Readable) => {
 
 export const s3Localstorage = new S3LocalStorage(YTDL_STORAGE_BUCKET);
 
-export const uploadVideo = async (videoBuffer: Buffer) => {
-  const { nanoid } = await importNanoid();
-  const randomUid = nanoid();
-  const storageKey = `${randomUid}.mp4`;
-  await s3Localstorage.setItem(storageKey, videoBuffer);
+export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
+  let storageKey: string;
+  if (customKey) {
+    // If customKey doesn't have an extension, append .mp4
+    storageKey = customKey.includes(".") ? customKey : `${customKey}.mp4`;
+  } else {
+    // Generate a SHA-256 hash of the buffer to use as the key for deduplication
+    const hash = createHash("sha256").update(videoBuffer).digest("hex");
+    storageKey = `${hash}.mp4`;
+  }
+
+  try {
+    // Check if video already exists in S3 to avoid unnecessary re-uploading
+    await s3Localstorage.s3Client.send(
+      new HeadObjectCommand({
+        Bucket: YTDL_STORAGE_BUCKET,
+        Key: storageKey,
+      })
+    );
+    logger.info(`Video already exists in storage, skipping upload: ${storageKey}`);
+  } catch (error: any) {
+    // If not found (404), proceed with upload
+    if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
+      logger.info(`Uploading video to storage: ${storageKey}`);
+      await s3Localstorage.setItem(storageKey, videoBuffer);
+    } else {
+      // Log and re-throw other errors (e.g., credentials, networking)
+      logger.error(`Error checking video existence in S3: ${error.message}`);
+      throw error;
+    }
+  }
+
   const videoObjectUrl = await s3Localstorage.getItemPublicLink(storageKey);
-  return videoObjectUrl!;
+  if (!videoObjectUrl) {
+    throw new Error(
+      `Failed to get public link for uploaded video: ${storageKey}`
+    );
+  }
+  return videoObjectUrl;
 };
 
 const TRANSLATE_PULLING_INTERVAL_FALLBACK = duration.seconds(15);
