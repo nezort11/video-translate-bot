@@ -16,6 +16,19 @@ Full video translate architecture:
 
 > 1-3 steps can theoretically be moved to the client (in case WASM is supported) in order to reduce server computational resources
 
+## 🛠️ Tools & Utilities
+
+The following tools are recommended or required for development, infrastructure management, and deployment:
+
+- **[git](https://git-scm.com/)** - Version control.
+- **[pnpm](https://pnpm.io/)** - Fast, disk space efficient package manager.
+- **[docker](https://www.docker.com/)** & **[docker-compose](https://docs.docker.com/compose/)** - Containerization and local orchestration.
+- **[terraform](https://www.terraform.io/)** - Infrastructure as Code (IaC) for managing cloud resources.
+- **[yc](https://cloud.yandex.ru/docs/cli/quickstart)** - Yandex Cloud CLI for cloud resource management.
+- **[vercel](https://vercel.com/docs/cli)** - CLI for deploying the web application.
+- **[gh](https://cli.github.com/)** - GitHub CLI for managing repositories and workflows.
+- **zip** - Used for packaging serverless functions and other assets.
+
 ## Setup
 
 ```sh
