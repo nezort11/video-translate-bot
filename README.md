@@ -29,6 +29,32 @@ The following tools are recommended or required for development, infrastructure 
 - **[gh](https://cli.github.com/)** - GitHub CLI for managing repositories and workflows.
 - **zip** - Used for packaging serverless functions and other assets.
 
+## 🚀 Production Deployment (Yandex Cloud Functions)
+
+This project uses a specialized deployment workflow for **Yandex Cloud Functions** to overcome platform-specific build limitations (timeout and memory constraints).
+
+### The Challenge
+Yandex Cloud Functions have a limited build environment (5 minutes max, restricted memory). This project's dependencies (e.g., `better-sqlite3`, `fluent-ffmpeg`, `telegram`) often exceed these limits when running `npm install` or `npm ci` in the cloud.
+
+### The Solution: Local Pre-Packaging
+Instead of letting the cloud build the project, we package the entire `node_modules` directory locally.
+
+1.  **`node_modules_prod`**: A dedicated directory containing only production dependencies, built for the `linux/amd64` platform.
+2.  **The "Swap Dance"**: Before packaging, we temporarily swap our development `node_modules` with `node_modules_prod`.
+
+### Deployment Commands
+**Full Deployment:**
+```bash
+pnpm video-translate-bot:deploy:full:cached
+```
+This runs the full sequence (build -> swap modules -> package -> upload -> terraform apply) safely.
+
+**Update Production Dependencies:**
+If `node_modules_prod` is missing or needs updating (uses Docker for binary compatibility):
+```bash
+pnpm npm:reinstall
+```
+
 ## Setup
 
 ```sh
@@ -45,7 +71,7 @@ pnpm --version
 pnpm install
 ```
 
-## Start
+## Start (Local Docker)
 
 ```sh
 git pull
@@ -54,15 +80,12 @@ sudo chown -R pi:pi .
 # make sure run.sh script is executable
 chmod +x ./run.sh
 
-# git update-index --chmod=+x ./run.sh
-
 # don't use sudo, because root mode will break some docker-push/yc/aws stuff
-# NOTE: without sudo docker user crontab stuff sometimes crashes...
 ./run.sh docker:build
 ./run.sh docker:up
 ```
 
-## Deploy
+## Docker Deploy (Server)
 
 ```sh
 sudo bash ./run.sh docker:build
