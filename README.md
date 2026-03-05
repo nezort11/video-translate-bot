@@ -21,7 +21,9 @@ Full video translate architecture:
 The following tools are recommended or required for development, infrastructure management, and deployment:
 
 - **[git](https://git-scm.com/)** - Version control.
-- **[pnpm](https://pnpm.io/)** - Fast, disk space efficient package manager.
+- **[Node.js](https://nodejs.org/)** - JavaScript runtime (v18+).
+- **[Volta](https://volta.sh/)** - The Hassle-Free JavaScript Tool Manager (v2.0.2).
+- **[pnpm](https://pnpm.io/)** - Fast, disk space efficient package manager (v8.3.1).
 - **[docker](https://www.docker.com/)** & **[docker-compose](https://docs.docker.com/compose/)** - Containerization and local orchestration.
 - **[terraform](https://www.terraform.io/)** - Infrastructure as Code (IaC) for managing cloud resources.
 - **[yc](https://cloud.yandex.ru/docs/cli/quickstart)** - Yandex Cloud CLI for cloud resource management.
@@ -58,15 +60,14 @@ pnpm npm:reinstall
 ## Setup
 
 ```sh
-# nvm install 18 && nvm use
-# or
-volta install node@18 # should be automatically pin
+# use volta to manage node and pnpm versions
+volta install node@18
+volta install pnpm@8.3.1
 
 which node
 node --version
 
 which pnpm
-corepack enable pnpm@8.3.1
 pnpm --version
 pnpm install
 ```
