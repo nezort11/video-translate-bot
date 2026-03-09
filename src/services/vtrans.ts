@@ -21,6 +21,7 @@ import { logger } from "../logger";
 
 export const YANDEX_VIDEO_TRANSLATE_LANGUAGES = ["ru", "en", "kk"];
 
+/*
 const VideoTranslationHelpObjectProto = new protobuf.Type(
   "VideoTranslationHelpObject"
 )
@@ -81,6 +82,7 @@ enum TranslationHelp {
   VideoFileUrl = "video_file_url",
   SubtitlesFileUrl = "subtitles_file_url",
 }
+*/
 
 export type SourceLanguage =
   | "ru"
@@ -109,6 +111,7 @@ type VideoTranslateOptions = {
   firstRequest?: boolean;
 };
 
+/*
 const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
   // Check if the URL is a direct MP4 file
   // const isDirectMp4 = opts.url.toLowerCase().includes(".mp4");
@@ -155,6 +158,7 @@ const encodeVideoTranslateRequest = (opts: VideoTranslateOptions) => {
 
   return VideoTranslateRequestProto.encode(requestData).finish();
 };
+*/
 
 enum VideoTranslationStatus {
   FAILED = 0,
@@ -178,6 +182,7 @@ export type VideoTranslateResponse = {
   message?: string;
 };
 
+/*
 const decodeVideoTranslateResponse = (
   response: Uint8Array
   // Iterable<number>
@@ -187,6 +192,7 @@ const decodeVideoTranslateResponse = (
     // new Uint8Array(response)
   ) as any as VideoTranslateResponse;
 };
+*/
 
 // const getRandomValues = (array: Uint8Array) => {
 //   for (let i = 0; i < array.length; i++) {
@@ -195,6 +201,7 @@ const decodeVideoTranslateResponse = (
 //   return array;
 // };
 
+/*
 const generateUuid = () => {
   const uuid = `${1e7}${1e3}${4e3}${8e3}${1e11}`.replace(/[018]/g, (c) =>
     (
@@ -204,6 +211,7 @@ const generateUuid = () => {
   );
   return uuid;
 };
+*/
 
 /**
  * @deprecated Local translation logic is deprecated in favor of vtrans-service
@@ -224,6 +232,8 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
 
     return response.data;
   }
+
+  throw new Error("VTRANS_SERVICE_URL is not configured. Local translation is deprecated.");
 
   // Fallback to local logic if NO service url provided (legacy behavior)
   // But strictly we should use the service now.
@@ -331,15 +341,10 @@ export const translateVideo = async (
   let videoTranslateResponseData;
 
   try {
-    videoTranslateResponse = await translateVideoRequest({
+    videoTranslateResponseData = await translateVideoRequest({
       ...opts,
       url,
     });
-
-    videoTranslateResponseData =
-      VTRANS_SERVICE_URL && videoTranslateResponse
-        ? videoTranslateResponse // Service returns already parsed JSON
-        : decodeVideoTranslateResponse(videoTranslateResponse);
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const errorMessage =
