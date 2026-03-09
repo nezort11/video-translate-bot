@@ -22,7 +22,9 @@ import { translateWithGPT } from "./services/gpt-translate";
 import { bot } from "./botinstance";
 import S3LocalStorage from "s3-localstorage";
 import {
+  TranslateException,
   TranslateInProgressException,
+  TranslationStageError,
   VideoTranslateResponse,
   translateVideo,
 } from "./services/vtrans";
@@ -677,6 +679,9 @@ export const translateVideoFinal = async (
         false
       );
     }
+    if (error instanceof TranslateException || error instanceof TranslationStageError) {
+      throw error;
+    }
     logger.error({
       event: "translation_attempt_error",
       url,
@@ -687,7 +692,10 @@ export const translateVideoFinal = async (
       ...baseLabels,
       error: error instanceof Error ? error.name : "unknown",
     });
-    throw error;
+    throw new TranslationStageError(
+      "error_audio_translation",
+      error instanceof Error ? error.message : String(error)
+    );
   }
 };
 
