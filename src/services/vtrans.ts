@@ -312,7 +312,8 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
   */
 };
 
-type VideoTranslateErrorOptions = ErrorOptions & {
+type VideoTranslateErrorOptions = {
+  cause?: any;
   data?: VideoTranslateResponse;
 };
 
@@ -320,9 +321,22 @@ export class TranslateException extends Error {
   data?: VideoTranslateResponse;
 
   constructor(message?: string, options?: VideoTranslateErrorOptions) {
-    super(message, options);
+    super(message);
     this.name = this.constructor.name;
     this.data = options?.data;
+    if (options?.cause) {
+      (this as any).cause = options.cause;
+    }
+  }
+}
+
+/**
+ * Error with a localized key for the specific translation stage that failed.
+ */
+export class TranslationStageError extends Error {
+  constructor(public localeKey: string, message?: string) {
+    super(message || localeKey);
+    this.name = this.constructor.name;
   }
 }
 

@@ -87,6 +87,7 @@ import { InlineKeyboardButton, Message, Update } from "telegraf/types";
 import {
   TranslateException,
   TranslateInProgressException,
+  TranslationStageError,
   YANDEX_VIDEO_TRANSLATE_LANGUAGES,
   translateVideo,
 } from "./services/vtrans";
@@ -1735,7 +1736,10 @@ bot.action(/.+/, async (context) => {
     videoInfo = await getVideoInfo(videoLink);
   } catch (error) {
     logger.error(`Error in getVideoInfo for ${videoLink}:`, error);
-    await replyError(context, t("generic_error"));
+    await replyError(
+      context,
+      t("translator_error", { error_message: t("error_video_info") })
+    );
     try {
       await context.deleteMessage();
     } catch (_) {}
@@ -1940,6 +1944,17 @@ bot.action(/.+/, async (context) => {
           // }
         }
       } catch (error) {
+        if (error instanceof TranslationStageError) {
+          await replyError(
+            context,
+            t("translator_error", { error_message: t(error.localeKey) })
+          );
+          try {
+            await context.deleteMessage();
+          } catch (ignored) {}
+          return;
+        }
+
         // if (error instanceof Error) {
         if (error instanceof TranslateException) {
           // Check if it's an MP4 file (Telegram platform)
@@ -2275,32 +2290,38 @@ bot.action(/.+/, async (context) => {
     //   quality: youtubeVideoFormatItag.audio,
     //   agent: ytdlAgent,
     // });
-    logger.info("Downloading video stream...");
+    // Download video using ytdl service (direct function invocation, bypasses API Gateway 5min timeout)
+    logger.info("Downloading video using ytdl service...");
     let videoBuffer: Buffer;
-    if (videoPlatform === VideoPlatform.Telegram) {
-      const videoDownloadLink = getRouterSessionData(
-        context,
-        routerId,
-        "videoLink"
-      );
-      const videoResponse = await axios.get<Buffer>(videoDownloadLink, {
-        responseType: "arraybuffer",
-      });
-      videoBuffer = videoResponse.data;
-    } else {
-      // videoBuffer = await downloadYoutubeVideo(videoLink, {
-      //   quality: 18,
-      // });
+    try {
+      if (videoPlatform === VideoPlatform.Telegram) {
+        const videoDownloadLink = getRouterSessionData(
+          context,
+          routerId,
+          "videoLink"
+        );
+        const videoResponse = await axios.get<Buffer>(videoDownloadLink, {
+          responseType: "arraybuffer",
+        });
+        videoBuffer = videoResponse.data;
+      } else {
+        // videoBuffer = await downloadYoutubeVideo(videoLink, {
+        //   quality: 18,
+        // });
 
-      // Download video using ytdl service (direct function invocation, bypasses API Gateway 5min timeout)
-      logger.info("Downloading video using ytdl service...");
-      const videoUrl = await downloadVideo(videoLink);
-      logger.info("Video downloaded to S3, fetching...");
+        // Download video using ytdl service (direct function invocation, bypasses API Gateway 5min timeout)
+        logger.info("Downloading video using ytdl service...");
+        const videoUrl = await downloadVideo(videoLink);
+        logger.info("Video downloaded to S3, fetching...");
 
-      const videoResponse = await axios.get<ArrayBuffer>(videoUrl, {
-        responseType: "arraybuffer",
-      });
-      videoBuffer = Buffer.from(videoResponse.data);
+        const videoResponse = await axios.get<ArrayBuffer>(videoUrl, {
+          responseType: "arraybuffer",
+        });
+        videoBuffer = Buffer.from(videoResponse.data);
+      }
+    } catch (error: any) {
+      logger.error("Failed to download video:", error);
+      throw new TranslationStageError("error_video_download", error.message);
     }
     // const audioBuffer = await streamToBuffer(audioStream);
     logger.info(`Video downloaded: ${videoBuffer.length}`);
@@ -2332,9 +2353,10 @@ bot.action(/.+/, async (context) => {
     }
 
     let translatedFileMessage: Api.Message | undefined;
-    await {
-      [ActionType.TranslateVoice]: async () => {},
-      [ActionType.TranslateAudio]: async () => {
+    try {
+      await {
+        [ActionType.TranslateVoice]: async () => {},
+        [ActionType.TranslateAudio]: async () => {
         const resultFilePath = "audio.mp3";
 
         // prettier-ignore
@@ -2424,7 +2446,7 @@ bot.action(/.+/, async (context) => {
         // const outputFile = ffmpeg.FS("readFile", resultFilePath);
         const outputBuffer = await fs.readFile(resultFilePath);
         // const outputBuffer = Buffer.from(outputFile);
-        outputBuffer.name = `${videoTitle}.mp3`;
+        (outputBuffer as any).name = `${videoTitle}.mp3`;
 
         // await context.sendAudio(
         //   {
@@ -2521,7 +2543,7 @@ bot.action(/.+/, async (context) => {
 
         // const outputFile = ffmpeg.FS("readFile", resultFilePath);
         // const outputBuffer: Buffer | null = Buffer.from(outputFile);
-        outputBuffer.name = `${videoTitle}.mp4`;
+        (outputBuffer as any).name = `${videoTitle}.mp4`;
 
         let videoCaption: string | undefined =
           `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`;
@@ -2557,13 +2579,21 @@ bot.action(/.+/, async (context) => {
       },
       [TranslateType.ChooseVideoQuality]: async () => {},
     }[actionType]();
-    logger.info("Uploaded to telegram message id:", translatedFileMessage?.id);
+    logger.info(
+      "Uploaded to telegram message id:",
+      translatedFileMessage?.id
+    );
 
     await bot.telegram.copyMessage(
       context.chat?.id ?? 0,
       STORAGE_CHANNEL_CHAT_ID,
       translatedFileMessage!.id
     );
+    } catch (error: any) {
+    logger.error("Failed to upload/send translated video:", error);
+    throw new TranslationStageError("error_video_upload", error.message);
+    }
+
     const videoDurationFormatted = formatDuration(videoDuration);
 
     const userInfo = getUserInfo(context);
