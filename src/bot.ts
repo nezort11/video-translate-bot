@@ -2357,241 +2357,241 @@ bot.action(/.+/, async (context) => {
       await {
         [ActionType.TranslateVoice]: async () => {},
         [ActionType.TranslateAudio]: async () => {
-        const resultFilePath = "audio.mp3";
+          const resultFilePath = "audio.mp3";
 
-        // prettier-ignore
-        // await ffmpeg.run(
-        //   "-i", videoFilePath,
-        //   "-i", translateAudioFilePath,
+          // prettier-ignore
+          // await ffmpeg.run(
+          //   "-i", videoFilePath,
+          //   "-i", translateAudioFilePath,
 
-        //   "-filter_complex",
-        //     `[0:a]volume=${percent(10)}[a];` + // 10% original playback
-        //     `[1:a]volume=${percent(100)}[b];` + // voice over
-        //     '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
+          //   "-filter_complex",
+          //     `[0:a]volume=${percent(10)}[a];` + // 10% original playback
+          //     `[1:a]volume=${percent(100)}[b];` + // voice over
+          //     '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
-        //   // "-qscale:a", "9", // "4",
-        //   // "-codec:a", "libmp3lame", // "aac",
-        //   "-b:a", "64k", // decrease output size (MB) - default 128kb
-        //   "-ac", "1", // decrease audio channel stereo to mono
-        //   // " -pre", "ultrafast",
+          //   // "-qscale:a", "9", // "4",
+          //   // "-codec:a", "libmp3lame", // "aac",
+          //   "-b:a", "64k", // decrease output size (MB) - default 128kb
+          //   "-ac", "1", // decrease audio channel stereo to mono
+          //   // " -pre", "ultrafast",
 
-        //   resultFilePath,
-        // );
-        // ffmpeg -i input.mp4 -f null /dev/null
-        logger.info("Starting ffmpeg process...");
-        // await new Promise((resolve, reject) =>
-        //   ffmpeg()
-        //     // add first input (video with its original audio)
-        //     .input(videoFilePath)
-        //     // add second input (voice-over audio)
-        //     .input(translateAudioFilePath)
-        //     // Create a complex filter chain:
-        //     //   - Reduce the volume of the first audio stream to 10%
-        //     //   - Use the full volume for the second audio stream
-        //     //   - Mix them using amix without dropping any inputs
-        //     .complexFilter(
-        //       [
-        //         {
-        //           filter: "volume",
-        //           options: percent(10), // 10% volume
-        //           inputs: "0:a",
-        //           outputs: "a",
-        //         },
-        //         {
-        //           filter: "volume",
-        //           options: percent(100), // 100% volume
-        //           inputs: "1:a",
-        //           outputs: "b",
-        //         },
-        //         {
-        //           filter: "amix",
-        //           options: { inputs: 2, dropout_transition: 0 },
-        //           inputs: ["a", "b"],
-        //           outputs: "mixed",
-        //         },
-        //       ]
-        //       // "mixed"
-        //     )
-        //     // Map mixed audio to output, disable video, set codec/bitrate/channels
-        //     .outputOptions([
-        //       // "-map [mixed]", // use the mixed audio from filtergraph
-        //       // "-vn", // ensure no video is included in mp3 output
-        //       // "-c:a libmp3lame", // encode as mp3
-        //       "-b:a 64k", // set audio bitrate to 64kbps
-        //       "-ac 1", // force mono audio output
-        //     ])
-        //     // Copy video stream without re-encoding (if desired, you can add "-c:v copy")
-        //     .save(resultFilePath)
-        //     .on("progress", (progress) => {
-        //       console.log(`Processing: ${progress.percent}% done`);
-        //     })
-        //     .on("end", () => {
-        //       console.log("Processing finished successfully.");
-        //       resolve(undefined);
-        //     })
-        //     .on("error", (err) => {
-        //       console.error("An error occurred:", err.message);
-        //       reject(err);
-        //     })
-        // );
+          //   resultFilePath,
+          // );
+          // ffmpeg -i input.mp4 -f null /dev/null
+          logger.info("Starting ffmpeg process...");
+          // await new Promise((resolve, reject) =>
+          //   ffmpeg()
+          //     // add first input (video with its original audio)
+          //     .input(videoFilePath)
+          //     // add second input (voice-over audio)
+          //     .input(translateAudioFilePath)
+          //     // Create a complex filter chain:
+          //     //   - Reduce the volume of the first audio stream to 10%
+          //     //   - Use the full volume for the second audio stream
+          //     //   - Mix them using amix without dropping any inputs
+          //     .complexFilter(
+          //       [
+          //         {
+          //           filter: "volume",
+          //           options: percent(10), // 10% volume
+          //           inputs: "0:a",
+          //           outputs: "a",
+          //         },
+          //         {
+          //           filter: "volume",
+          //           options: percent(100), // 100% volume
+          //           inputs: "1:a",
+          //           outputs: "b",
+          //         },
+          //         {
+          //           filter: "amix",
+          //           options: { inputs: 2, dropout_transition: 0 },
+          //           inputs: ["a", "b"],
+          //           outputs: "mixed",
+          //         },
+          //       ]
+          //       // "mixed"
+          //     )
+          //     // Map mixed audio to output, disable video, set codec/bitrate/channels
+          //     .outputOptions([
+          //       // "-map [mixed]", // use the mixed audio from filtergraph
+          //       // "-vn", // ensure no video is included in mp3 output
+          //       // "-c:a libmp3lame", // encode as mp3
+          //       "-b:a 64k", // set audio bitrate to 64kbps
+          //       "-ac 1", // force mono audio output
+          //     ])
+          //     // Copy video stream without re-encoding (if desired, you can add "-c:v copy")
+          //     .save(resultFilePath)
+          //     .on("progress", (progress) => {
+          //       console.log(`Processing: ${progress.percent}% done`);
+          //     })
+          //     .on("end", () => {
+          //       console.log("Processing finished successfully.");
+          //       resolve(undefined);
+          //     })
+          //     .on("error", (err) => {
+          //       console.error("An error occurred:", err.message);
+          //       reject(err);
+          //     })
+          // );
 
-        await mixTranslatedVideo(
-          videoFilePath,
-          translateAudioFilePath,
-          resultFilePath,
-          "mp3"
-        );
-
-        logger.info("Getting ffmpeg output in node environment");
-        // const outputFile = ffmpeg.FS("readFile", resultFilePath);
-        const outputBuffer = await fs.readFile(resultFilePath);
-        // const outputBuffer = Buffer.from(outputFile);
-        (outputBuffer as any).name = `${videoTitle}.mp3`;
-
-        // await context.sendAudio(
-        //   {
-        //     source: translationBuffer,
-        //     ...(resourceTitle ? { filename: resourceTitle } : {}),
-        //   },
-        //   {
-        //     ...(resourceTitle ? { title: resourceTitle } : {}),
-        //   }
-        // );
-        // const form = new FormData({ maxDataSize: 20971520 });
-        // form.append("file", outputBuffer, "audio.mp3");
-        // form.append("duration", Math.floor(audioDuration));
-        // form.append("title", resourceTitle ?? "");
-        // form.append("artist", artist ?? "");
-        // form.append("caption", link);
-        // form.append("thumbnail", resourceThumbnailUrl ?? "");
-        // await fs.writeFile("./thumb.jpg", thumbnailBuffer);
-
-        logger.info("Uploading to telegram channel...");
-        await useTelegramClient(async (telegramClient) => {
-          const fileMessage = await telegramClient.sendFile(
-            STORAGE_CHANNEL_CHAT_ID,
-            {
-              file: outputBuffer,
-              // caption: `${videoLink}`,
-              caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
-              parseMode: "html",
-              thumb: thumbnailBuffer || undefined,
-
-              attributes: [
-                new Api.DocumentAttributeAudio({
-                  duration: Math.floor(videoDuration),
-                  title: videoTitle,
-                  performer: `${artist} (${originalArtist})`,
-                }),
-                // new Api.DocumentAttributeFilename({
-                //   fileName: "mqdefault.jpg",
-                // }),
-              ],
-            }
+          await mixTranslatedVideo(
+            videoFilePath,
+            translateAudioFilePath,
+            resultFilePath,
+            "mp3"
           );
-          translatedFileMessage = fileMessage;
-        });
 
-        // const uploadResponse = await axiosInstance.post<UploadResponse>(
-        //   UPLOADER_URL,
-        //   // {
-        //   //   file: audioBuffer.toString("base64"),
-        //   //   // file: translationUrl,
-        //   //   duration: Math.floor(audioDuration),
-        //   //   title: resourceTitle ?? "",
-        //   //   artist: artist ?? "",
-        //   //   caption: link,
-        //   //   thumbnail: resourceThumbnailUrl ?? "",
-        //   // }
-        //   form,
-        //   {
-        //     headers: { ...form.getHeaders() },
-        //   }
-        // );
-      },
-      [ActionType.TranslateVideo]: async () => {
-        // const resultFilePath = "video.mp4";
-        const resultFilePath = path.join(TEMP_DIR_PATH, "video.mp4");
+          logger.info("Getting ffmpeg output in node environment");
+          // const outputFile = ffmpeg.FS("readFile", resultFilePath);
+          const outputBuffer = await fs.readFile(resultFilePath);
+          // const outputBuffer = Buffer.from(outputFile);
+          (outputBuffer as any).name = `${videoTitle}.mp3`;
 
-        // // prettier-ignore
-        // await ffmpeg.run(
-        //   "-i", videoFilePath,
-        //   // "-i", audioFilePath,
-        //   "-i", translateAudioFilePath,
+          // await context.sendAudio(
+          //   {
+          //     source: translationBuffer,
+          //     ...(resourceTitle ? { filename: resourceTitle } : {}),
+          //   },
+          //   {
+          //     ...(resourceTitle ? { title: resourceTitle } : {}),
+          //   }
+          // );
+          // const form = new FormData({ maxDataSize: 20971520 });
+          // form.append("file", outputBuffer, "audio.mp3");
+          // form.append("duration", Math.floor(audioDuration));
+          // form.append("title", resourceTitle ?? "");
+          // form.append("artist", artist ?? "");
+          // form.append("caption", link);
+          // form.append("thumbnail", resourceThumbnailUrl ?? "");
+          // await fs.writeFile("./thumb.jpg", thumbnailBuffer);
 
-        //   "-filter_complex",
-        //     `[0:a]volume=${percent(10)}[a];` + // 10% original playback
-        //     `[1:a]volume=${percent(100)}[b];` + // voice over
-        //     '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
+          logger.info("Uploading to telegram channel...");
+          await useTelegramClient(async (telegramClient) => {
+            const fileMessage = await telegramClient.sendFile(
+              STORAGE_CHANNEL_CHAT_ID,
+              {
+                file: outputBuffer,
+                // caption: `${videoLink}`,
+                caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
+                parseMode: "html",
+                thumb: thumbnailBuffer || undefined,
 
-        //   // "-qscale:a", "9", // "4",
-        //   // "-codec:a", "libmp3lame", // "aac",
-        //   // "-b:a", "64k", // decrease output size (MB) - default 128kb
-        //   // " -pre", "ultrafast",
+                attributes: [
+                  new Api.DocumentAttributeAudio({
+                    duration: Math.floor(videoDuration),
+                    title: videoTitle,
+                    performer: `${artist} (${originalArtist})`,
+                  }),
+                  // new Api.DocumentAttributeFilename({
+                  //   fileName: "mqdefault.jpg",
+                  // }),
+                ],
+              }
+            );
+            translatedFileMessage = fileMessage;
+          });
 
-        //   resultFilePath,
-        // );
-        logger.info("Starting ffmpeg process...");
-        await mixTranslatedVideo(
-          videoFilePath,
-          translateAudioFilePath,
-          resultFilePath,
-          "mp4"
-        );
-        logger.info("Reading ffmpeg output result file...", resultFilePath);
-        const outputBuffer = await fs.readFile(resultFilePath);
+          // const uploadResponse = await axiosInstance.post<UploadResponse>(
+          //   UPLOADER_URL,
+          //   // {
+          //   //   file: audioBuffer.toString("base64"),
+          //   //   // file: translationUrl,
+          //   //   duration: Math.floor(audioDuration),
+          //   //   title: resourceTitle ?? "",
+          //   //   artist: artist ?? "",
+          //   //   caption: link,
+          //   //   thumbnail: resourceThumbnailUrl ?? "",
+          //   // }
+          //   form,
+          //   {
+          //     headers: { ...form.getHeaders() },
+          //   }
+          // );
+        },
+        [ActionType.TranslateVideo]: async () => {
+          // const resultFilePath = "video.mp4";
+          const resultFilePath = path.join(TEMP_DIR_PATH, "video.mp4");
 
-        // const outputFile = ffmpeg.FS("readFile", resultFilePath);
-        // const outputBuffer: Buffer | null = Buffer.from(outputFile);
-        (outputBuffer as any).name = `${videoTitle}.mp4`;
+          // // prettier-ignore
+          // await ffmpeg.run(
+          //   "-i", videoFilePath,
+          //   // "-i", audioFilePath,
+          //   "-i", translateAudioFilePath,
 
-        let videoCaption: string | undefined =
-          `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`;
-        if (videoPlatform === VideoPlatform.Telegram) {
-          videoCaption = undefined;
-        }
+          //   "-filter_complex",
+          //     `[0:a]volume=${percent(10)}[a];` + // 10% original playback
+          //     `[1:a]volume=${percent(100)}[b];` + // voice over
+          //     '[a][b]amix=inputs=2:dropout_transition=0', // :duration=longest',
 
-        logger.info("Uploading to telegram channel...");
-        await useTelegramClient(async (telegramClient) => {
-          const fileMessage = await telegramClient.sendFile(
-            STORAGE_CHANNEL_CHAT_ID,
-            {
-              file: outputBuffer,
-              caption: videoCaption,
-              parseMode: "html",
-              thumb: thumbnailBuffer || undefined,
-              attributes: [
-                new Api.DocumentAttributeVideo({
-                  // w: 320,
-                  // h: 180,
-                  // w: 16,
-                  // h: 9,
-                  w: 640,
-                  h: 360,
-                  duration: Math.floor(videoDuration),
-                  supportsStreaming: true,
-                }),
-              ],
-            }
+          //   // "-qscale:a", "9", // "4",
+          //   // "-codec:a", "libmp3lame", // "aac",
+          //   // "-b:a", "64k", // decrease output size (MB) - default 128kb
+          //   // " -pre", "ultrafast",
+
+          //   resultFilePath,
+          // );
+          logger.info("Starting ffmpeg process...");
+          await mixTranslatedVideo(
+            videoFilePath,
+            translateAudioFilePath,
+            resultFilePath,
+            "mp4"
           );
-          translatedFileMessage = fileMessage;
-        });
-      },
-      [TranslateType.ChooseVideoQuality]: async () => {},
-    }[actionType]();
-    logger.info(
-      "Uploaded to telegram message id:",
-      translatedFileMessage?.id
-    );
+          logger.info("Reading ffmpeg output result file...", resultFilePath);
+          const outputBuffer = await fs.readFile(resultFilePath);
 
-    await bot.telegram.copyMessage(
-      context.chat?.id ?? 0,
-      STORAGE_CHANNEL_CHAT_ID,
-      translatedFileMessage!.id
-    );
+          // const outputFile = ffmpeg.FS("readFile", resultFilePath);
+          // const outputBuffer: Buffer | null = Buffer.from(outputFile);
+          (outputBuffer as any).name = `${videoTitle}.mp4`;
+
+          let videoCaption: string | undefined =
+            `📺 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`;
+          if (videoPlatform === VideoPlatform.Telegram) {
+            videoCaption = undefined;
+          }
+
+          logger.info("Uploading to telegram channel...");
+          await useTelegramClient(async (telegramClient) => {
+            const fileMessage = await telegramClient.sendFile(
+              STORAGE_CHANNEL_CHAT_ID,
+              {
+                file: outputBuffer,
+                caption: videoCaption,
+                parseMode: "html",
+                thumb: thumbnailBuffer || undefined,
+                attributes: [
+                  new Api.DocumentAttributeVideo({
+                    // w: 320,
+                    // h: 180,
+                    // w: 16,
+                    // h: 9,
+                    w: 640,
+                    h: 360,
+                    duration: Math.floor(videoDuration),
+                    supportsStreaming: true,
+                  }),
+                ],
+              }
+            );
+            translatedFileMessage = fileMessage;
+          });
+        },
+        [TranslateType.ChooseVideoQuality]: async () => {},
+      }[actionType]();
+      logger.info(
+        "Uploaded to telegram message id:",
+        translatedFileMessage?.id
+      );
+
+      await bot.telegram.copyMessage(
+        context.chat?.id ?? 0,
+        STORAGE_CHANNEL_CHAT_ID,
+        translatedFileMessage!.id
+      );
     } catch (error: any) {
-    logger.error("Failed to upload/send translated video:", error);
-    throw new TranslationStageError("error_video_upload", error.message);
+      logger.error("Failed to upload/send translated video:", error);
+      throw new TranslationStageError("error_video_upload", error.message);
     }
 
     const videoDurationFormatted = formatDuration(videoDuration);

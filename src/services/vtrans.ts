@@ -233,7 +233,9 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
     return response.data;
   }
 
-  throw new Error("VTRANS_SERVICE_URL is not configured. Local translation is deprecated.");
+  throw new Error(
+    "VTRANS_SERVICE_URL is not configured. Local translation is deprecated."
+  );
 
   // Fallback to local logic if NO service url provided (legacy behavior)
   // But strictly we should use the service now.
@@ -334,7 +336,10 @@ export class TranslateException extends Error {
  * Error with a localized key for the specific translation stage that failed.
  */
 export class TranslationStageError extends Error {
-  constructor(public localeKey: string, message?: string) {
+  constructor(
+    public localeKey: string,
+    message?: string
+  ) {
     super(message || localeKey);
     this.name = this.constructor.name;
   }
