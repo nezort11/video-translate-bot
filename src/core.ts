@@ -203,10 +203,29 @@ export const getVideoInfo = async (link: string) => {
     // Extract language from video info, fallback to undefined (auto) if not available
     let detectedLanguage: string | undefined = undefined;
     try {
-      const rawLanguage = videoInfo.language || videoInfo.defaultAudioLanguage;
-      if (rawLanguage && typeof rawLanguage === "string") {
+      // If formats are available, try to find the "original (default)" audio track
+      // This is more reliable for multi-audio videos where YouTube metadata might be wrong
+      if (videoInfo.formats && Array.isArray(videoInfo.formats)) {
+        const originalFormat = videoInfo.formats.find(
+          (f) =>
+            f.format_note &&
+            f.format_note.toLowerCase().includes("original") &&
+            f.format_note.toLowerCase().includes("default") &&
+            f.language
+        );
+        if (originalFormat) {
+          detectedLanguage = originalFormat.language;
+        }
+      }
+
+      // Fallback to top-level metadata if no original format was found
+      if (!detectedLanguage) {
+        detectedLanguage = videoInfo.language || videoInfo.defaultAudioLanguage;
+      }
+
+      if (detectedLanguage && typeof detectedLanguage === "string") {
         // Normalize language code (e.g., "en-US" -> "en", "zh-CN" -> "zh")
-        detectedLanguage = rawLanguage.split("-")[0].toLowerCase();
+        detectedLanguage = detectedLanguage.split("-")[0].toLowerCase();
       }
     } catch (error) {
       logger.warn(
