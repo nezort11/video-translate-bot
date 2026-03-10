@@ -1585,6 +1585,7 @@ bot.on(message("successful_payment"), async (context, next) => {
 
 let videoTranslateProgressCount = 0;
 bot.action(/.+/, async (context) => {
+  await context.answerCbQuery().catch(() => {});
   const isFromOwner = context.from?.username === OWNER_USERNAME;
   const payload = context.match[0];
   const actionPayload = decodeActionPayload(payload);
