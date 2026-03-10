@@ -37,7 +37,7 @@ import type { TelegramClient } from "telegram";
 
 const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:[\w-]+\.)+\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
-  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.[a-z.]{2,}|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w\-]{11})(\S+)?/gi;
+  /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.[a-z.]{2,}|youtu.be))(\/(?:[\w-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w-]{11})(\S+)?/gi;
 
 const BILIBILI_LINK_REGEX =
   /(?:https?:\/\/)?(?:www\.)?bilibili\.com\/video\/(\S{13})/g;
@@ -92,7 +92,7 @@ export const getYoutubeVideoId = (youtubeLink: string) =>
 
 export const getLinkMatch = (text: string) => {
   // Youtube link is higher priority than regular link
-  let linkMatch = text.match(LINK_REGEX)?.[0]; // || text.match(LINK_REGEX)?.[0];
+  const linkMatch = text.match(LINK_REGEX)?.[0]; // || text.match(LINK_REGEX)?.[0];
   if (!linkMatch) {
     return;
   }
@@ -458,7 +458,9 @@ export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
         Key: storageKey,
       })
     );
-    logger.info(`Video already exists in storage, skipping upload: ${storageKey}`);
+    logger.info(
+      `Video already exists in storage, skipping upload: ${storageKey}`
+    );
   } catch (error: any) {
     // If not found (404), proceed with upload
     if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
@@ -586,7 +588,7 @@ export const translateVideoFinal = async (
     // If user explicitly turned ON enhanced translate
     if (preferEnhanced === true) {
       // If source language is unknown/undefined, live voices are not supported
-      // – false
+      // - false
       // Yandex Translation API is perfectly capable of auto-detecting the language on its backend while still providing Live Translation
 
       // Source language is known, use live voices as requested
@@ -698,7 +700,10 @@ export const translateVideoFinal = async (
         false
       );
     }
-    if (error instanceof TranslateException || error instanceof TranslationStageError) {
+    if (
+      error instanceof TranslateException ||
+      error instanceof TranslationStageError
+    ) {
       throw error;
     }
     logger.error({
