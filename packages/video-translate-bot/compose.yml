@@ -37,13 +37,13 @@ services:
 
   image_translate:
     build:
-      context: ./image-translate
+      context: ../image-translate
       dockerfile: ./Dockerfile
     restart: unless-stopped
     image: image-translate:latest
     container_name: image-translate$CONTAINER_NUMBER
     command: pnpm start
-    env_file: ./image-translate/.env
+    env_file: ../image-translate/.env
     user: root
     volumes:
       - $CHROME_USER_DATA_DIR:/app/$CHROME_USER_DATA_DIR

@@ -13,6 +13,7 @@ export const handler = async (event: Http.Event, context: Context) => {
 
     // Parse body if it's a string
     const payload = typeof body === "string" ? JSON.parse(body) : body;
+    console.log("Incoming request payload:", JSON.stringify(payload, null, 2));
     const {
       url,
       forceRegular,

@@ -115,7 +115,7 @@ EOF
 
 resource "yandex_function" "video-translate-bot-function" {
   name               = "video-translate-bot-function"
-  user_hash          = filebase64sha256("video-translate-bot.zip")
+  user_hash          = filebase64sha256("packages/video-translate-bot/video-translate-bot.zip")
   runtime            = "nodejs18"
   entrypoint         = "build/index.handler"
   service_account_id = var.service_account_id
@@ -178,7 +178,7 @@ resource "yandex_function" "video-translate-bot-function" {
 
 resource "yandex_function" "ytdl-storage-cleanup" {
   name               = "ytdl-storage-cleanup"
-  user_hash          = filebase64sha256("video-translate-bot.zip")
+  user_hash          = filebase64sha256("packages/video-translate-bot/video-translate-bot.zip")
   runtime            = "nodejs18"
   entrypoint         = "build/cleanup.handler"
   service_account_id = var.service_account_id
