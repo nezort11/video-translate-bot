@@ -47,14 +47,14 @@ Instead of letting the cloud build the project, we package the entire `node_modu
 ### Deployment Commands
 **Full Deployment:**
 ```bash
-pnpm video-translate-bot:deploy:full:cached
+pnpm bot:deploy:full:cached
 ```
 This runs the full sequence (build -> swap modules -> package -> upload -> terraform apply) safely.
 
 **Update Production Dependencies:**
 If `node_modules_prod` is missing or needs updating (uses Docker for binary compatibility):
 ```bash
-pnpm npm:reinstall
+pnpm bot:reinstall
 ```
 
 ## Setup
@@ -78,26 +78,14 @@ pnpm install
 git pull
 # make sure right owner are set correctly after
 sudo chown -R pi:pi .
-# make sure run.sh script is executable
-chmod +x ./run.sh
 
-# don't use sudo, because root mode will break some docker-push/yc/aws stuff
-./run.sh docker:build
-./run.sh docker:up
-```
-
-## Docker Deploy (Server)
-
-```sh
-sudo bash ./run.sh docker:build
-sudo bash ./run.sh docker:up
-
-sudo bash ./run.sh docker:restart
+# Run from root using pnpm filter
+pnpm --filter video-translate-bot docker:build
+pnpm --filter video-translate-bot docker:up
 ```
 
 ## cli
 
 ```sh
-url='https://youtu.be/x8J3a5ty3zw' pnpm cli
-NODE_ENV=development pnpm tsx ./src/cli.ts 'https://youtu.be/x8J3a5ty3zw'
+url='https://youtu.be/x8J3a5ty3zw' pnpm bot:cli
 ```

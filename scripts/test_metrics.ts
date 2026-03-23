@@ -1,4 +1,4 @@
-import { MetricsService } from "../src/services/metrics";
+import { MetricsService } from "../packages/video-translate-bot/src/services/metrics";
 import { execSync } from "child_process";
 import * as dotenv from "dotenv";
 import path from "path";
