@@ -32,7 +32,7 @@ jobs:
 
       - name: Build, tag, and push image to Yandex Cloud Container Registry
         run: |
-          docker build -t $IMAGE_NAME .
+          docker build -t $IMAGE_NAME -f packages/video-translate-bot/Dockerfile .
           docker push $IMAGE_NAME
 
       - name: Deploy Serverless Container
@@ -60,10 +60,10 @@ jobs:
             APP_ENV=production
           # adjust to Dockerfile WORKDIR
           revision-storage-mounts: |
-            ${{ vars.ENV_BUCKET_NAME }}:/app/env:read-only
-            ${{ vars.STORAGE_BUCKET_NAME }}:/app/storage:read-write
+            ${{ vars.ENV_BUCKET_NAME }}:/app/packages/video-translate-bot/env:read-only
+            ${{ vars.STORAGE_BUCKET_NAME }}:/app/packages/video-translate-bot/storage:read-write
           revision-ephemeral-mounts: |
-            /app/tmp:2048Mb:rw
+            /app/packages/video-translate-bot/tmp:2048Mb:rw
 
     # steps:
     #   - name: Connect to remote server via SSH
