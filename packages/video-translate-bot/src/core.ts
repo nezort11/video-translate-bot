@@ -1,6 +1,7 @@
 import axios, { AxiosError } from "axios";
 import { Readable } from "stream";
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
+import path from "path";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { logger } from "./logger";
 import {
@@ -788,8 +789,13 @@ export const axiosInstance = axios.create({
 
 // Prefer mounted storage or ephemeral disk for large temporary files.
 // Fallback to /tmp (512MB limit in Yandex Serverless Containers) if no mounted path is available.
-export const TEMP_DIR_PATH = APP_ENV === "local" ? "/tmp" : "/app/tmp";
+export const TEMP_DIR_PATH = "/tmp";
 // process.env.TEMP_DIR_PATH || STORAGE_DIR_PATH || "/tmp";
+
+export const getTempFilePath = (filename: string) => {
+  const name = `${randomBytes(8).toString("hex")}_${filename}`;
+  return path.join(TEMP_DIR_PATH, name);
+};
 
 export const mixTranslatedVideo = (
   videoFilePath: string,
