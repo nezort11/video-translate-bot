@@ -104,6 +104,7 @@ import {
   translateVideoFull,
   axiosInstance,
   TEMP_DIR_PATH,
+  getTempFilePath,
   mixTranslatedVideo,
   cleanupOldChannelMessages,
   UnsupportedPlatformError,
@@ -2132,7 +2133,7 @@ bot.action(/.+/, async (context) => {
     // polyfill if duration is not known initially
     // TODO: this must not be executed on thin client, only on worker server
     if (!videoDuration) {
-      const temporaryAudioFilePath = path.join(TEMP_DIR_PATH, "temp.mp3");
+      const temporaryAudioFilePath = getTempFilePath("temp.mp3");
       await fs.writeFile(temporaryAudioFilePath, translateAudioBuffer);
 
       const ffprobeData = await new Promise<FfprobeData>((resolve, reject) =>
@@ -2340,8 +2341,8 @@ bot.action(/.+/, async (context) => {
     // const videoFilePath = "source.mp4";
     // const audioFilePath = "source2.mp3";
     // const translateAudioFilePath = "source3.mp3";
-    const videoFilePath = path.join(TEMP_DIR_PATH, "source.mp4");
-    const translateAudioFilePath = path.join(TEMP_DIR_PATH, "source3.mp3");
+    const videoFilePath = getTempFilePath("source.mp4");
+    const translateAudioFilePath = getTempFilePath("source3.mp3");
 
     // ffmpeg.FS("writeFile", videoFilePath, videoBuffer);
     // // ffmpeg.FS("writeFile", audioFilePath, audioBuffer);
@@ -2512,7 +2513,7 @@ bot.action(/.+/, async (context) => {
         },
         [ActionType.TranslateVideo]: async () => {
           // const resultFilePath = "video.mp4";
-          const resultFilePath = path.join(TEMP_DIR_PATH, "video.mp4");
+          const resultFilePath = getTempFilePath("video.mp4");
 
           // // prettier-ignore
           // await ffmpeg.run(

@@ -22,6 +22,7 @@ import { DEBUG_ENV, STORAGE_CHANNEL_CHAT_ID, YTDL_STORAGE_BUCKET } from "./env";
 import { downloadMessageFile, useTelegramClient } from "./telegramclient";
 import {
   TEMP_DIR_PATH,
+  getTempFilePath,
   VideoPlatform,
   axiosInstance,
   mixTranslatedVideo,
@@ -205,12 +206,12 @@ app.post(
       const videoBuffer = Buffer.from(videoResponse.data);
       logger.info(`Downloaded video: ${videoBuffer.length}`);
 
-      const videoFilePath = path.join(TEMP_DIR_PATH, "source.mp4");
-      const translatedAudioFilePath = path.join(TEMP_DIR_PATH, "source3.mp3");
+      const videoFilePath = getTempFilePath("source.mp4");
+      const translatedAudioFilePath = getTempFilePath("source3.mp3");
       await fs.writeFile(videoFilePath, videoBuffer);
       await fs.writeFile(translatedAudioFilePath, translateAudioBuffer);
 
-      const resultFilePath = path.join(TEMP_DIR_PATH, "video.mp4");
+      const resultFilePath = getTempFilePath("video.mp4");
       await mixTranslatedVideo(
         videoFilePath,
         translatedAudioFilePath,

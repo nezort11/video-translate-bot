@@ -205,6 +205,7 @@ resource "yandex_function" "ytdl-storage-cleanup" {
   }
 
   environment = {
+    APP_ENV             = "production"
     CLEANUP_MINUTES     = "60"
     YTDL_STORAGE_BUCKET = var.ytdl_storage_bucket_name
     S3_ENDPOINT         = "https://storage.yandexcloud.net"
@@ -371,6 +372,10 @@ resource "yandex_function" "admin-api" {
       bucket = yandex_storage_bucket.video-translate-admin-api-env.bucket
     }
   }
+
+  environment = {
+    APP_ENV = "production"
+  }
 }
 
 resource "yandex_api_gateway" "admin-api-gateway" {
@@ -475,6 +480,10 @@ resource "yandex_function" "vtrans-service" {
     object_storage {
       bucket = yandex_storage_bucket.video-translate-vtrans-service-env.bucket
     }
+  }
+
+  environment = {
+    APP_ENV = "production"
   }
 }
 
