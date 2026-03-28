@@ -54,12 +54,52 @@ const initUpdatesTable = async () => {
           CREATE TABLE IF NOT EXISTS updates (
             update_id Uint64,
             update_data Json,
+            event_timestamp Uint64,
             PRIMARY KEY (update_id)
+          );
+          CREATE TABLE IF NOT EXISTS events (
+            event_id Utf8,
+            event_type Utf8,
+            created_at Uint64,
+            payload Json,
+            PRIMARY KEY (event_id)
           );
         `,
       });
     },
   });
+};
+
+/**
+ * Track a system event in the events table
+ */
+export const trackEvent = async (
+  eventType: string,
+  payload: Record<string, any>
+) => {
+  try {
+    const eventId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const createdAt = Math.floor(Date.now() / 1000);
+
+    await driver.tableClient.withSessionRetry(async (session) => {
+      await session.executeQuery(
+        `DECLARE $event_id AS Utf8;
+         DECLARE $event_type AS Utf8;
+         DECLARE $created_at AS Uint64;
+         DECLARE $payload AS Json;
+         UPSERT INTO events (event_id, event_type, created_at, payload)
+         VALUES ($event_id, $event_type, $created_at, $payload);`,
+        {
+          $event_id: TypedValues.utf8(eventId),
+          $event_type: TypedValues.utf8(eventType),
+          $created_at: TypedValues.uint64(createdAt),
+          $payload: TypedValues.json(JSON.stringify(payload)),
+        }
+      );
+    });
+  } catch (error) {
+    logger.warn("track event error", error);
+  }
 };
 
 /**

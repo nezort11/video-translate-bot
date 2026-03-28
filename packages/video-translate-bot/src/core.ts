@@ -29,6 +29,7 @@ import {
   VideoTranslateResponse,
   translateVideo,
 } from "./services/vtrans";
+import { trackEvent } from "./db";
 import { duration, subtract, diff, isValidDate } from "./time";
 import http from "http";
 import https from "https";
@@ -558,6 +559,12 @@ export const translateVideoFinal = async (
         ...baseLabels,
         mode: "regular",
       });
+      trackEvent("translation_success", {
+        type: baseLabels.type,
+        url,
+        mode: "regular",
+        duration_ms: Date.now() - startTime,
+      });
       return res;
     }
 
@@ -582,6 +589,12 @@ export const translateVideoFinal = async (
       getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
         ...baseLabels,
         mode: "regular",
+      });
+      trackEvent("translation_success", {
+        type: baseLabels.type,
+        url,
+        mode: "regular",
+        duration_ms: Date.now() - startTime,
       });
       return res;
     }
@@ -613,6 +626,12 @@ export const translateVideoFinal = async (
         ...baseLabels,
         mode: "enhanced",
       });
+      trackEvent("translation_success", {
+        type: baseLabels.type,
+        url,
+        mode: "enhanced",
+        duration_ms: Date.now() - startTime,
+      });
       return res;
     }
 
@@ -638,6 +657,12 @@ export const translateVideoFinal = async (
       getGlobalMetricsService()?.writeDuration(Date.now() - startTime, {
         ...baseLabels,
         mode: "enhanced",
+      });
+      trackEvent("translation_success", {
+        type: baseLabels.type,
+        url,
+        mode: "enhanced",
+        duration_ms: Date.now() - startTime,
       });
       return res;
     } catch (firstError) {
@@ -682,6 +707,12 @@ export const translateVideoFinal = async (
         ...baseLabels,
         mode: "regular",
       });
+      trackEvent("translation_success", {
+        type: baseLabels.type,
+        url,
+        mode: "regular",
+        duration_ms: Date.now() - startTime,
+      });
       return res;
     }
   } catch (error) {
@@ -716,6 +747,12 @@ export const translateVideoFinal = async (
     getGlobalMetricsService()?.writeError({
       ...baseLabels,
       error: error instanceof Error ? error.name : "unknown",
+    });
+    trackEvent("translation_error", {
+      type: baseLabels.type,
+      url,
+      error: error instanceof Error ? error.message : String(error),
+      duration_ms: Date.now() - startTime,
     });
     throw new TranslationStageError(
       "error_audio_translation",

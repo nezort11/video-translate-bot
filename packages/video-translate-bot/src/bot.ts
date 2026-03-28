@@ -1,4 +1,5 @@
 import { BotContext, bot } from "./botinstance";
+import { generateDailyReport } from "./report";
 
 // import { S3Session } from "telegraf-session-s33";
 import i18next, { TFunction } from "i18next";
@@ -1170,6 +1171,20 @@ bot.command("debug_stats", async (context) => {
   });
 
   await context.reply(`Total updates: ${updatesCount}\n` + `Total users:`);
+});
+
+bot.command("report", async (context) => {
+  const isAdmin = ADMIN_IDS.includes(String(context.from?.id ?? 0));
+  if (!isAdmin) return;
+
+  await context.reply("🔄 Генерирую отчет...");
+  try {
+    const result = await generateDailyReport();
+    await context.reply(`✅ Готово: ${result}`);
+  } catch (error) {
+    logger.error("Report command error:", error);
+    await context.reply(`❌ Ошибка генерации отчета: ${error}`);
+  }
 });
 
 bot.command("debug_vtrans", async (context) => {
