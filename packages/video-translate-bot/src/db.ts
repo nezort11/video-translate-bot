@@ -1,4 +1,5 @@
 import { Driver, getCredentialsFromEnv, TypedValues } from "ydb-sdk";
+export { TypedValues };
 import { Ydb } from "telegraf-session-store-ydb";
 import path from "path";
 import { MOUNT_ROOT_DIR_PATH, YDB_DATABASE, YDB_ENDPOINT } from "./env";

@@ -23,9 +23,9 @@ export const generateDailyReport = async () => {
       }
     );
 
-    events = result.resultSets[0].rows.map((row) => ({
-      event_type: row.items[0].textValue,
-      payload: JSON.parse(row.items[1].textValue || "{}"),
+    events = (result.resultSets?.[0]?.rows || []).map((row) => ({
+      event_type: row.items?.[0]?.textValue || "unknown",
+      payload: JSON.parse(row.items?.[1]?.textValue || "{}"),
     }));
   });
 
