@@ -13,7 +13,6 @@ COPY patches ./patches
 # Copy all package.json files from the workspace to satisfy pnpm requirements
 COPY packages/admin-api/package.json ./packages/admin-api/package.json
 COPY packages/admin-dashboard/package.json ./packages/admin-dashboard/package.json
-COPY packages/image-translate/package.json ./packages/image-translate/package.json
 COPY packages/video-translate-app/package.json ./packages/video-translate-app/package.json
 COPY packages/video-translate-bot/package.json ./packages/video-translate-bot/package.json
 COPY packages/video-translate-server/package.json ./packages/video-translate-server/package.json

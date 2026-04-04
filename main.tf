@@ -70,7 +70,7 @@ resource "yandex_function_trigger" "video-translate-bot-queue-trigger" {
   description = "Trigger for container on new messages in my-queue"
 
   message_queue {
-    queue_id           = yandex_message_queue.video-translate-bot-queue.arn
+    queue_id           = "yrn:yc:ymq:ru-central1:${var.yc_folder_id}:video-translate-bot-queue"
     service_account_id = var.service_account_id
 
     batch_cutoff = 0

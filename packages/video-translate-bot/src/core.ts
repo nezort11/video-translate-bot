@@ -6,7 +6,6 @@ import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { logger } from "./logger";
 import {
   APP_ENV,
-  IMAGE_TRANSLATE_URL,
   OPENAI_API_BASE_URL,
   OPENAI_API_KEY,
   YTDL_STORAGE_BUCKET,
@@ -343,31 +342,6 @@ export const proxyUrlIfNeeded = (url: string): string => {
 };
 
 export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
-  // Try to translate thumbnail if service is configured
-  // TODO: fix the image translate service
-  // if (IMAGE_TRANSLATE_URL) {
-  //   logger.info("Requesting to translate video thumbnail...");
-  //   try {
-  //     // Use proxy for YouTube URLs when sending to translation service
-  //     const proxiedThumbnailUrl = proxyUrlIfNeeded(videoThumbnailUrl);
-
-  //     const { data } = await axios.post<ArrayBuffer>(
-  //       IMAGE_TRANSLATE_URL,
-  //       { imageLink: proxiedThumbnailUrl },
-  //       { responseType: "arraybuffer" }
-  //     );
-
-  //     logger.info(`Translated video thumbnail: ${data.byteLength}`);
-  //     return createThumbnailBuffer(data);
-  //   } catch (error) {
-  //     handleRequestError(error, "getting translated video thumbnail failed");
-  //   }
-  // } else {
-  //   logger.warn(
-  //     "IMAGE_TRANSLATE_URL is not configured. Skipping thumbnail translation."
-  //   );
-  // }
-
   logger.info("Downloading original video thumbnail...");
   try {
     // Use proxy for YouTube URLs if configured
