@@ -229,6 +229,58 @@ resource "yandex_function_trigger" "ytdl-storage-cleanup-hourly" {
   }
 }
 
+# =============================================================================
+# Daily Report Generation
+# =============================================================================
+
+resource "yandex_function" "daily-reporter" {
+  name               = "daily-reporter"
+  user_hash          = filebase64sha256("packages/video-translate-bot/video-translate-bot.zip")
+  runtime            = "nodejs18"
+  entrypoint         = "build/report.handler"
+  service_account_id = var.service_account_id
+
+  memory            = 128
+  execution_timeout = 60
+
+  log_options {
+    log_group_id = yandex_logging_group.video_translate_bot_logs.id
+  }
+
+  package {
+    bucket_name = yandex_storage_bucket.video-translate-bot-code.id
+    object_name = "function.zip"
+  }
+
+  mounts {
+    name = "env"
+    mode = "ro"
+    object_storage {
+      bucket = yandex_storage_bucket.video-translate-bot-env.bucket
+    }
+  }
+
+  environment = {
+    APP_ENV           = "production"
+    REPORT_CHANNEL_ID = var.report_channel_id
+  }
+}
+
+resource "yandex_function_trigger" "daily-report-timer" {
+  name        = "daily-report-timer"
+  description = "Trigger daily report at 09:00 UTC+3 (06:00 UTC)"
+
+  timer {
+    # 06:00 UTC = 09:00 UTC+3
+    cron_expression = "0 6 * * ? *"
+  }
+
+  function {
+    id                 = yandex_function.daily-reporter.id
+    service_account_id = var.service_account_id
+  }
+}
+
 resource "yandex_message_queue" "video-translate-bot-function-queue" {
   name = "video-translate-bot-function-queue"
 }

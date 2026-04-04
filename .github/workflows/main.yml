@@ -17,6 +17,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       IMAGE_NAME: cr.yandex/${{ vars.REGISTRY_ID }}/${{ vars.CONTAINER_NAME }}:${{ vars.IMAGE_TAG }}
 

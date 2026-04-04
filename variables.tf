@@ -44,3 +44,9 @@ variable "ytdl_storage_bucket_name" {
   description = "Bucket name used by YTDL service for temporary storage"
   type        = string
 }
+
+variable "report_channel_id" {
+  description = "Telegram Channel ID for daily reports"
+  type        = string
+  default     = ""
+}
