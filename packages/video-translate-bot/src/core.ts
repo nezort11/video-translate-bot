@@ -754,8 +754,10 @@ export const translateVideoFull = async (
 ): Promise<VideoTranslateResponse> => {
   let sourceLanguage: string | undefined = sourceLanguageOverride;
 
-  // Only auto-detect if no manual override was provided
-  if (sourceLanguage === undefined) {
+  const isDirectMp4 = url.toLowerCase().includes(".mp4");
+
+  // Only auto-detect if no manual override was provided and it's not a direct mp4
+  if (sourceLanguage === undefined && !isDirectMp4) {
     // Detect source language from video
     try {
       logger.info("🔍 Detecting video language...");
@@ -770,7 +772,9 @@ export const translateVideoFull = async (
       logger.warn("⚠️  Failed to detect language, using auto-detection", error);
     }
   } else {
-    logger.info(`🔧 Using manual source language: ${sourceLanguage}`);
+    logger.info(
+      `🔧 Using literal/manual source language or skipping detection for mp4: ${sourceLanguage || "auto"}`
+    );
   }
 
   // Call translateVideoFinal with detected or manual language
