@@ -35,7 +35,7 @@
     "npm:pre": "rm -rf node_modules && mkdir -p node_modules_prod && ln -snf node_modules_prod node_modules",
     "npm:post": "if [ -d node_modules ] && [ ! -L node_modules ]; then rm -rf node_modules_prod && mv node_modules node_modules_prod; fi; ln -snf node_modules_dev node_modules",
     "npm:reinstall": "pnpm npm:pre && pnpm npm:install && pnpm npm:post",
-    "app:package": "rm -f ./video-translate-bot.zip && zip -r ./video-translate-bot.zip ./package.json ./node_modules ./build ./locales",
+    "app:package": "rm -f ./video-translate-bot.zip && zip -r ./video-translate-bot.zip ./node_modules ./build ./locales",
     "app:package:no-deps": "rm -f ./video-translate-bot.zip && zip -r ./video-translate-bot.zip ./package.json ./build ./locales",
     "video-translate-bot:upload": "yc storage s3api put-object --bucket video-translate-bot-code --key function.zip --body ./video-translate-bot.zip",
     "video-translate-bot:rebuild": "npm rebuild better-sqlite3 --target_platform=linux --target_arch=x64",
