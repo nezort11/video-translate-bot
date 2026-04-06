@@ -31,7 +31,7 @@ export const store = Ydb<any>({
   driver,
   driverOptions: { enableReadyCheck: true },
   tableOptions: {
-    shouldCreateTable: true,
+    shouldCreateTable: false,
     tableName: "store",
     keyColumnName: "key",
     sessionColumnName: "value",
@@ -42,12 +42,12 @@ export const sessionStore = Ydb<any>({
   driver,
   driverOptions: { enableReadyCheck: true },
   tableOptions: {
-    shouldCreateTable: true,
+    shouldCreateTable: false,
     tableName: "telegraf-sessions",
   },
 });
 
-const initUpdatesTable = async () => {
+export const initUpdatesTable = async () => {
   await driver.queryClient.do({
     fn: async (session) => {
       await session.execute({
