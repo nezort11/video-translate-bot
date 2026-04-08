@@ -31,7 +31,9 @@ export const generateDailyReport = async () => {
 
   if (events.length === 0) {
     const msg = `📊 *Ежедневный отчет*\nЗа последние 24 часа событий не зафиксировано.`;
-    await tg.sendMessage(REPORT_CHANNEL_CHAT_ID, msg, { parse_mode: "Markdown" });
+    await tg.sendMessage(REPORT_CHANNEL_CHAT_ID, msg, {
+      parse_mode: "Markdown",
+    });
     return "No events found.";
   }
 
@@ -93,7 +95,9 @@ export const generateDailyReport = async () => {
     topErrorsList ? `Топ-3 причины:\n${topErrorsList}` : "",
     "",
     `👥 *Всего событий: ${stats.total}*`,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   try {
     await tg.sendMessage(REPORT_CHANNEL_CHAT_ID, reportMessage, {

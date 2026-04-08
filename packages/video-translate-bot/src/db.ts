@@ -79,7 +79,8 @@ export const trackEvent = async (
   payload: Record<string, any>
 ) => {
   try {
-    const eventId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const eventId =
+      Math.random().toString(36).substring(2) + Date.now().toString(36);
     const createdAt = Math.floor(Date.now() / 1000);
 
     await driver.tableClient.withSessionRetry(async (session) => {
