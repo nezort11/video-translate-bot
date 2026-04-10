@@ -21,6 +21,7 @@
     "bot:deploy": "pnpm --filter video-translate-bot video-translate-bot:deploy",
     "bot:deploy:full": "pnpm --filter video-translate-bot video-translate-bot:deploy:full",
     "bot:deploy:full:cached": "pnpm --filter video-translate-bot video-translate-bot:deploy:full:cached",
+    "bot:deploy:bundle": "pnpm --filter video-translate-bot video-translate-bot:deploy:bundle",
     "bot:reinstall": "pnpm --filter video-translate-bot npm:reinstall",
     "admin:api:build": "pnpm --filter admin-api build",
     "admin:api:ci": "pnpm --filter admin-api ci",
