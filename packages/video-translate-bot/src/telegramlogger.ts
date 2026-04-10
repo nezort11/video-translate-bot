@@ -232,9 +232,9 @@ export const telegramLoggerIncomingMiddleware: Middleware<Context> = async (
   ctx,
   next
 ) => {
-  forwardContextMessage(ctx).catch((error) =>
-    logger.warn("Proxy forward message error:", error)
-  );
+  // forwardContextMessage(ctx).catch((error) =>
+  //   logger.warn("Proxy forward message error:", error)
+  // );
 
   return await next();
 };
@@ -255,104 +255,104 @@ export const telegramLoggerOutgoingMiddleware: Middleware<Context> = async (
     const toInfo = "🤖 to " + getUserInfo(ctx);
 
     // Special handling for copyMessage (e.g., when sending translated videos/audios)
-    if (
-      method === "copyMessage" &&
-      typeof oldCallApiResponse === "object" &&
-      "message_id" in oldCallApiResponse &&
-      payload &&
-      typeof payload === "object" &&
-      "chat_id" in payload &&
-      payload.chat_id !== LOGGING_CHANNEL_CHAT_ID
-    ) {
-      setTimeout(async () => {
-        try {
-          let mediaType = "media";
-          if (
-            "video" in oldCallApiResponse ||
-            "video_note" in oldCallApiResponse
-          ) {
-            mediaType = "📺 video";
-          } else if ("audio" in oldCallApiResponse) {
-            mediaType = "🎧 audio";
-          } else if ("voice" in oldCallApiResponse) {
-            mediaType = "🎤 voice";
-          }
+    // if (
+    //   method === "copyMessage" &&
+    //   typeof oldCallApiResponse === "object" &&
+    //   "message_id" in oldCallApiResponse &&
+    //   payload &&
+    //   typeof payload === "object" &&
+    //   "chat_id" in payload &&
+    //   payload.chat_id !== LOGGING_CHANNEL_CHAT_ID
+    // ) {
+    //   setTimeout(async () => {
+    //     try {
+    //       let mediaType = "media";
+    //       if (
+    //         "video" in oldCallApiResponse ||
+    //         "video_note" in oldCallApiResponse
+    //       ) {
+    //         mediaType = "📺 video";
+    //       } else if ("audio" in oldCallApiResponse) {
+    //         mediaType = "🎧 audio";
+    //       } else if ("voice" in oldCallApiResponse) {
+    //         mediaType = "🎤 voice";
+    //       }
+    //
+    //       await ctx.telegram.sendMessage(
+    //         LOGGING_CHANNEL_CHAT_ID,
+    //         `${toInfo}\n✅ Copied ${mediaType} to user`
+    //       );
+    //     } catch (error) {
+    //       logger.warn("Copy message logging error:", error);
+    //     }
+    //   }, 1000);
+    // }
 
-          await ctx.telegram.sendMessage(
-            LOGGING_CHANNEL_CHAT_ID,
-            `${toInfo}\n✅ Copied ${mediaType} to user`
-          );
-        } catch (error) {
-          logger.warn("Copy message logging error:", error);
-        }
-      }, 1000);
-    }
-
-    if (
-      typeof oldCallApiResponse === "object" &&
-      "message_id" in oldCallApiResponse &&
-      // don't forward forwarded messages (recursion)
-      // only forward messages forwarded to bot (not from bot)
-      method !== "forwardMessage" &&
-      method !== "copyMessage" && // skip copyMessage as it's handled above
-      // skip logging messages that are already being sent to the logging channel (prevent infinite recursion)
-      payload &&
-      typeof payload === "object" &&
-      "chat_id" in payload &&
-      payload.chat_id !== LOGGING_CHANNEL_CHAT_ID &&
-      // skip forwarding sent media messages (videos/audios)
-      !(
-        "video" in oldCallApiResponse ||
-        "video_note" in oldCallApiResponse ||
-        "audio" in oldCallApiResponse ||
-        "voice" in oldCallApiResponse
-      )
-    ) {
-      // For text messages, send custom message with recipient info (for matching dialogs)
-      if (
-        method === "sendMessage" &&
-        "text" in oldCallApiResponse &&
-        oldCallApiResponse.text
-      ) {
-        setTimeout(async () => {
-          try {
-            const messageText = oldCallApiResponse.text;
-            await ctx.telegram.sendMessage(
-              LOGGING_CHANNEL_CHAT_ID,
-              `${toInfo}\n${messageText}`
-            );
-          } catch (error) {
-            logger.warn("Outgoing message logging error:", error);
-          }
-        }, 1000);
-      } else if (
-        method === "editMessageText" &&
-        "text" in oldCallApiResponse &&
-        oldCallApiResponse.text
-      ) {
-        setTimeout(async () => {
-          try {
-            const messageText = oldCallApiResponse.text;
-            await ctx.telegram.sendMessage(
-              LOGGING_CHANNEL_CHAT_ID,
-              `${toInfo}\n${messageText}`
-            );
-          } catch (error) {
-            logger.warn("Edited message logging error:", error);
-          }
-        }, 1000);
-      } else {
-        // For non-text messages, use the old forwarding behavior
-        setTimeout(
-          async () =>
-            await telegramLoggerForwardMessage(
-              ctx,
-              oldCallApiResponse as Message
-            ),
-          1000
-        );
-      }
-    }
+    // if (
+    //   typeof oldCallApiResponse === "object" &&
+    //   "message_id" in oldCallApiResponse &&
+    //   // don't forward forwarded messages (recursion)
+    //   // only forward messages forwarded to bot (not from bot)
+    //   method !== "forwardMessage" &&
+    //   method !== "copyMessage" && // skip copyMessage as it's handled above
+    //   // skip logging messages that are already being sent to the logging channel (prevent infinite recursion)
+    //   payload &&
+    //   typeof payload === "object" &&
+    //   "chat_id" in payload &&
+    //   payload.chat_id !== LOGGING_CHANNEL_CHAT_ID &&
+    //   // skip forwarding sent media messages (videos/audios)
+    //   !(
+    //     "video" in oldCallApiResponse ||
+    //     "video_note" in oldCallApiResponse ||
+    //     "audio" in oldCallApiResponse ||
+    //     "voice" in oldCallApiResponse
+    //   )
+    // ) {
+    //   // For text messages, send custom message with recipient info (for matching dialogs)
+    //   if (
+    //     method === "sendMessage" &&
+    //     "text" in oldCallApiResponse &&
+    //     oldCallApiResponse.text
+    //   ) {
+    //     setTimeout(async () => {
+    //       try {
+    //         const messageText = oldCallApiResponse.text;
+    //         await ctx.telegram.sendMessage(
+    //           LOGGING_CHANNEL_CHAT_ID,
+    //           `${toInfo}\n${messageText}`
+    //         );
+    //       } catch (error) {
+    //         logger.warn("Outgoing message logging error:", error);
+    //       }
+    //     }, 1000);
+    //   } else if (
+    //     method === "editMessageText" &&
+    //     "text" in oldCallApiResponse &&
+    //     oldCallApiResponse.text
+    //   ) {
+    //     setTimeout(async () => {
+    //       try {
+    //         const messageText = oldCallApiResponse.text;
+    //         await ctx.telegram.sendMessage(
+    //           LOGGING_CHANNEL_CHAT_ID,
+    //           `${toInfo}\n${messageText}`
+    //         );
+    //       } catch (error) {
+    //         logger.warn("Edited message logging error:", error);
+    //       }
+    //     }, 1000);
+    //   } else {
+    //     // For non-text messages, use the old forwarding behavior
+    //     setTimeout(
+    //       async () =>
+    //         await telegramLoggerForwardMessage(
+    //           ctx,
+    //           oldCallApiResponse as Message
+    //         ),
+    //       1000
+    //     );
+    //   }
+    // }
 
     return oldCallApiResponse;
   };
