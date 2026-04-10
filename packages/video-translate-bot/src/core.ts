@@ -887,7 +887,7 @@ export const mixTranslatedVideo = (
 
 export const cleanupOldChannelMessages = async (
   telegramClient: TelegramClient,
-  channelId: string,
+  channelId: string | number,
   options?: { hours?: number; batchSize?: number }
 ) => {
   const hours = options?.hours ?? 1;

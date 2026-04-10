@@ -35,7 +35,9 @@
     "vtrans:cd": "pnpm --filter vtrans-service cd",
     "vtrans:cicd": "pnpm --filter vtrans-service cicd",
     "env:backup": "zip -r env-artifacts.zip terraform.tfstate* state.json .terraform.lock.hcl main.tf variables.tf outputs.tf metrics.tf package.json pnpm-workspace.yaml pnpm-lock.yaml terraform.env .env_remote packages/video-translate-bot/env/ packages/vtrans-service/env/ packages/admin-api/env/ && yc storage s3api put-object --bucket nezort11-bot-env --key video-translate-bot/env-artifacts.zip --body ./env-artifacts.zip && rm env-artifacts.zip",
-    "env:restore": "yc storage s3api get-object --bucket nezort11-bot-env --key video-translate-bot/env-artifacts.zip env-artifacts.zip && unzip -o env-artifacts.zip && rm env-artifacts.zip"
+    "env:restore": "yc storage s3api get-object --bucket nezort11-bot-env --key video-translate-bot/env-artifacts.zip env-artifacts.zip && unzip -o env-artifacts.zip && rm env-artifacts.zip",
+    "bot:env:push": "pnpm --filter video-translate-bot env:push",
+    "bot:env:pull": "pnpm --filter video-translate-bot env:pull"
   },
   "devDependencies": {
     "eslint": "8.57.1",
