@@ -315,18 +315,20 @@ if (require.main === module) {
       QUEUE_WEBHOOK_PATH,
       async (req: Request<object, object, MessageQueue.Event>, res) => {
         try {
-          logger.info(
-            "queue webhook incoming request body",
-            typeof req,
-            typeof req.body,
-            req.body
-          );
           const messages = req.body.messages;
-          logger.info("queue webhook messages received", messages);
-          // only handle single message from queue. adjust according to trigger `batch_size`
           const message = messages[0];
-
           const updateBody = message.details.message.body;
+          const update =
+            typeof updateBody === "string"
+              ? JSON.parse(updateBody)
+              : updateBody;
+
+          logger.info("queue webhook incoming request", {
+            update_id: update?.update_id,
+            message_id: (message.event_metadata as any)?.message_id,
+            path: QUEUE_WEBHOOK_PATH,
+          });
+
           // Proxy all queue request as update requests to webhook handler
           await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
             {
@@ -338,6 +340,7 @@ if (require.main === module) {
             res
           );
         } catch (error) {
+          logger.error("Error in queue webhook handler:", error);
           await handleInternalErrorExpress(error, res);
         }
       }

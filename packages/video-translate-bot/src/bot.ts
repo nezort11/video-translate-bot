@@ -43,6 +43,7 @@ import { VideoTranslateResponse } from "./services/vtrans";
 //   // translateVideo,
 // } from "./translate";
 import {
+  AuthKeyDuplicatedError,
   NoOpenTelegramSessionError,
   TelegramDownloadTimeoutError,
   delegateDownloadLargeFile,
@@ -95,6 +96,7 @@ import {
 } from "./services/vtrans";
 import {
   VideoPlatform,
+  AXIOS_REQUEST_TIMEOUT,
   getVideoInfo,
   getVideoPlatform,
   getYoutubeVideoId,
@@ -684,6 +686,17 @@ const handleError = async (error: unknown, context: Context) => {
       return;
     }
 
+    if (error instanceof AuthKeyDuplicatedError) {
+      await bot.telegram.sendMessage(
+        ALERTS_CHANNEL_CHAT_ID,
+        `🚨 <b>AUTH_KEY_DUPLICATED (406)</b>\n\nSession selection conflict detected.`,
+        {
+          parse_mode: "HTML",
+        }
+      );
+      // Don't return, let it fall through to generic error reply to user
+    }
+
     // Handle Telegram download timeout errors
     if (error instanceof TelegramDownloadTimeoutError) {
       logger.warn("[WARN] Telegram download timeout:", error);
@@ -704,31 +717,6 @@ const handleError = async (error: unknown, context: Context) => {
       await replyError(context, t("video_download_temporary_error"));
       return;
     }
-
-    // Handle YTDL download errors (YouTube blocking, empty files, etc.)
-    if (error instanceof YtdlDownloadError) {
-      logger.warn("[WARN] YTDL download error:", (error as Error).message);
-      await replyError(context, t("video_download_temporary_error"));
-
-      // Send alert to admin channel
-      try {
-        const alertMessage =
-          `⚠️ <b>YTDL Download Failure</b>\n\n` +
-          `<b>User:</b> ${context.from?.id} (@${context.from?.username || "unknown"})\n` +
-          `<b>Error:</b> <code>${(error as Error).message}</code>\n` +
-          `<b>Time:</b> ${new Date().toISOString()}`;
-
-        await bot.telegram.sendMessage(ALERTS_CHANNEL_CHAT_ID, alertMessage, {
-          parse_mode: "HTML",
-        });
-      } catch (alertError) {
-        logger.warn(
-          "Failed to send YTDL download alert:",
-          (alertError as Error).message
-        );
-      }
-      return;
-    }
   }
 
   logger.error(error);
@@ -738,30 +726,6 @@ const handleError = async (error: unknown, context: Context) => {
   }
 
   await replyError(context, t("error_retry"));
-  if (APP_ENV !== "local") {
-    try {
-      const TELEGRAM_MAX_LENGTH = 4096;
-      // 32 is the overhead from formatting (emoji, code tags, etc.)
-      const maxErrorLength = TELEGRAM_MAX_LENGTH - 32;
-
-      // Step 1: Serialize and escape error (escaping can increase length)
-      const escapedError = serializeAndEscapeError(error);
-
-      // Step 2: Truncate the escaped text to fit within the limit
-      const truncatedError = truncateText(escapedError, maxErrorLength);
-
-      const message = `🚨 <code>${truncatedError}</code>`;
-
-      await telegramLoggerContext.reply(message, {
-        parse_mode: "HTML",
-      });
-      await bot.telegram.sendMessage(ALERTS_CHANNEL_CHAT_ID, message, {
-        parse_mode: "HTML" as const,
-      });
-    } catch (error) {
-      logger.warn("Error while sending error inspect", error);
-    }
-  }
 };
 
 const handleTranslateInProgress = async (
@@ -1977,8 +1941,9 @@ bot.action(/.+/, async (context) => {
         if (error instanceof TranslateException) {
           // Check if it's an MP4 file (Telegram platform)
           if (videoPlatform === VideoPlatform.Telegram) {
-            await replyError(context, t("cannot_translate_mp4"));
-            return;
+            // Log the error but let it propagate to show a generic error to the user
+            // instead of a hard block. This helps debugging and avoids masking successes.
+            logger.warn("Telegram MP4 translation exception:", error);
           }
 
           if (error.message) {
@@ -2042,9 +2007,6 @@ bot.action(/.+/, async (context) => {
         actionType === ActionType.TranslateAudio) &&
       LAMBDA_TASK_ROOT
     ) {
-      // if running inside cloud function delegate translating process to the more performant machine (docker container worker)
-      // preserve action data back for container
-      setActionData(context, routerId, actionId, actionData);
       if (translationUrl) {
         setRouterSessionData(
           context,
@@ -2054,8 +2016,23 @@ bot.action(/.+/, async (context) => {
         );
       }
 
-      // proxy/delegate update to worker bot server queue
-      await axios.post(WORKER_BOT_SERVER_WEBHOOK_URL, context.update);
+      logger.info(
+        `Delegating translation of update ${context.update.update_id} to worker gateway: ${WORKER_BOT_SERVER_WEBHOOK_URL}`
+      );
+      try {
+        await axios.post(WORKER_BOT_SERVER_WEBHOOK_URL!, context.update, {
+          timeout: AXIOS_REQUEST_TIMEOUT,
+        });
+        logger.info(
+          `Successfully delegated update ${context.update.update_id} to worker`
+        );
+      } catch (error: any) {
+        logger.error(
+          `Failed to delegate update ${context.update.update_id} to worker:`,
+          error?.message || error
+        );
+        throw error;
+      }
       return;
     }
 
@@ -2569,37 +2546,67 @@ bot.action(/.+/, async (context) => {
             videoCaption = undefined;
           }
 
-          logger.info("Uploading to telegram channel...");
-          await useTelegramClient(async (telegramClient) => {
-            const fileMessage = await telegramClient.sendFile(
-              STORAGE_CHANNEL_CHAT_ID,
-              {
-                file: outputBuffer,
-                caption: videoCaption,
-                parseMode: "html",
-                thumb: thumbnailBuffer || undefined,
-                attributes: [
-                  new Api.DocumentAttributeVideo({
-                    // w: 320,
-                    // h: 180,
-                    // w: 16,
-                    // h: 9,
-                    w: 640,
-                    h: 360,
-                    duration: Math.floor(videoDuration),
-                    supportsStreaming: true,
-                  }),
-                ],
-              }
-            );
-            translatedFileMessage = fileMessage;
-          });
+          logger.info("Uploading translated video to telegram...");
+          const videoDurationFormatted = formatDuration(videoDuration);
+          const userInfo = getUserInfo(context);
+
+          try {
+            // Use Bot API for files < 50MB (more reliable in some networks)
+            if (outputBuffer.length < 50 * 1024 * 1024) {
+              logger.info("Using Bot API for upload (file size < 50MB)");
+              const fileMessage = await bot.telegram.sendVideo(
+                STORAGE_CHANNEL_CHAT_ID,
+                {
+                  source: outputBuffer,
+                  filename: `${videoTitle}.mp4`,
+                },
+                {
+                  caption: videoCaption,
+                  parse_mode: "HTML",
+                  duration: Math.floor(videoDuration),
+                  width: 640,
+                  height: 360,
+                  supports_streaming: true,
+                  thumbnail: thumbnailBuffer
+                    ? { source: thumbnailBuffer }
+                    : undefined,
+                }
+              );
+              // @ts-expect-error message id mapping
+              translatedFileMessage = { id: fileMessage.message_id };
+            } else {
+              logger.info("Using GramJS for upload (file size >= 50MB)");
+              await useTelegramClient(async (telegramClient) => {
+                const fileMessage = await telegramClient.sendFile(
+                  STORAGE_CHANNEL_CHAT_ID,
+                  {
+                    file: outputBuffer,
+                    caption: videoCaption,
+                    parseMode: "html",
+                    thumb: thumbnailBuffer || undefined,
+                    attributes: [
+                      new Api.DocumentAttributeVideo({
+                        w: 640,
+                        h: 360,
+                        duration: Math.floor(videoDuration),
+                        supportsStreaming: true,
+                      }),
+                    ],
+                  }
+                );
+                translatedFileMessage = fileMessage;
+              });
+            }
+          } catch (uploadError: any) {
+            logger.error("Failed to upload translated video:", uploadError);
+            throw uploadError;
+          }
         },
         [TranslateType.ChooseVideoQuality]: async () => {},
       }[actionType]();
+
       logger.info(
-        "Uploaded to telegram message id:",
-        translatedFileMessage?.id
+        `Uploaded to telegram message id: ${translatedFileMessage?.id}`
       );
 
       await bot.telegram.copyMessage(

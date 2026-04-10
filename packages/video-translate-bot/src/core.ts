@@ -787,7 +787,7 @@ export const translateVideoFull = async (
   );
 };
 
-const AXIOS_REQUEST_TIMEOUT = duration.minutes(45);
+export const AXIOS_REQUEST_TIMEOUT = duration.minutes(45);
 
 export const axiosInstance = axios.create({
   timeout: AXIOS_REQUEST_TIMEOUT,

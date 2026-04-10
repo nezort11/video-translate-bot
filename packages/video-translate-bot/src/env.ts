@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
-import { getChatId } from "./utils";
+import { getChatId } from "./chatid";
 
 export const NODE_ENV = process.env.NODE_ENV;
 // console.log("NODE_ENV", NODE_ENV);
@@ -136,6 +136,8 @@ export const ALERTS_CHANNEL_CHAT_ID = getChatId(ALERTS_CHANNEL_ID);
 
 export const API_ID = process.env.APP_ID!;
 export const APP_HASH = process.env.APP_HASH!;
+export const SESSION_PROD = process.env.SESSION_PROD!;
+export const SESSION_DEV = process.env.SESSION_DEV!;
 // export const SESSION = (
 //   IS_PRODUCTION ? process.env.SESSION_PROD : process.env.SESSION_DEV
 // )!;

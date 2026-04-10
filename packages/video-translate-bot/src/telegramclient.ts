@@ -14,6 +14,9 @@ import {
   DOTENV_DIR_PATH,
   EXECUTION_TIMEOUT,
   STORAGE_CHANNEL_CHAT_ID,
+  BOT_TOKEN,
+  BOT_PUBLIC_USERNAME,
+  PROXY_SERVER_URI,
   WORKER_APP_SERVER_URL,
 } from "./env";
 import { bot } from "./botinstance";
@@ -23,6 +26,13 @@ import { cleanupOldChannelMessages, uploadVideo } from "./core";
 import { RPCError } from "telegram/errors";
 
 export class CorruptedSessionStringError extends Error {
+  constructor(...args: ConstructorParameters<typeof Error>) {
+    super(...args);
+    this.name = this.constructor.name;
+  }
+}
+
+export class AuthKeyDuplicatedError extends Error {
   constructor(...args: ConstructorParameters<typeof Error>) {
     super(...args);
     this.name = this.constructor.name;
@@ -77,14 +87,18 @@ const getAvailableSessionStringIndex = async (
   ) {
     const telegramSessionInfo = telegramSessionsStore[sessionIndex];
     const isInvalid = telegramSessionInfo?.isInvalid;
-    const lastConnectedAt = telegramSessionInfo?.lastConnectedAt;
+    const isAvailable = (lastConnectedAt: string | undefined): boolean => {
+      const MAX_SESSION_LOCK_TIME = 1800; // 30 minutes
+      return (
+        !lastConnectedAt ||
+        diff.inSeconds(new Date(), new Date(lastConnectedAt)) >=
+          MAX_SESSION_LOCK_TIME
+      );
+    };
 
     if (isInvalid) {
       continue;
-    } else if (
-      lastConnectedAt &&
-      diff.inSeconds(new Date(), new Date(lastConnectedAt)) < EXECUTION_TIMEOUT
-    ) {
+    } else if (!isAvailable(telegramSessionInfo?.lastConnectedAt)) {
       continue;
     } else {
       availableSessionIndices.push(sessionIndex);
@@ -105,12 +119,34 @@ const getAvailableSessionStringIndex = async (
 
 export const getClient = async (sessionString: string) => {
   const session = new StringSession(sessionString);
+
+  let proxy: any = undefined;
+  if (PROXY_SERVER_URI) {
+    try {
+      const url = new URL(PROXY_SERVER_URI);
+      proxy = {
+        ip: url.hostname,
+        port: parseInt(url.port, 10),
+        socksType: url.protocol.replace(":", "") === "socks5" ? 5 : 4,
+        username: url.username || undefined,
+        password: url.password || undefined,
+        timeout: 20,
+      };
+      logger.info(
+        `Using Telegram client proxy: ${url.protocol}//${url.hostname}:${url.port}`
+      );
+    } catch (error) {
+      logger.error("Failed to parse PROXY_SERVER_URI:", error);
+    }
+  }
+
   const _telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
     connectionRetries: 3,
     // Increase timeout from default 10s to 10 minutes for large file downloads
     // Default 10s causes "Request timeout 10000ms exceeded" errors
     timeout: 600000, // 10 minutes in milliseconds
     requestRetries: 3,
+    proxy,
   });
 
   const isLoggedIn = await _telegramClient.isUserAuthorized();
@@ -144,8 +180,18 @@ export const getClient = async (sessionString: string) => {
   try {
     await _telegramClient.getMe();
   } catch (error) {
-    await _telegramClient.disconnect();
+    if (_telegramClient.connected) {
+      await _telegramClient.disconnect();
+    }
     if (error instanceof RPCError) {
+      if (error.code === 406) {
+        throw new AuthKeyDuplicatedError(
+          "Telegram client session has been duplicated (406: AUTH_KEY_DUPLICATED)!",
+          {
+            cause: error,
+          }
+        );
+      }
       throw new CorruptedSessionStringError(
         "Telegram client session has been corrupted!",
         {
@@ -204,7 +250,9 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
 
     return await handler(client);
   } finally {
-    await client.disconnect();
+    if (client.connected) {
+      await client.disconnect();
+    }
 
     telegramSessionsStore = (await store.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
     delete telegramSessionsStore[sessionStringIndex].lastConnectedAt;
