@@ -12,6 +12,7 @@
  */
 
 import * as esbuild from "esbuild";
+import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
@@ -58,6 +59,23 @@ const commonOptions = {
   ],
 
   logLevel: "info",
+  plugins: [
+    {
+      name: "bundle-dynamic-import",
+      setup(build) {
+        // Intercept utils.ts loading to replace dynamicImport with standard import()
+        // This allows esbuild to discover and bundle these dependencies.
+        build.onLoad({ filter: /utils\.ts$/ }, async (args) => {
+          const contents = await fs.readFile(args.path, "utf8");
+          const transformed = contents.replace(
+            /dynamicImport(?:<.*>)?\("(.*)"\)/g,
+            'import("$1")'
+          );
+          return { contents: transformed, loader: "ts" };
+        });
+      },
+    },
+  ],
 };
 
 async function build() {
