@@ -3,9 +3,14 @@ import path from "path";
 import fs from "fs";
 import { getChatId } from "./chatid";
 
-export const NODE_ENV = process.env.NODE_ENV;
-// console.log("NODE_ENV", NODE_ENV);
-export const IS_PRODUCTION = process.env.NODE_ENV !== "development";
+if (!process.env.APP_ENV) {
+  throw new Error(
+    "APP_ENV is not defined. Please explicitly set APP_ENV to 'local' or 'production'."
+  );
+}
+
+export const APP_ENV = process.env.APP_ENV;
+export const IS_PRODUCTION = APP_ENV === "production";
 
 export let IS_PUBLIC = true;
 export const setIsPublic = (isPublic: boolean) => (IS_PUBLIC = isPublic);
@@ -68,13 +73,6 @@ export const MAX_VIDEO_DURATION_MINUTES = +(
   process.env.MAX_VIDEO_DURATION_MINUTES ?? 70
 );
 
-if (!process.env.APP_ENV) {
-  throw new Error(
-    "APP_ENV is not defined. Please explicitly set APP_ENV to 'local' or 'production'."
-  );
-}
-
-export const APP_ENV = process.env.APP_ENV;
 export const DEBUG_ENV = process.env.DEBUG_ENV;
 
 export const PROXY_SERVER_URI = process.env.PROXY_SERVER_URI;
@@ -103,8 +101,7 @@ export const WORKER_APP_SERVER_URL = process.env.WORKER_APP_SERVER_URL;
 export const VIDEO_TRANSLATE_APP_URL = process.env.VIDEO_TRANSLATE_APP_URL;
 export const VTRANS_SERVICE_URL = process.env.VTRANS_SERVICE_URL;
 
-export const VIDEO_TRANSLATE_API_URL = process.env.VIDEO_TRANSLATE_API_URL;
-export const YTDL_API_URL = process.env.YTDL_API_URL;
+export const YTDL_API_BASE_URL = process.env.YTDL_API_BASE_URL;
 
 export const YANDEX_TRANSLATE_HMAC_SHA254_SECRET =
   process.env.YANDEX_TRANSLATE_HMAC_SHA254_SECRET!;
@@ -136,15 +133,9 @@ export const ALERTS_CHANNEL_CHAT_ID = getChatId(ALERTS_CHANNEL_ID);
 
 export const API_ID = process.env.APP_ID!;
 export const APP_HASH = process.env.APP_HASH!;
-export const SESSION_PROD = process.env.SESSION_PROD!;
-export const SESSION_DEV = process.env.SESSION_DEV!;
-// export const SESSION = (
-//   IS_PRODUCTION ? process.env.SESSION_PROD : process.env.SESSION_DEV
-// )!;
 
 export const DEBUG_USER_CHAT_ID = process.env.DEBUG_USER_CHAT_ID!;
 
-export const YTDL_API_BASE_URL = process.env.YTDL_API_BASE_URL;
 export const YTDL_FUNCTION_URL = process.env.YTDL_FUNCTION_URL;
 
 export const EHP_PROXY = process.env.EHP_PROXY;
