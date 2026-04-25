@@ -10,6 +10,8 @@ import {
   OPENAI_API_KEY,
   YTDL_STORAGE_BUCKET,
   EHP_PROXY,
+  PROXY_SERVER_URI,
+  getProxyAgent,
 } from "./env";
 import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
@@ -347,8 +349,16 @@ export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
     // Use proxy for YouTube URLs if configured
     const finalThumbnailUrl = proxyUrlIfNeeded(videoThumbnailUrl);
 
+    const isYouTubeUrl =
+      finalThumbnailUrl.includes("ytimg.com") ||
+      finalThumbnailUrl.includes("youtube.com") ||
+      finalThumbnailUrl.includes("youtu.be");
+
+    // const agent = getProxyAgent();
     const { data } = await axios.get<ArrayBuffer>(finalThumbnailUrl, {
       responseType: "arraybuffer",
+      // httpAgent: isYouTubeUrl ? agent : undefined,
+      // httpsAgent: isYouTubeUrl ? agent : undefined,
     });
     return createThumbnailBuffer(data);
   } catch (error) {
@@ -413,7 +423,11 @@ export const streamToBuffer = async (stream: Readable) => {
   return streamBuffer;
 };
 
-export const s3Localstorage = new S3LocalStorage(YTDL_STORAGE_BUCKET);
+export const s3Localstorage = new S3LocalStorage(YTDL_STORAGE_BUCKET, {
+  requestHandler: {
+    requestTimeout: 300000, // 5 minutes
+  },
+});
 
 export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
   let storageKey: string;

@@ -2,6 +2,9 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import { getChatId } from "./chatid";
+import axios from "axios";
+import https from "https";
+import { logger } from "./logger";
 
 if (!process.env.APP_ENV) {
   throw new Error(
@@ -76,6 +79,18 @@ export const MAX_VIDEO_DURATION_MINUTES = +(
 export const DEBUG_ENV = process.env.DEBUG_ENV;
 
 export const PROXY_SERVER_URI = process.env.PROXY_SERVER_URI;
+export const PROXY_SERVER_URIS = (process.env.PROXY_SERVER_URIS ?? "")
+  .split(",")
+  .map((uri) => uri.trim())
+  .filter(Boolean);
+
+// If both are provided, merge them
+export const ALL_PROXY_URIS = Array.from(
+  new Set([
+    ...(PROXY_SERVER_URI ? [PROXY_SERVER_URI] : []),
+    ...PROXY_SERVER_URIS,
+  ])
+);
 
 export const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL;
 export const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -96,7 +111,11 @@ export const STORAGE_BUCKET = process.env.STORAGE_BUCKET;
 export const YTDL_STORAGE_BUCKET = process.env.YTDL_STORAGE_BUCKET;
 export const WORKER_BOT_SERVER_WEBHOOK_URL =
   process.env.WORKER_BOT_SERVER_WEBHOOK_URL;
-export const WORKER_APP_SERVER_URL = process.env.WORKER_APP_SERVER_URL;
+export const WORKER_APP_SERVER_URL =
+  APP_ENV === "local" && process.env.USE_LOCAL_WORKER === "true"
+    ? `http://127.0.0.1:${process.env.PORT ?? 3000}/`
+    : process.env.WORKER_APP_SERVER_URL;
+export const TELEGRAM_SERVICE_URL = process.env.TELEGRAM_SERVICE_URL;
 
 export const VIDEO_TRANSLATE_APP_URL = process.env.VIDEO_TRANSLATE_APP_URL;
 export const VTRANS_SERVICE_URL = process.env.VTRANS_SERVICE_URL;
@@ -139,3 +158,99 @@ export const DEBUG_USER_CHAT_ID = process.env.DEBUG_USER_CHAT_ID!;
 export const YTDL_FUNCTION_URL = process.env.YTDL_FUNCTION_URL;
 
 export const EHP_PROXY = process.env.EHP_PROXY;
+
+/*
+import { SocksProxyAgent } from "socks-proxy-agent";
+import { HttpsProxyAgent } from "https-proxy-agent";
+
+let proxyRotationIndex = 0;
+const cachedAgents = new Map<string, any>();
+
+export const getProxyAgent = (forceRotate = false, uri?: string) => {
+  if (!uri && ALL_PROXY_URIS.length === 0) return null;
+
+  if (forceRotate && !uri) {
+    proxyRotationIndex = (proxyRotationIndex + 1) % ALL_PROXY_URIS.length;
+  }
+
+  const proxyUri = uri || ALL_PROXY_URIS[proxyRotationIndex];
+  if (!proxyUri) return null;
+
+  if (cachedAgents.has(proxyUri)) return cachedAgents.get(proxyUri);
+
+  let agent: any = null;
+  if (proxyUri.startsWith("socks")) {
+    const socksUri = proxyUri.replace("socks5://", "socks5h://");
+    agent = new SocksProxyAgent(socksUri);
+  } else if (
+    proxyUri.startsWith("http://") ||
+    proxyUri.startsWith("https://")
+  ) {
+    agent = new HttpsProxyAgent(proxyUri);
+  }
+
+  if (agent) {
+    cachedAgents.set(proxyUri, agent);
+  }
+
+  return agent;
+};
+
+/ **
+ * Searches for a working proxy from the available list by testing them.
+ * @returns A working proxy agent or null
+ * /
+export const getWorkingProxyAgent = async () => {
+  if (ALL_PROXY_URIS.length === 0) return null;
+
+  logger.info(`🔍 Testing ${ALL_PROXY_URIS.length} proxies in parallel...`);
+
+  const testProxy = async (uri: string) => {
+    try {
+      const agent = getProxyAgent(false, uri);
+      if (!agent) return null;
+
+      const testStart = Date.now();
+      // Use direct https.get to avoid axios-specific agent handling issues
+      await new Promise((resolve, reject) => {
+        const req = https.get("https://api.telegram.org", {
+          agent,
+          timeout: 15000,
+        }, (res) => {
+          resolve(res);
+        });
+        req.on("error", reject);
+        req.on("timeout", () => {
+          req.destroy();
+          reject(new Error("Timeout (15s)"));
+        });
+      });
+
+      logger.info(
+        `✅ Working proxy found: ${uri} (ping: ${Date.now() - testStart}ms)`
+      );
+      return { uri, agent };
+    } catch (error: any) {
+      logger.warn(`❌ Proxy failed: ${uri} - ${error.message}`);
+      if (error.stack) {
+        // Only log stack in local env for debugging
+        if (APP_ENV === "local") logger.debug(error.stack);
+      }
+      return null;
+    }
+  };
+
+  const results = await Promise.all(ALL_PROXY_URIS.map(testProxy));
+  const working = results.find((r) => r !== null);
+
+  if (working) {
+    proxyRotationIndex = ALL_PROXY_URIS.indexOf(working.uri);
+    return working.agent;
+  }
+
+  logger.error("🚫 No working proxies found in the list.");
+  return null;
+};
+*/
+export const getProxyAgent = (...args: any[]) => null as any;
+export const getWorkingProxyAgent = async (...args: any[]) => null as any;

@@ -141,3 +141,16 @@ When debugging issues in Yandex Cloud, **NEVER** rely solely on `yc serverless f
   ```
 
 This approach allows you to see logs from multiple functions/containers if they share the same log group, making it much easier to trace issues across the microservices.
+
+## Path Configuration for Tools
+
+The environment for the assistant might not have all tools in the `PATH` by default. Always ensure the following paths are included before running `yc`, `terraform`, or `pnpm`:
+
+1.  `/Users/nezort11/yandex-cloud/bin` (for `yc`)
+2.  `/Users/nezort11/.local/bin` (for `terraform`)
+3.  `/Users/nezort11/.volta/bin` (for `pnpm`, `node`)
+
+**Recommended usage pattern:**
+```bash
+export PATH="/Users/nezort11/yandex-cloud/bin:/Users/nezort11/.local/bin:/Users/nezort11/.volta/bin:$PATH" && [command]
+```

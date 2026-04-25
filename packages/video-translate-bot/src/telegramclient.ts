@@ -1,8 +1,9 @@
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
+import { ConnectionTCPObfuscated } from "telegram/network";
 import fs from "fs";
 import axios from "axios";
-import { importPTimeout } from "./utils";
+import { importPRetry, importPTimeout } from "./utils";
 import { diff, duration } from "./time";
 import { logger } from "./logger";
 // // // @ts-expect-error no types
@@ -16,8 +17,9 @@ import {
   STORAGE_CHANNEL_CHAT_ID,
   BOT_TOKEN,
   BOT_PUBLIC_USERNAME,
-  PROXY_SERVER_URI,
+  ALL_PROXY_URIS,
   WORKER_APP_SERVER_URL,
+  TELEGRAM_SERVICE_URL,
 } from "./env";
 import { bot } from "./botinstance";
 import { store } from "./db";
@@ -88,7 +90,10 @@ const getAvailableSessionStringIndex = async (
     const telegramSessionInfo = telegramSessionsStore[sessionIndex];
     const isInvalid = telegramSessionInfo?.isInvalid;
     const isAvailable = (lastConnectedAt: string | undefined): boolean => {
-      const MAX_SESSION_LOCK_TIME = 1800; // 30 minutes
+      // Sessions should not be locked for more than 5 minutes.
+      // Serverless functions typically have a shorter execution time than 30 minutes.
+      // If a session is locked for longer, it's likely a leaked lock from a crashed process.
+      const MAX_SESSION_LOCK_TIME = 300; // 5 minutes
       return (
         !lastConnectedAt ||
         diff.inSeconds(new Date(), new Date(lastConnectedAt)) >=
@@ -117,35 +122,44 @@ const getAvailableSessionStringIndex = async (
   return availableSessionIndices[randomSessionIndex];
 };
 
+const mtprotoProxyRotationIndex = 0;
+
 export const getClient = async (sessionString: string) => {
   const session = new StringSession(sessionString);
 
-  let proxy: any = undefined;
-  if (PROXY_SERVER_URI) {
+  const proxy: any = undefined;
+  /*
+  if (ALL_PROXY_URIS.length > 0) {
+    const proxyUri = ALL_PROXY_URIS[mtprotoProxyRotationIndex];
+    mtprotoProxyRotationIndex =
+      (mtprotoProxyRotationIndex + 1) % ALL_PROXY_URIS.length;
+
     try {
-      const url = new URL(PROXY_SERVER_URI);
+      const url = new URL(proxyUri);
       proxy = {
         ip: url.hostname,
         port: parseInt(url.port, 10),
         socksType: url.protocol.replace(":", "") === "socks5" ? 5 : 4,
         username: url.username || undefined,
         password: url.password || undefined,
-        timeout: 20,
+        timeout: 120,
       };
       logger.info(
-        `Using Telegram client proxy: ${url.protocol}//${url.hostname}:${url.port}`
+        `Using Telegram client proxy (${mtprotoProxyRotationIndex}/${ALL_PROXY_URIS.length}): ${url.protocol}//${url.hostname}:${url.port}`
       );
     } catch (error) {
-      logger.error("Failed to parse PROXY_SERVER_URI:", error);
+      logger.error(`Failed to parse proxy URI ${proxyUri}:`, error);
     }
   }
+  */
 
   const _telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
-    connectionRetries: 3,
+    connectionRetries: 5,
+    connection: ConnectionTCPObfuscated,
     // Increase timeout from default 10s to 10 minutes for large file downloads
     // Default 10s causes "Request timeout 10000ms exceeded" errors
     timeout: 600000, // 10 minutes in milliseconds
-    requestRetries: 3,
+    requestRetries: 5,
     proxy,
   });
 
@@ -206,11 +220,37 @@ export const getClient = async (sessionString: string) => {
   return _telegramClient;
 };
 
-type TelegramClientHandler = (client: TelegramClient) => Promise<void>;
+type TelegramClientHandler<T = void> = (client: TelegramClient) => Promise<T>;
 
-export const useTelegramClient = async (handler: TelegramClientHandler) => {
+export const useTelegramClient = async <T = void>(
+  handler: TelegramClientHandler<T>
+) => {
+  const { default: pRetry } = await importPRetry();
+
+  const getStoreValue = async () => {
+    return await pRetry(() => store.get(TELEGRAM_SESSIONS_KEY_NAME), {
+      retries: 3,
+      onFailedAttempt: (error) => {
+        logger.warn(
+          `Failed to get telegram sessions store (attempt ${error.attemptNumber}): ${error.message}`
+        );
+      },
+    });
+  };
+
+  const setStoreValue = async (value: TelegramSessionsStore) => {
+    return await pRetry(() => store.set(TELEGRAM_SESSIONS_KEY_NAME, value), {
+      retries: 3,
+      onFailedAttempt: (error) => {
+        logger.warn(
+          `Failed to set telegram sessions store (attempt ${error.attemptNumber}): ${error.message}`
+        );
+      },
+    });
+  };
+
   let telegramSessionsStore: TelegramSessionsStore =
-    (await store.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
+    (await getStoreValue()) ?? {};
   logger.info(
     "telegram sessions store",
     JSON.stringify(telegramSessionsStore, null, 0)
@@ -218,21 +258,78 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
 
   let sessionStringIndex: number;
   let client: undefined | TelegramClient;
+  const triedIndices = new Set<number>();
+  const MAX_ACQUISITION_RETRIES = 5;
+  const ACQUISITION_RETRY_DELAY_MS = 3000;
+
+  let acquisitionAttempt = 0;
   do {
-    sessionStringIndex = await getAvailableSessionStringIndex(
-      telegramSessionsStore
-    );
-    logger.info("available telegram session index:", sessionStringIndex);
+    try {
+      sessionStringIndex = await getAvailableSessionStringIndex(
+        telegramSessionsStore
+      );
+    } catch (error) {
+      if (
+        error instanceof NoOpenTelegramSessionError &&
+        acquisitionAttempt < MAX_ACQUISITION_RETRIES
+      ) {
+        acquisitionAttempt++;
+        logger.info(
+          `No telegram sessions available, retrying acquisition (${acquisitionAttempt}/${MAX_ACQUISITION_RETRIES}) in ${ACQUISITION_RETRY_DELAY_MS}ms...`
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, ACQUISITION_RETRY_DELAY_MS)
+        );
+        // Refresh session store info from DB before retrying
+        telegramSessionsStore =
+          (await store.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
+        continue;
+      }
+      throw error;
+    }
+
+    // If we've already tried all available sessions and none worked, we must give up.
+    if (triedIndices.has(sessionStringIndex)) {
+      // Find one that hasn't been tried yet if possible
+      const allIndices = Array.from(
+        { length: telegramSessionStrings.length },
+        (_, i) => i
+      );
+      const remainingIndices = allIndices.filter(
+        (i) => !triedIndices.has(i) && !telegramSessionsStore[i]?.isInvalid
+      );
+
+      if (remainingIndices.length > 0) {
+        sessionStringIndex =
+          remainingIndices[Math.floor(Math.random() * remainingIndices.length)];
+      } else {
+        throw new Error(
+          "All available Telegram sessions failed to connect or are already in use."
+        );
+      }
+    }
+
+    triedIndices.add(sessionStringIndex);
+    logger.info("Attempting telegram session index:", sessionStringIndex);
     const sessionString = telegramSessionStrings[sessionStringIndex];
     telegramSessionsStore[sessionStringIndex] ??= {};
 
     try {
       client = await getClient(sessionString);
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof CorruptedSessionStringError) {
-        logger.info("session string is corrupted", sessionStringIndex);
+        logger.error("session string is corrupted", sessionStringIndex);
         telegramSessionsStore[sessionStringIndex].isInvalid = true;
-        await store.set(TELEGRAM_SESSIONS_KEY_NAME, telegramSessionsStore);
+        await setStoreValue(telegramSessionsStore);
+      } else if (
+        error instanceof AuthKeyDuplicatedError ||
+        error.message?.includes("Connection to telegram failed")
+      ) {
+        logger.warn(
+          `Session ${sessionStringIndex} is busy or connection failed. Trying another...`,
+          error.message
+        );
+        // Continue loop to try another session
       } else {
         throw error;
       }
@@ -242,7 +339,7 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
   try {
     telegramSessionsStore[sessionStringIndex].lastConnectedAt =
       new Date().toISOString();
-    await store.set(TELEGRAM_SESSIONS_KEY_NAME, telegramSessionsStore);
+    await setStoreValue(telegramSessionsStore);
     logger.info(
       "available session store item",
       telegramSessionsStore[sessionStringIndex]
@@ -250,58 +347,70 @@ export const useTelegramClient = async (handler: TelegramClientHandler) => {
 
     return await handler(client);
   } finally {
-    if (client.connected) {
-      await client.disconnect();
+    if (client && client.connected) {
+      try {
+        await client.disconnect();
+      } catch (disconnectError) {
+        logger.warn("Failed to disconnect telegram client", disconnectError);
+      }
     }
 
-    telegramSessionsStore = (await store.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
-    delete telegramSessionsStore[sessionStringIndex].lastConnectedAt;
-    logger.info(
-      "available session store item",
-      telegramSessionsStore[sessionStringIndex]
-    );
-    await store.set(TELEGRAM_SESSIONS_KEY_NAME, telegramSessionsStore);
+    try {
+      telegramSessionsStore = (await getStoreValue()) ?? {};
+      if (telegramSessionsStore[sessionStringIndex]) {
+        delete telegramSessionsStore[sessionStringIndex].lastConnectedAt;
+        logger.info(
+          "available session store item (on cleanup)",
+          telegramSessionsStore[sessionStringIndex]
+        );
+        await setStoreValue(telegramSessionsStore);
+      }
+    } catch (storeError) {
+      logger.error(
+        "Failed to update telegram sessions store in finally block:",
+        storeError
+      );
+      // Don't re-throw if the handler already succeeded, but here we might want to know
+    }
   }
 };
 
 export const downloadLargeFile = async (chatId: number, messageId: number) => {
-  const telegramClient = await getClient("");
-  const forwardedFileMessage = await bot.telegram.copyMessage(
-    STORAGE_CHANNEL_CHAT_ID,
-    chatId,
-    messageId,
-    {
-      caption: "",
+  return await useTelegramClient(async (telegramClient) => {
+    const forwardedFileMessage = await bot.telegram.copyMessage(
+      STORAGE_CHANNEL_CHAT_ID,
+      chatId,
+      messageId,
+      {
+        caption: "",
+      }
+    );
+    const [fileMessage] = await telegramClient.getMessages(
+      STORAGE_CHANNEL_CHAT_ID,
+      {
+        ids: [forwardedFileMessage.message_id],
+      }
+    );
+
+    if (!fileMessage) {
+      throw new Error("File message not found in channel");
     }
-  );
-  const [fileMessage] = await telegramClient.getMessages(
-    STORAGE_CHANNEL_CHAT_ID,
-    {
-      ids: [forwardedFileMessage.message_id],
-    }
-  );
 
-  if (!fileMessage) {
-    throw new Error("File message not found in channel");
-  }
-
-  try {
-    const fileBuffer = (await fileMessage.downloadMedia({
-      outputFile: undefined,
-    })) as Buffer;
-
-    return fileBuffer;
-  } finally {
     try {
-      await fileMessage.delete({ revoke: true });
-    } catch (error) {
-      logger.warn("Failed to delete file message", error);
+      const fileBuffer = (await fileMessage.downloadMedia({
+        outputFile: undefined,
+        workers: 1,
+      })) as Buffer;
+
+      return fileBuffer;
+    } finally {
+      try {
+        await fileMessage.delete({ revoke: true });
+      } catch (error) {
+        logger.warn("Failed to delete file message", error);
+      }
     }
-  }
-  // } finally {
-  // bot cannot delete messages in channel
-  // await bot.telegram.deleteMessage(chatId, forwardedFileMessage.message_id);
-  // }
+  });
 };
 
 export const delegateDownloadLargeFile = async (
@@ -310,9 +419,8 @@ export const delegateDownloadLargeFile = async (
 ) => {
   // 1. Check telegram client before forwarding message
   // 2. Disconnect to prevent 406: AUTH_KEY_DUPLICATED
-  await useTelegramClient(async () => {
-    logger.info("Available valid telegram client exists!");
-  });
+  // No need to check for available client here as the downloader itself will do it
+  // and having an extra connection here just increases the chance of AUTH_KEY_DUPLICATED
 
   const channelFileMessage = await bot.telegram.copyMessage(
     STORAGE_CHANNEL_CHAT_ID,
@@ -323,9 +431,6 @@ export const delegateDownloadLargeFile = async (
     }
   );
 
-  const videoChannelMessageUrl = new URL(
-    `tg://video/${channelFileMessage.message_id}`
-  );
   try {
     logger.info("downloading video using worker api...");
     const { default: pTimeout } = await importPTimeout();
@@ -334,46 +439,48 @@ export const delegateDownloadLargeFile = async (
     );
 
     let videoFileUrl: string;
-    if (APP_ENV === "local") {
-      const videoBuffer = await downloadMessageFile(
-        channelFileMessage.message_id
-      );
-      videoFileUrl = await uploadVideo(videoBuffer);
-    } else {
-      // Normalize baseURL to avoid double slashes in URL path
-      // Remove trailing slash from baseURL if present
-      const normalizedBaseURL = WORKER_APP_SERVER_URL.replace(/\/$/, "");
 
-      try {
-        const videoResponse = await pTimeout(
-          axios.post("/download", null, {
-            params: {
-              url: videoChannelMessageUrl.href,
-            },
+    if (!TELEGRAM_SERVICE_URL) {
+      throw new Error(
+        "TELEGRAM_SERVICE_URL is not defined. Media delegation failed."
+      );
+    }
+    const normalizedBaseURL = TELEGRAM_SERVICE_URL.endsWith("/")
+      ? TELEGRAM_SERVICE_URL
+      : TELEGRAM_SERVICE_URL + "/";
+
+    try {
+      const videoResponse = await pTimeout(
+        axios.post(
+          "download",
+          {
+            chat_id: Number(STORAGE_CHANNEL_CHAT_ID),
+            message_id: channelFileMessage.message_id,
+          },
+          {
             baseURL: normalizedBaseURL,
             // Add axios timeout that's slightly less than pTimeout
             timeout: downloadTimeoutMilliseconds - 5000,
-          }),
-          {
-            milliseconds: downloadTimeoutMilliseconds,
           }
-        );
-        videoFileUrl = videoResponse.data.url;
-      } catch (error) {
-        // Enhance error message for worker download failures
-        if (axios.isAxiosError(error) && error.response?.status === 500) {
-          const errorData = error.response.data;
-          if (
-            errorData?.message?.includes("Timeout") ||
-            errorData?.errorMessage?.includes("Timeout")
-          ) {
-            throw new TelegramDownloadTimeoutError();
-          }
+        ),
+        {
+          milliseconds: downloadTimeoutMilliseconds,
         }
-        throw error;
+      );
+      videoFileUrl = videoResponse.data.url;
+    } catch (error) {
+      // Enhance error message for worker download failures
+      if (axios.isAxiosError(error) && error.response?.status === 500) {
+        const errorData = error.response.data;
+        if (
+          errorData?.message?.includes("Timeout") ||
+          errorData?.errorMessage?.includes("Timeout")
+        ) {
+          throw new TelegramDownloadTimeoutError();
+        }
       }
+      throw error;
     }
-
     // Dont log video url for privacy reasons
     // logger.info("Downloaded video:", videoFileUrl);
     return videoFileUrl;
@@ -412,7 +519,7 @@ export const delegateDownloadLargeFile = async (
         logger.warn("Failed to cleanup old storage channel messages", error);
       }
 
-      await telegramClient.disconnect();
+      // Client will be disconnected automatically by useTelegramClient finally block
     });
   }
 };
@@ -424,6 +531,49 @@ export const downloadMessageFile = async (
   messageId: number,
   maxRetries: number = 3
 ) => {
+  if (TELEGRAM_SERVICE_URL) {
+    const normalizedBaseURL = TELEGRAM_SERVICE_URL.endsWith("/")
+      ? TELEGRAM_SERVICE_URL
+      : TELEGRAM_SERVICE_URL + "/";
+
+    const { default: pRetry } = await importPRetry();
+    return await pRetry(
+      async () => {
+        logger.info(
+          `Delegating download of message ${messageId} to Go service...`
+        );
+        const response = await axios.post(
+          "download",
+          {
+            chat_id: Number(STORAGE_CHANNEL_CHAT_ID),
+            message_id: messageId,
+          },
+          {
+            baseURL: normalizedBaseURL,
+            timeout: 120000, // 2 minutes
+          }
+        );
+
+        const fileUrl = response.data.url;
+        logger.info(`Downloading file from S3: ${fileUrl}`);
+        const fileResponse = await axios.get(fileUrl, {
+          responseType: "arraybuffer",
+          timeout: 300000, // 5 minutes
+        });
+
+        return Buffer.from(fileResponse.data);
+      },
+      {
+        retries: maxRetries - 1,
+        factor: 2,
+        minTimeout: 2000,
+        onFailedAttempt: (error) => {
+          logger.warn(`Delegated download attempt failed: ${error.message}`);
+        },
+      }
+    );
+  }
+
   let lastError: Error | undefined;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -445,6 +595,7 @@ export const downloadMessageFile = async (
 
         fileBuffer = (await fileMessage.downloadMedia({
           outputFile: undefined,
+          workers: 1,
         })) as Buffer;
       });
 
@@ -463,6 +614,7 @@ export const downloadMessageFile = async (
         error instanceof Error &&
         (error.message.includes("ETIMEDOUT") ||
           error.message.includes("ECONNRESET") ||
+          error.message.includes("EPIPE") ||
           error.message.includes("Request timeout"));
 
       if ((isTimeoutError || isNetworkError) && attempt < maxRetries) {
@@ -471,7 +623,7 @@ export const downloadMessageFile = async (
         logger.warn(
           `Download failed with ${
             isTimeoutError ? "Telegram timeout" : "network error"
-          }: ${error.message}`
+          }: ${error.message} (attempt ${attempt}/${maxRetries})`
         );
         logger.info(`Retrying in ${delaySeconds}s...`);
         await new Promise((resolve) =>
@@ -479,6 +631,13 @@ export const downloadMessageFile = async (
         );
       } else {
         // Non-retriable error or max retries reached
+        logger.error(`Download failed permanently on attempt ${attempt}:`, {
+          message: error.message,
+          stack: error.stack,
+          isTimeout: isTimeoutError,
+          isNetwork: isNetworkError,
+        });
+
         if (isTimeoutError && attempt >= maxRetries) {
           // Convert to our custom error after exhausting retries
           throw new TelegramDownloadTimeoutError(

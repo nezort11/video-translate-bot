@@ -7,6 +7,9 @@ import {
   BOT_TOKEN,
   BOT_TOKEN_PROD,
   APP_ENV,
+  getProxyAgent,
+  getWorkingProxyAgent,
+  PROXY_SERVER_URI,
 } from "./env";
 
 // Suppress NODE_TLS_REJECT_UNAUTHORIZED warning before imports
@@ -25,6 +28,8 @@ process.emitWarning = (warning, ...args) => {
 import * as http from "http";
 // Package subpath './src/core/network/webhook' is not defined by "exports" in /function/code/node_modules/telegraf/package.json
 // import generateWebhook from "telegraf/src/core/network/webhook";
+// NOTE: serverless-http is used as a shim library to bridge Cloud Function events to Express/Telegraf handlers.
+// It is NOT related to the Serverless Framework which has been removed.
 import serverlessHttp from "serverless-http";
 import express, { Request } from "express";
 // import { fileURLToPath } from "url";
@@ -229,23 +234,35 @@ const main = async () => {
 
   // await storage.init({ dir: "./session/storage" });
 
-  bot.launch();
-  const botInfo = await bot.telegram.getMe();
+  /*
+  // Find a working proxy before starting
+  const workingAgent = await getWorkingProxyAgent();
+  if (workingAgent) {
+    bot.telegram.options.agent = workingAgent;
+    debugBot.telegram.options.agent = workingAgent;
+  }
+  */
 
-  setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
-  logger.info(`🚀 Started bot server on https://t.me/${botInfo.username}`);
   try {
-    // await telegramLoggerContext.reply(`🚀 Started bot server`);
+    bot.launch();
+    const botInfo = await bot.telegram.getMe();
+
+    setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
+    logger.info(`🚀 Started bot server on https://t.me/${botInfo.username}`);
   } catch (error) {
-    logger.warn(error);
+    logger.error("❌ Failed to start bot or connect to Telegram:", error);
+    // Continue anyway, it might be a temporary network issue
   }
 };
 
-// const server = http.createServer(handler);
-
+/*
+// DEPRECATED: debugBot is no longer used in the main flow
 const debugBot = new Telegraf(BOT_TOKEN, {
   // REQUIRED for `sendChatAction` to work in serverless/webhook environment https://github.com/telegraf/telegraf/issues/1047
-  telegram: { webhookReply: false },
+  telegram: {
+    webhookReply: false,
+    // agent: getProxyAgent(),
+  },
   handlerTimeout: duration.hours(1),
 });
 
@@ -261,7 +278,10 @@ debugBot.command("debug_timeout", async (context) => {
 });
 
 // app.use(debugBot.webhookCallback("/webhook"));
+*/
 
+/*
+// DEPRECATED: Standard types from @yandex-cloud/function-types are used instead
 interface EventMetadata {
   event_id: string;
   event_type: string;
@@ -299,6 +319,7 @@ interface YandexQueueEvent {
   event_metadata: EventMetadata;
   details: QueueMessageDetails;
 }
+*/
 
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {

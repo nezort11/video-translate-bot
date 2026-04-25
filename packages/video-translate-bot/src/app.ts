@@ -344,7 +344,13 @@ app.post(
         // byteLength: videoBuffer.byteLength
         byteLength: 0,
       });
-    } catch (error) {
+    } catch (error: any) {
+      logger.error("Error in /download route:", {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        response: error.response?.data,
+      });
       await handleInternalErrorExpress(error, res);
     }
   }

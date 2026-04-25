@@ -26,8 +26,17 @@ export const driver = new Driver({
   },
 });
 
+const createYdbStore = (options: any) => {
+  try {
+    return Ydb<any>(options);
+  } catch (error) {
+    logger.error("Failed to create YDB store:", error);
+    return null;
+  }
+};
+
 // Generic Redis-like store-table in YDB
-export const store = Ydb<any>({
+export const rawStore = createYdbStore({
   driver,
   driverOptions: { enableReadyCheck: true },
   tableOptions: {
@@ -38,7 +47,7 @@ export const store = Ydb<any>({
   },
 });
 
-export const sessionStore = Ydb<any>({
+export const rawSessionStore = createYdbStore({
   driver,
   driverOptions: { enableReadyCheck: true },
   tableOptions: {
@@ -46,6 +55,62 @@ export const sessionStore = Ydb<any>({
     tableName: "telegraf-sessions",
   },
 });
+
+const wrapWithRetry = (store: any) => {
+  if (!store) return null;
+  const originalGet = store.get.bind(store);
+  const originalSet = store.set.bind(store);
+  const originalDelete = store.delete.bind(store);
+
+  store.get = async (...args: any[]) => {
+    const { default: pRetry } = await import("./utils").then((m) =>
+      m.importPRetry()
+    );
+    return await pRetry(() => originalGet(...args), {
+      retries: 2,
+      onFailedAttempt: (error) => {
+        logger.warn(
+          `YDB get failed (attempt ${error.attemptNumber}): ${error.message}`
+        );
+      },
+    });
+  };
+
+  store.set = async (...args: any[]) => {
+    const { default: pRetry } = await import("./utils").then((m) =>
+      m.importPRetry()
+    );
+    return await pRetry(() => originalSet(...args), {
+      retries: 2,
+      onFailedAttempt: (error) => {
+        logger.warn(
+          `YDB set failed (attempt ${error.attemptNumber}): ${error.message}`
+        );
+      },
+    });
+  };
+
+  store.delete = async (...args: any[]) => {
+    const { default: pRetry } = await import("./utils").then((m) =>
+      m.importPRetry()
+    );
+    return await pRetry(() => originalDelete(...args), {
+      retries: 2,
+      onFailedAttempt: (error) => {
+        logger.warn(
+          `YDB delete failed (attempt ${error.attemptNumber}): ${error.message}`
+        );
+      },
+    });
+  };
+
+  return store;
+};
+
+export const store = rawStore ? wrapWithRetry(rawStore) : null;
+export const sessionStore = rawSessionStore
+  ? wrapWithRetry(rawSessionStore)
+  : null;
 
 export const initUpdatesTable = async () => {
   await driver.queryClient.do({

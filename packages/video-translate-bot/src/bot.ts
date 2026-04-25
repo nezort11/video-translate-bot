@@ -62,6 +62,8 @@ import {
   YDB_DATABASE,
   LAMBDA_TASK_ROOT,
   WORKER_BOT_SERVER_WEBHOOK_URL,
+  WORKER_APP_SERVER_URL,
+  TELEGRAM_SERVICE_URL,
   LOGGING_CHANNEL_CHAT_ID,
   STORAGE_CHANNEL_CHAT_ID,
   OPENAI_API_BASE_URL,
@@ -82,6 +84,7 @@ import {
 import {
   capitalize,
   formatDuration,
+  importNanoid,
   importPTimeout,
   serializeAndEscapeError,
   truncateText,
@@ -371,6 +374,9 @@ type TranscribeResult = {
   }[];
 };
 
+/*
+// DEPRECATED/EXPERIMENTAL: Audio-based translation logic
+// This was likely an experiment for manual transcription/translation flow.
 const transcribe = async (fileBlob: Blob, fileName: string) => {
   const data = new FormData();
   data.append("file", fileBlob, fileName);
@@ -442,31 +448,8 @@ const translateAnyVideo = async (url: string, targetLanguage: string) => {
     translatedSegments.translations.map((transSegment) => transSegment.text)
   );
   logger.info("transcription ssml", transcriptionSsml);
-  // const client = new TextToSpeechClient();
-  // const [synthesizedSpeechResponse] = await client.synthesizeSpeech({
-  //   input: { ssml: transcriptionSsml },
-  //   voice: {
-  //     languageCode: targetLanguage,
-  //     ssmlGender: "NEUTRAL", // Adjust the voice gender if needed (e.g., 'MALE' or 'FEMALE')
-  //   },
-  //   audioConfig: {
-  //     audioEncoding: "MP3",
-  //   },
-  // });
-
-  // const translatedTranscriptionAudio =
-  //   synthesizedSpeechResponse.audioContent as Buffer;
-  // console.log(
-  //   "translatedTranscriptionAudio length",
-  //   translatedTranscriptionAudio.byteLength
-  // );
-  // fss.writeFileSync(
-  //   path.join(TEMP_DIR_PATH, "temptest.mp3"),
-  //   translatedTranscriptionAudio
-  // );
-
-  // return translatedTranscriptionAudio;
 };
+*/
 
 function toArrayBuffer(buffer: Buffer) {
   const arrayBuffer = new ArrayBuffer(buffer.length);
@@ -659,6 +642,11 @@ const replyError = (
 };
 
 const handleError = async (error: unknown, context: Context) => {
+  if (error instanceof TranslationStageError) {
+    await replyError(context, t(error.message));
+    return;
+  }
+
   if (typeof error === "object" && error !== null) {
     if (
       "message" in error &&
@@ -2201,34 +2189,44 @@ bot.action(/.+/, async (context) => {
           : `${artist} (${originalArtist})`
         : "Unknown artist";
 
-      let fileMessage: Api.Message;
-      await useTelegramClient(async (telegramClient) => {
-        fileMessage = await telegramClient.sendFile(STORAGE_CHANNEL_CHAT_ID, {
-          file: outputBuffer,
-          // caption: `${videoLink}`,
-          caption: `🎧 <b>${videoTitle || "Unknown"}</b>\n— ${finalArtist}\n${
-            videoPlatform === VideoPlatform.Telegram ? "" : videoLink
-          }`,
-          parseMode: "html",
-          thumb: thumbnailBuffer || undefined,
+      const videoCaption = `🎧 <b>${videoTitle || "Unknown"}</b>\n— ${finalArtist}\n${
+        videoPlatform === VideoPlatform.Telegram ? "" : videoLink
+      }`;
 
-          attributes: [
-            new Api.DocumentAttributeAudio({
-              duration: Math.floor(videoDuration),
-              title: videoTitle,
-              performer: finalArtist,
-            }),
-            // new Api.DocumentAttributeFilename({
-            //   fileName: "mqdefault.jpg",
-            // }),
-          ],
-        });
-      });
-      await bot.telegram.copyMessage(
-        context.chat?.id ?? 0,
-        STORAGE_CHANNEL_CHAT_ID,
-        fileMessage!.id
-      );
+      logger.info("Uploading translated voice to telegram...");
+      try {
+        const { nanoid } = await importNanoid();
+        const videoKey = `${nanoid()}.mp3`;
+        const publicUrl = await uploadVideo(outputBuffer, videoKey);
+
+        if (!TELEGRAM_SERVICE_URL) {
+          throw new Error(
+            "TELEGRAM_SERVICE_URL is not defined. Media delegation failed."
+          );
+        }
+        const normalizedBaseURL = TELEGRAM_SERVICE_URL.endsWith("/")
+          ? TELEGRAM_SERVICE_URL
+          : TELEGRAM_SERVICE_URL + "/";
+
+        await axios.post(
+          "send",
+          {
+            chat_id: context.chat?.id,
+            url: publicUrl,
+            duration: Math.floor(videoDuration),
+            caption: videoCaption,
+            file_name: `${videoTitle || "unknown"}.mp3`,
+            // We can't strictly pass title/performer without changing Go code yet, but Go code will treat .mp3 properly if we update it.
+          },
+          {
+            baseURL: normalizedBaseURL,
+            timeout: 10 * 60 * 1000, // 10 minutes
+          }
+        );
+      } catch (uploadError: any) {
+        logger.error("Failed to upload voice message:", uploadError);
+        throw uploadError;
+      }
 
       const userInfo = getUserInfo(context);
       await telegramLoggerContext.reply(
@@ -2241,17 +2239,7 @@ bot.action(/.+/, async (context) => {
         await context.deleteMessage();
       } catch (_) {}
 
-      await useTelegramClient(async (telegramClient) => {
-        // reupdate translated file message with new client
-        [fileMessage] = await telegramClient.getMessages(
-          STORAGE_CHANNEL_CHAT_ID,
-          {
-            ids: [fileMessage!.id],
-          }
-        );
-        // Delete translated message from the channel (copyrights/privacy)
-        await fileMessage.delete({ revoke: true });
-      });
+      // We don't delete message from STORAGE_CHANNEL_CHAT_ID anymore because it was sent directly to user context.chat!.id
       return;
     }
 
@@ -2461,31 +2449,44 @@ bot.action(/.+/, async (context) => {
           // form.append("thumbnail", resourceThumbnailUrl ?? "");
           // await fs.writeFile("./thumb.jpg", thumbnailBuffer);
 
-          logger.info("Uploading to telegram channel...");
-          await useTelegramClient(async (telegramClient) => {
-            const fileMessage = await telegramClient.sendFile(
-              STORAGE_CHANNEL_CHAT_ID,
-              {
-                file: outputBuffer,
-                // caption: `${videoLink}`,
-                caption: `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`,
-                parseMode: "html",
-                thumb: thumbnailBuffer || undefined,
+          const videoCaption = `🎧 <b>${videoTitle}</b>\n— ${artist} (${originalArtist})\n${videoLink}`;
 
-                attributes: [
-                  new Api.DocumentAttributeAudio({
-                    duration: Math.floor(videoDuration),
-                    title: videoTitle,
-                    performer: `${artist} (${originalArtist})`,
-                  }),
-                  // new Api.DocumentAttributeFilename({
-                  //   fileName: "mqdefault.jpg",
-                  // }),
-                ],
+          logger.info("Uploading translated audio to telegram...");
+          try {
+            const { nanoid } = await importNanoid();
+            const videoKey = `${nanoid()}.mp3`;
+            const publicUrl = await uploadVideo(outputBuffer, videoKey);
+
+            if (!TELEGRAM_SERVICE_URL) {
+              throw new Error(
+                "TELEGRAM_SERVICE_URL is not defined. Media delegation failed."
+              );
+            }
+            const normalizedBaseURL = TELEGRAM_SERVICE_URL.endsWith("/")
+              ? TELEGRAM_SERVICE_URL
+              : TELEGRAM_SERVICE_URL + "/";
+
+            await axios.post(
+              "send",
+              {
+                chat_id: context.chat?.id,
+                url: publicUrl,
+                duration: Math.floor(videoDuration),
+                caption: videoCaption,
+                file_name: `${videoTitle}.mp3`,
+              },
+              {
+                baseURL: normalizedBaseURL,
+                timeout: 10 * 60 * 1000, // 10 minutes
               }
             );
-            translatedFileMessage = fileMessage;
-          });
+
+            // Set sentinel value to indicate successful delegation and skip local cleanup
+            translatedFileMessage = { id: 0 } as any;
+          } catch (uploadError: any) {
+            logger.error("Failed to upload audio message:", uploadError);
+            throw uploadError;
+          }
 
           // const uploadResponse = await axiosInstance.post<UploadResponse>(
           //   UPLOADER_URL,
@@ -2551,52 +2552,100 @@ bot.action(/.+/, async (context) => {
           const userInfo = getUserInfo(context);
 
           try {
+            const { nanoid } = await importNanoid();
+            logger.info("Delegating video uploading to external service...");
+            const videoKey = `${nanoid()}.mp4`;
+            const publicUrl = await uploadVideo(outputBuffer, videoKey);
+            const normalizedBaseURL = TELEGRAM_SERVICE_URL.endsWith("/")
+              ? TELEGRAM_SERVICE_URL
+              : TELEGRAM_SERVICE_URL + "/";
+
+            logger.info(
+              `Sending delegated /send request to ${normalizedBaseURL}...`
+            );
+            const sendResponse = await axios.post(
+              "send",
+              {
+                chat_id: STORAGE_CHANNEL_CHAT_ID,
+                url: publicUrl,
+                duration: Math.floor(videoDuration),
+                width: 640,
+                height: 360,
+                caption: videoCaption,
+                file_name: `${videoTitle}.mp4`,
+              },
+              {
+                baseURL: normalizedBaseURL,
+                timeout: 10 * 60 * 1000, // 10 minutes
+              }
+            );
+
+            const channelMessageId = sendResponse.data.message_id;
+            logger.info(
+              `Video uploaded to storage channel, channelMessageId: ${channelMessageId}`
+            );
+
+            // Deliver the video to the user by copying it from the storage channel
+            // This ensures the message comes from the current bot instance (Dev or Prod)
+            await bot.telegram.copyMessage(
+              context.chat?.id ?? 0,
+              STORAGE_CHANNEL_CHAT_ID,
+              channelMessageId,
+              {
+                caption: videoCaption,
+                parse_mode: "HTML",
+              }
+            );
+
+            // Set sentinel value to indicate successful delegation and skip local cleanup
+            translatedFileMessage = { id: 0 } as any;
+
             // Use Bot API for files < 50MB (more reliable in some networks)
-            if (outputBuffer.length < 50 * 1024 * 1024) {
-              logger.info("Using Bot API for upload (file size < 50MB)");
-              const fileMessage = await bot.telegram.sendVideo(
-                STORAGE_CHANNEL_CHAT_ID,
-                {
-                  source: outputBuffer,
-                  filename: `${videoTitle}.mp4`,
-                },
-                {
-                  caption: videoCaption,
-                  parse_mode: "HTML",
-                  duration: Math.floor(videoDuration),
-                  width: 640,
-                  height: 360,
-                  supports_streaming: true,
-                  thumbnail: thumbnailBuffer
-                    ? { source: thumbnailBuffer }
-                    : undefined,
-                }
-              );
-              // @ts-expect-error message id mapping
-              translatedFileMessage = { id: fileMessage.message_id };
-            } else {
-              logger.info("Using GramJS for upload (file size >= 50MB)");
-              await useTelegramClient(async (telegramClient) => {
-                const fileMessage = await telegramClient.sendFile(
-                  STORAGE_CHANNEL_CHAT_ID,
-                  {
-                    file: outputBuffer,
-                    caption: videoCaption,
-                    parseMode: "html",
-                    thumb: thumbnailBuffer || undefined,
-                    attributes: [
-                      new Api.DocumentAttributeVideo({
-                        w: 640,
-                        h: 360,
-                        duration: Math.floor(videoDuration),
-                        supportsStreaming: true,
-                      }),
-                    ],
-                  }
-                );
-                translatedFileMessage = fileMessage;
-              });
-            }
+            // if (outputBuffer.length < 50 * 1024 * 1024) {
+            //   logger.info("Using Bot API for upload (file size < 50MB)");
+            //   const fileMessage = await bot.telegram.sendVideo(
+            //     STORAGE_CHANNEL_CHAT_ID,
+            //     {
+            //       source: outputBuffer,
+            //       filename: `${videoTitle}.mp4`,
+            //     },
+            //     {
+            //       caption: videoCaption,
+            //       parse_mode: "HTML",
+            //       duration: Math.floor(videoDuration),
+            //       width: 640,
+            //       height: 360,
+            //       supports_streaming: true,
+            //       thumbnail: thumbnailBuffer
+            //         ? { source: thumbnailBuffer }
+            //         : undefined,
+            //     }
+            //   );
+            //   // @ts-expect-error message id mapping
+            //   translatedFileMessage = { id: fileMessage.message_id };
+            // } else {
+            //   logger.info("Using GramJS for upload (file size >= 50MB)");
+            //   await useTelegramClient(async (telegramClient) => {
+            //     const fileMessage = await telegramClient.sendFile(
+            //       STORAGE_CHANNEL_CHAT_ID,
+            //       {
+            //         file: outputBuffer,
+            //         caption: videoCaption,
+            //         parseMode: "html",
+            //         thumb: thumbnailBuffer || undefined,
+            //         attributes: [
+            //           new Api.DocumentAttributeVideo({
+            //             w: 640,
+            //             h: 360,
+            //             duration: Math.floor(videoDuration),
+            //             supportsStreaming: true,
+            //           }),
+            //         ],
+            //       }
+            //     );
+            //     translatedFileMessage = fileMessage;
+            //   });
+            // }
           } catch (uploadError: any) {
             logger.error("Failed to upload translated video:", uploadError);
             throw uploadError;
@@ -2605,15 +2654,15 @@ bot.action(/.+/, async (context) => {
         [TranslateType.ChooseVideoQuality]: async () => {},
       }[actionType]();
 
-      logger.info(
-        `Uploaded to telegram message id: ${translatedFileMessage?.id}`
-      );
+      // logger.info(
+      //   `Uploaded to telegram message id: ${translatedFileMessage?.id}`
+      // );
 
-      await bot.telegram.copyMessage(
-        context.chat?.id ?? 0,
-        STORAGE_CHANNEL_CHAT_ID,
-        translatedFileMessage!.id
-      );
+      // await bot.telegram.copyMessage(
+      //   context.chat?.id ?? 0,
+      //   STORAGE_CHANNEL_CHAT_ID,
+      //   translatedFileMessage!.id
+      // );
     } catch (error: any) {
       logger.error("Failed to upload/send translated video:", error);
       throw new TranslationStageError("error_video_upload", error.message);
@@ -2626,29 +2675,35 @@ bot.action(/.+/, async (context) => {
       `🤖 to ${userInfo}\n<✅📺 video translated, ${videoDurationFormatted}>`
     );
 
-    logger.info("Deleting result translated video...");
-    await useTelegramClient(async (telegramClient) => {
-      // reupdate translated file message with new client
-      [translatedFileMessage] = await telegramClient.getMessages(
-        STORAGE_CHANNEL_CHAT_ID,
-        {
-          ids: [translatedFileMessage!.id],
-        }
-      );
-      // Delete translated video message from the channel (for copyrights/privacy reasons)
-      await translatedFileMessage.delete({ revoke: true });
-      // Cleanup: delete old messages in the storage channel
-      logger.info("Cleaning up old storage channel messages...");
-      try {
-        await cleanupOldChannelMessages(
-          telegramClient,
-          STORAGE_CHANNEL_CHAT_ID
+    if (translatedFileMessage && translatedFileMessage.id !== 0) {
+      logger.info("Deleting result translated video...");
+      await useTelegramClient(async (telegramClient) => {
+        // reupdate translated file message with new client
+        [translatedFileMessage] = await telegramClient.getMessages(
+          STORAGE_CHANNEL_CHAT_ID,
+          {
+            ids: [translatedFileMessage!.id],
+          }
         );
-        logger.info("Cleaned up messages older than 1 hour in storage channel");
-      } catch (error) {
-        logger.warn("Failed to cleanup old storage channel messages", error);
-      }
-    });
+        // Delete translated video message from the channel (for copyrights/privacy reasons)
+        if (translatedFileMessage) {
+          await translatedFileMessage.delete({ revoke: true });
+        }
+        // Cleanup: delete old messages in the storage channel
+        logger.info("Cleaning up old storage channel messages...");
+        try {
+          await cleanupOldChannelMessages(
+            telegramClient,
+            STORAGE_CHANNEL_CHAT_ID
+          );
+          logger.info(
+            "Cleaned up messages older than 1 hour in storage channel"
+          );
+        } catch (error) {
+          logger.warn("Failed to cleanup old storage channel messages", error);
+        }
+      });
+    }
 
     // Decrease amount of video translation credits based on video duration
     const videoDurationCredits = Math.ceil(
@@ -2664,10 +2719,10 @@ bot.action(/.+/, async (context) => {
   } catch (error) {
     logger.error("Catched action error:", error);
     // delete in progress message in case of error
-    try {
-      logger.info("Deleting in-progress message on error...");
-      await context.deleteMessage();
-    } catch (_) {}
+    // try {
+    //   logger.info("Deleting in-progress message on error...");
+    //   await context.deleteMessage();
+    // } catch (_) {}
     throw error;
   } finally {
     context.session.translationStartedAt = undefined;
