@@ -28,6 +28,8 @@
     "env:push": "rclone sync ./env yandex-cloud-nezort11:video-translate-bot-env --progress",
     "bundle": "node ./scripts/bundle.mjs",
     "app:package:bundle": "rm -f ./video-translate-bot.zip && zip -r ./video-translate-bot.zip ./build/index.js ./build/cleanup.js ./build/report.js ./locales",
+  },
+  "deprecatedScripts": {
     "video-translate-bot:upload": "yc storage s3api put-object --bucket video-translate-bot-code --key function.zip --body ./video-translate-bot.zip",
     "video-translate-bot:ci:bundle": "pnpm bundle && pnpm app:package:bundle && pnpm video-translate-bot:upload",
     "video-translate-bot:deploy": "cd ../.. && pnpm tf apply -target=yandex_function.video-translate-bot-function -target=yandex_message_queue.video-translate-bot-function-queue -target=yandex_function_trigger.video-translate-bot-function-queue-trigger -target=yandex_api_gateway.video-translate-bot-function-gateway -auto-approve",
@@ -35,9 +37,7 @@
     "webhook:info": ". ./env/.env && pnpm telegraf -m getWebhookInfo -t $BOT_TOKEN_PROD",
     "webhook:set": ". ./env/.env && pnpm telegraf -m setWebhook -t $BOT_TOKEN_PROD -D \"{ \\\"url\\\": \\\"https://$(cd ../.. && terraform output -raw video_translate_bot_gateway_domain)/webhook\\\", \\\"drop_pending_updates\\\": \\\"False\\\" }\"",
     "webhook:set:clean": ". ./env/.env && pnpm telegraf -m setWebhook -t $BOT_TOKEN_PROD -D \"{ \\\"url\\\": \\\"https://$(cd ../.. && terraform output -raw video_translate_bot_gateway_domain)/webhook\\\", \\\"drop_pending_updates\\\": \\\"True\\\" }\"",
-    "webhook:delete": ". ./env/.env && pnpm telegraf -m deleteWebhook -t $BOT_TOKEN_PROD"
-  },
-  "deprecatedScripts": {
+    "webhook:delete": ". ./env/.env && pnpm telegraf -m deleteWebhook -t $BOT_TOKEN_PROD",
     "npm:install": "if [ \"$(uname -m)\" = \"x86_64\" ]; then npm install --omit=dev --force --no-package-lock; else docker run --rm --platform=linux/amd64 -w /app -v \"$(pwd)/package.json:/app/package.json\" -v \"$(pwd)/node_modules:/app/node_modules\" node:18 bash -c \"npm install --omit=dev --force --no-package-lock\"; fi",
     "npm:reinstall": "pnpm npm:pre && pnpm npm:install && pnpm npm:post",
     "npm:pre": "rm -rf node_modules && mkdir -p node_modules_prod && mv node_modules_prod node_modules",
