@@ -109,6 +109,11 @@ export const YDB_ENDPOINT = process.env.YDB_ENDPOINT;
 export const YDB_DATABASE = process.env.YDB_DATABASE;
 export const STORAGE_BUCKET = process.env.STORAGE_BUCKET;
 export const YTDL_STORAGE_BUCKET = process.env.YTDL_STORAGE_BUCKET;
+export const POSTGRES_URL = process.env.POSTGRES_URL;
+export const S3_ENDPOINT = process.env.S3_ENDPOINT || process.env.AWS_S3_ENDPOINT;
+export const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID;
+export const S3_SECRET_KEY = process.env.S3_SECRET_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+export const S3_REGION = process.env.S3_REGION || "us-east-1";
 export const WORKER_BOT_SERVER_WEBHOOK_URL =
   process.env.WORKER_BOT_SERVER_WEBHOOK_URL;
 export const WORKER_APP_SERVER_URL =
@@ -159,9 +164,21 @@ export const YTDL_FUNCTION_URL = process.env.YTDL_FUNCTION_URL;
 
 export const EHP_PROXY = process.env.EHP_PROXY;
 
-/*
-import { SocksProxyAgent } from "socks-proxy-agent";
-import { HttpsProxyAgent } from "https-proxy-agent";
+import { dynamicImport } from "./utils";
+
+let SocksProxyAgent: any;
+let HttpsProxyAgent: any;
+
+const loadProxyAgents = async () => {
+  if (!SocksProxyAgent) {
+    SocksProxyAgent = (await dynamicImport<any>("socks-proxy-agent"))
+      .SocksProxyAgent;
+  }
+  if (!HttpsProxyAgent) {
+    HttpsProxyAgent = (await dynamicImport<any>("https-proxy-agent"))
+      .HttpsProxyAgent;
+  }
+};
 
 let proxyRotationIndex = 0;
 const cachedAgents = new Map<string, any>();
@@ -178,47 +195,49 @@ export const getProxyAgent = (forceRotate = false, uri?: string) => {
 
   if (cachedAgents.has(proxyUri)) return cachedAgents.get(proxyUri);
 
-  let agent: any = null;
-  if (proxyUri.startsWith("socks")) {
-    const socksUri = proxyUri.replace("socks5://", "socks5h://");
-    agent = new SocksProxyAgent(socksUri);
-  } else if (
-    proxyUri.startsWith("http://") ||
-    proxyUri.startsWith("https://")
-  ) {
-    agent = new HttpsProxyAgent(proxyUri);
-  }
-
-  if (agent) {
-    cachedAgents.set(proxyUri, agent);
-  }
-
-  return agent;
+  // Note: This sync function can only return cached agents or null.
+  // Real agents should be initialized via getWorkingProxyAgent first.
+  return null;
 };
 
-/ **
+/**
  * Searches for a working proxy from the available list by testing them.
  * @returns A working proxy agent or null
- * /
+ */
 export const getWorkingProxyAgent = async () => {
   if (ALL_PROXY_URIS.length === 0) return null;
+
+  await loadProxyAgents();
 
   logger.info(`🔍 Testing ${ALL_PROXY_URIS.length} proxies in parallel...`);
 
   const testProxy = async (uri: string) => {
     try {
-      const agent = getProxyAgent(false, uri);
+      if (cachedAgents.has(uri)) return { uri, agent: cachedAgents.get(uri) };
+
+      let agent: any = null;
+      if (uri.startsWith("socks")) {
+        const socksUri = uri.replace("socks5://", "socks5h://");
+        agent = new SocksProxyAgent(socksUri);
+      } else if (uri.startsWith("http://") || uri.startsWith("https://")) {
+        agent = new HttpsProxyAgent(uri);
+      }
+
       if (!agent) return null;
 
       const testStart = Date.now();
       // Use direct https.get to avoid axios-specific agent handling issues
       await new Promise((resolve, reject) => {
-        const req = https.get("https://api.telegram.org", {
-          agent,
-          timeout: 15000,
-        }, (res) => {
-          resolve(res);
-        });
+        const req = https.get(
+          "https://api.telegram.org",
+          {
+            agent,
+            timeout: 15000,
+          },
+          (res) => {
+            resolve(res);
+          }
+        );
         req.on("error", reject);
         req.on("timeout", () => {
           req.destroy();
@@ -229,6 +248,7 @@ export const getWorkingProxyAgent = async () => {
       logger.info(
         `✅ Working proxy found: ${uri} (ping: ${Date.now() - testStart}ms)`
       );
+      cachedAgents.set(uri, agent);
       return { uri, agent };
     } catch (error: any) {
       logger.warn(`❌ Proxy failed: ${uri} - ${error.message}`);
@@ -251,6 +271,3 @@ export const getWorkingProxyAgent = async () => {
   logger.error("🚫 No working proxies found in the list.");
   return null;
 };
-*/
-export const getProxyAgent = (...args: any[]) => null as any;
-export const getWorkingProxyAgent = async (...args: any[]) => null as any;

@@ -27,7 +27,6 @@ export const bot = new Telegraf<BotContext>(BOT_TOKEN, {
   telegram: {
     webhookReply: false,
     agent: getProxyAgent(),
-    apiTimeout: 60000,
   },
   // default telegraf handler timeout is 90 sec
   handlerTimeout: BOT_TIMEOUT,

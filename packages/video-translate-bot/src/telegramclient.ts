@@ -228,7 +228,7 @@ export const useTelegramClient = async <T = void>(
   const { default: pRetry } = await importPRetry();
 
   const getStoreValue = async () => {
-    return await pRetry(() => store.get(TELEGRAM_SESSIONS_KEY_NAME), {
+    return await pRetry(() => store!.get(TELEGRAM_SESSIONS_KEY_NAME), {
       retries: 3,
       onFailedAttempt: (error) => {
         logger.warn(
@@ -239,7 +239,7 @@ export const useTelegramClient = async <T = void>(
   };
 
   const setStoreValue = async (value: TelegramSessionsStore) => {
-    return await pRetry(() => store.set(TELEGRAM_SESSIONS_KEY_NAME, value), {
+    return await pRetry(() => store!.set(TELEGRAM_SESSIONS_KEY_NAME, value), {
       retries: 3,
       onFailedAttempt: (error) => {
         logger.warn(
@@ -256,7 +256,7 @@ export const useTelegramClient = async <T = void>(
     JSON.stringify(telegramSessionsStore, null, 0)
   );
 
-  let sessionStringIndex: number;
+  let sessionStringIndex: number = -1;
   let client: undefined | TelegramClient;
   const triedIndices = new Set<number>();
   const MAX_ACQUISITION_RETRIES = 5;
@@ -282,7 +282,7 @@ export const useTelegramClient = async <T = void>(
         );
         // Refresh session store info from DB before retrying
         telegramSessionsStore =
-          (await store.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
+          (await store!.get(TELEGRAM_SESSIONS_KEY_NAME)) ?? {};
         continue;
       }
       throw error;
@@ -399,7 +399,6 @@ export const downloadLargeFile = async (chatId: number, messageId: number) => {
     try {
       const fileBuffer = (await fileMessage.downloadMedia({
         outputFile: undefined,
-        workers: 1,
       })) as Buffer;
 
       return fileBuffer;
@@ -595,7 +594,6 @@ export const downloadMessageFile = async (
 
         fileBuffer = (await fileMessage.downloadMedia({
           outputFile: undefined,
-          workers: 1,
         })) as Buffer;
       });
 

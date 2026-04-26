@@ -59,6 +59,7 @@ type HandledEvent = MessageQueue.Event | YandexHttpEvent;
 import { MetricsService } from "./services/metrics";
 import { setGlobalMetricsService } from "./services/metricsglobal";
 import { handleInternalErrorExpress } from "./utils";
+import { initUpdatesTable } from "./db";
 
 // import { telegramLoggerContext } from "./telegramlogger";
 
@@ -221,7 +222,7 @@ process.on("warning", (warning) => {
 });
 
 const main = async () => {
-  if (BOT_TOKEN === BOT_TOKEN_PROD) {
+  if (BOT_TOKEN === BOT_TOKEN_PROD && process.env.BOT_POLLING !== "true") {
     logger.error(
       "❌ CRITICAL ERROR: Attempting to run PRODUCTION bot locally with polling! This will delete the webhook."
     );
@@ -229,22 +230,25 @@ const main = async () => {
     process.exit(1);
   }
 
+  await initUpdatesTable();
+
   logger.info(`VERSION: ${process.version}`);
   logger.info(`DEBUG: ${DEBUG}`);
 
   // await storage.init({ dir: "./session/storage" });
 
-  /*
   // Find a working proxy before starting
   const workingAgent = await getWorkingProxyAgent();
   if (workingAgent) {
     bot.telegram.options.agent = workingAgent;
-    debugBot.telegram.options.agent = workingAgent;
+    // debugBot.telegram.options.agent = workingAgent;
   }
-  */
 
   try {
-    bot.launch();
+    logger.info("Deleteting webhook before launch...");
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    
+    bot.launch({ dropPendingUpdates: true });
     const botInfo = await bot.telegram.getMe();
 
     setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
@@ -323,8 +327,13 @@ interface YandexQueueEvent {
 
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
+  // Initialize database schema
+  initUpdatesTable().catch(err => {
+    logger.error("Failed to initialize database:", err);
+  });
+
   // Start long polling server locally and webhook handler on the server
-  if (APP_ENV === "local") {
+  if (APP_ENV === "local" || process.env.BOT_POLLING === "true") {
     main();
   } else {
     handlerApp.use(bot.webhookCallback("/webhook"));

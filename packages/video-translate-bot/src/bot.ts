@@ -2556,9 +2556,9 @@ bot.action(/.+/, async (context) => {
             logger.info("Delegating video uploading to external service...");
             const videoKey = `${nanoid()}.mp4`;
             const publicUrl = await uploadVideo(outputBuffer, videoKey);
-            const normalizedBaseURL = TELEGRAM_SERVICE_URL.endsWith("/")
-              ? TELEGRAM_SERVICE_URL
-              : TELEGRAM_SERVICE_URL + "/";
+            const normalizedBaseURL = TELEGRAM_SERVICE_URL!.endsWith("/")
+              ? TELEGRAM_SERVICE_URL!
+              : TELEGRAM_SERVICE_URL! + "/";
 
             logger.info(
               `Sending delegated /send request to ${normalizedBaseURL}...`

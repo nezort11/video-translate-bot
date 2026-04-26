@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/build
+.git
+.github
+.terraform
+*.tfstate*
+*.zip
+*.log
+packages/admin-api
+packages/admin-dashboard
+packages/video-translate-app
+packages/video-translate-server
+# Add others only if not needed for the bot or worker

@@ -1,0 +1,122 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: vtb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-vtb_db}
+      POSTGRES_USER: ${DB_USER:-vtb_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vtb_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vtb-network
+
+  minio:
+    image: minio/minio
+    container_name: vtb-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9001:9001" # Web UI
+      - "9000:9000" # API
+    networks:
+      - vtb-network
+
+  # Auto-create buckets for MinIO
+  minio-provisioner:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set local http://minio:9000 admin password) do echo 'Waiting for MinIO...' && sleep 1; done;
+      /usr/bin/mc mb --ignore-existing local/video-translate-bot-storage;
+      /usr/bin/mc mb --ignore-existing local/video-translate-bot-env;
+      /usr/bin/mc anonymous set public local/video-translate-bot-storage;
+      exit 0;
+      "
+    networks:
+      - vtb-network
+
+  bot:
+    build:
+      context: ../../
+      dockerfile: packages/video-translate-bot/Dockerfile
+    container_name: vtb-bot
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - minio
+      - telegram-service
+      - ytdl-service
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./.env
+    environment:
+      - TELEGRAM_SERVICE_URL=http://telegram-service:3001
+      - YTDL_API_BASE_URL=http://ytdl-service:8000
+      - VTRANS_SERVICE_URL=http://worker:3000
+      - APP_ENV=production
+      - BOT_POLLING=true
+      - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@postgres:5432/${DB_NAME:-vtb_db}
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=${MINIO_ROOT_USER:-admin}
+      - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-password}
+      - S3_BUCKET_STORAGE=video-translate-bot-storage
+    volumes:
+      - ./docker_session:/app/packages/video-translate-bot/session
+      - ./storage:/app/packages/video-translate-bot/storage
+    networks:
+      - vtb-network
+
+  worker:
+    build:
+      context: ../../
+      dockerfile: packages/vtrans-service/Dockerfile
+    container_name: vtb-worker
+    restart: unless-stopped
+    env_file:
+      - ../vtrans-service/.env
+    networks:
+      - vtb-network
+
+  telegram-service:
+    build:
+      context: ../../../telegram-service
+    container_name: vtb-telegram
+    restart: unless-stopped
+    env_file:
+      - ../../../telegram-service/.env
+    environment:
+      - PORT=3001
+    networks:
+      - vtb-network
+
+  ytdl-service:
+    build:
+      context: ../../../youtube-downloader
+    container_name: vtb-ytdl
+    restart: unless-stopped
+    env_file:
+      - ../../../youtube-downloader/.env
+    environment:
+      - PORT=8000
+    networks:
+      - vtb-network
+
+networks:
+  vtb-network:
+    name: vtb-network
+
+volumes:
+  postgres_data:
+  minio_data:

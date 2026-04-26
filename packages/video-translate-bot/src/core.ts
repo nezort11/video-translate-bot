@@ -12,6 +12,10 @@ import {
   EHP_PROXY,
   PROXY_SERVER_URI,
   getProxyAgent,
+  S3_ENDPOINT,
+  S3_ACCESS_KEY,
+  S3_SECRET_KEY,
+  S3_REGION,
 } from "./env";
 import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
@@ -423,10 +427,18 @@ export const streamToBuffer = async (stream: Readable) => {
   return streamBuffer;
 };
 
-export const s3Localstorage = new S3LocalStorage(YTDL_STORAGE_BUCKET, {
+export const s3Localstorage = new S3LocalStorage(YTDL_STORAGE_BUCKET!, {
+  endpoint: S3_ENDPOINT,
+  region: S3_REGION,
+  credentials: (S3_ACCESS_KEY && S3_SECRET_KEY) ? {
+    accessKeyId: S3_ACCESS_KEY!,
+    secretAccessKey: S3_SECRET_KEY!,
+  } : undefined,
   requestHandler: {
     requestTimeout: 300000, // 5 minutes
   },
+  // Ensure we use path-style addressing for MinIO
+  forcePathStyle: S3_ENDPOINT?.includes("localhost") || S3_ENDPOINT?.includes("minio") || false,
 });
 
 export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
