@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  bot:
+    # Explicit nodemon command with polling (-L) for reliability on Mac/Docker
+    command: ["pnpm", "nodemon", "-L", "--watch", "src", "--ext", "ts,js,json", "--exec", "pnpm tsx src/index.ts"]
+    # Mount the local source code into the container so nodemon can detect changes
+    volumes:
+      - ../../:/app # Mount entire workspace to handle pnpm workspaces and dependencies
+      # We create an anonymous volume for node_modules so that the container keeps its own
+      # linux-compiled node_modules (avoiding macOS/Linux binary conflicts)
+      - /app/node_modules
+      - /app/packages/video-translate-bot/node_modules
+      - /app/packages/vtrans-service/node_modules
+      # Keep the existing mounts from compose.yaml
+      - ./docker_session:/app/packages/video-translate-bot/session
+      - ./storage:/app/packages/video-translate-bot/storage
+    environment:
+      - APP_ENV=local
+      - NODE_ENV=development
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  ytdl-service:
+    ports:
+      - "8000:8000"

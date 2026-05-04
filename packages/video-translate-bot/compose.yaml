@@ -14,38 +14,6 @@ services:
     networks:
       - vtb-network
 
-  minio:
-    image: minio/minio
-    container_name: vtb-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9001:9001" # Web UI
-      - "9000:9000" # API
-    networks:
-      - vtb-network
-
-  # Auto-create buckets for MinIO
-  minio-provisioner:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until (/usr/bin/mc alias set local http://minio:9000 admin password) do echo 'Waiting for MinIO...' && sleep 1; done;
-      /usr/bin/mc mb --ignore-existing local/video-translate-bot-storage;
-      /usr/bin/mc mb --ignore-existing local/video-translate-bot-env;
-      /usr/bin/mc anonymous set public local/video-translate-bot-storage;
-      exit 0;
-      "
-    networks:
-      - vtb-network
-
   bot:
     build:
       context: ../../
@@ -54,7 +22,6 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
-      - minio
       - telegram-service
       - ytdl-service
     ports:
@@ -62,21 +29,21 @@ services:
     env_file:
       - ./.env
     environment:
-      - TELEGRAM_SERVICE_URL=http://telegram-service:3001
-      - YTDL_API_BASE_URL=http://ytdl-service:8000
-      - VTRANS_SERVICE_URL=http://worker:3000
+      - TELEGRAM_SERVICE_URL=http://localhost:3001
+      - YTDL_API_BASE_URL=http://localhost:8000
+      - VTRANS_SERVICE_URL=http://localhost:3000
       - APP_ENV=production
       - BOT_POLLING=true
-      - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@postgres:5432/${DB_NAME:-vtb_db}
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=${MINIO_ROOT_USER:-admin}
-      - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD:-password}
-      - S3_BUCKET_STORAGE=video-translate-bot-storage
+      - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@localhost:5432/${DB_NAME:-vtb_db}
+      - S3_ENDPOINT=https://s3.cloud.ru
+      - S3_REGION=ru-central-1
+      - S3_FORCE_PATH_STYLE=true
+      - PROXY_SERVER_URI=
+      - PROXY_SERVER_URIS=
+    network_mode: host
     volumes:
       - ./docker_session:/app/packages/video-translate-bot/session
       - ./storage:/app/packages/video-translate-bot/storage
-    networks:
-      - vtb-network
 
   worker:
     build:
@@ -85,7 +52,7 @@ services:
     container_name: vtb-worker
     restart: unless-stopped
     env_file:
-      - ../vtrans-service/.env
+      - ./.env
     networks:
       - vtb-network
 
@@ -93,11 +60,24 @@ services:
     build:
       context: ../../../telegram-service
     container_name: vtb-telegram
+    ports:
+      - "3001:3001"
     restart: unless-stopped
     env_file:
-      - ../../../telegram-service/.env
+      - ./.env
     environment:
       - PORT=3001
+      - S3_BUCKET=video-translate-bot-storage
+      - S3_REGION=ru-central-1
+      - S3_ENDPOINT=https://s3.cloud.ru
+      - S3_FORCE_PATH_STYLE=true
+      - TELEGRAM_SESSIONS_PATH=/app/env/telegram_sessions.json
+      # PUBLIC_IP must be unset so download.go returns a real S3 URL (accessible by Yandex API).
+      # When PUBLIC_IP is set, it returns http://<PUBLIC_IP>:3001/video?key=... which is a local
+      # address that external services (Yandex translation API) cannot reach.
+      - PUBLIC_IP=
+    volumes:
+      - ./env:/app/env:ro
     networks:
       - vtb-network
 
@@ -107,9 +87,13 @@ services:
     container_name: vtb-ytdl
     restart: unless-stopped
     env_file:
-      - ../../../youtube-downloader/.env
+      - ./.env
     environment:
       - PORT=8000
+      - BUCKET_NAME=video-translate-ytdl-storage
+      - S3_ENDPOINT=https://s3.cloud.ru
+      - S3_REGION=ru-central-1
+      - S3_FORCE_PATH_STYLE=true
     networks:
       - vtb-network
 
@@ -119,4 +103,3 @@ networks:
 
 volumes:
   postgres_data:
-  minio_data:

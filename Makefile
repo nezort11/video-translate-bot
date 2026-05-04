@@ -5,7 +5,9 @@
 # Variables
 PACKAGE_DIR = packages/video-translate-bot
 COMPOSE_FILE = $(PACKAGE_DIR)/compose.yaml
+DEV_COMPOSE_FILE = $(PACKAGE_DIR)/compose.dev.yaml
 COMPOSE = docker compose -f $(COMPOSE_FILE)
+DEV_COMPOSE = docker compose -f $(COMPOSE_FILE) -f $(DEV_COMPOSE_FILE)
 PROJECT_NAME = vtb
 
 # Colors for pretty output
@@ -41,9 +43,17 @@ up: ## Start all services in detached mode
 	@echo "${CYAN}🚀 Starting services...${RESET}"
 	$(COMPOSE) up -d
 
+up-dev: ## Start services for local development with hot-reload
+	@echo "${CYAN}🚀 Starting services in DEV mode (hot-reload)...${RESET}"
+	$(DEV_COMPOSE) up -d
+
 down: ## Stop and remove containers, networks
 	@echo "${YELLOW}🛑 Stopping services...${RESET}"
 	$(COMPOSE) down
+
+down-dev: ## Stop dev services
+	@echo "${YELLOW}🛑 Stopping dev services...${RESET}"
+	$(DEV_COMPOSE) down
 
 restart: ## Restart all services
 	@echo "${CYAN}🔄 Restarting services...${RESET}"
@@ -59,6 +69,9 @@ rebuild: ## Build services without cache
 
 logs: ## View output from all containers
 	$(COMPOSE) logs -f
+
+logs-dev: ## View output from all containers in dev mode
+	$(DEV_COMPOSE) logs -f
 
 bot-logs: ## View logs for the bot service
 	$(COMPOSE) logs -f bot

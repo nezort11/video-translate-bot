@@ -20,8 +20,9 @@ RUN pnpm install --filter video-translate-bot...
 # Copy all other source files
 COPY . .
 
-# Build the bot package
+# Build the packages
 RUN pnpm --filter video-translate-bot build
+RUN pnpm --filter vtrans-service build
 
 # Run the bot from its package directory
 WORKDIR /app/packages/video-translate-bot

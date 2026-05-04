@@ -159,3 +159,10 @@ Remember to replace `video-translate-bot-logs` with the specific component's log
 ## Source Control & CLI Tools
 
 - `git`, `gh`, and `vercel` CLI commands are configured and can be used if needed.
+
+## Local Development vs Production
+
+- **Dev Environment**: Use `make up-dev` for local development. This utilizes `compose.dev.yaml` alongside `compose.yaml` to mount the source code directory as a volume and run the `pnpm dev` command (using nodemon and ts-node/tsx). This avoids full docker image rebuilds and provides hot-reloading when `.ts` files change.
+- **Production/Standard Environment**: Use `make up` for standard container execution. This builds the images from Dockerfiles and runs the built code without hot-reloading. Useful for testing the final image artifacts.
+- When changing code during local dev, `make up-dev` is the preferred way so you don't waste time rebuilding images.
+- Use `make down-dev` to stop the dev services.
