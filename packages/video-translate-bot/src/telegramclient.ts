@@ -10,21 +10,16 @@ import { logger } from "./logger";
 // import input from "input";
 import {
   API_ID,
-  APP_ENV,
   APP_HASH,
   DOTENV_DIR_PATH,
   EXECUTION_TIMEOUT,
   STORAGE_CHANNEL_CHAT_ID,
-  BOT_TOKEN,
-  BOT_PUBLIC_USERNAME,
-  ALL_PROXY_URIS,
-  WORKER_APP_SERVER_URL,
   TELEGRAM_SERVICE_URL,
 } from "./env";
 import { bot } from "./botinstance";
 import { store } from "./db";
 import path from "path";
-import { cleanupOldChannelMessages, uploadVideo } from "./core";
+import { cleanupOldChannelMessages } from "./core";
 import { RPCError } from "telegram/errors";
 
 export class CorruptedSessionStringError extends Error {
@@ -122,36 +117,10 @@ const getAvailableSessionStringIndex = async (
   return availableSessionIndices[randomSessionIndex];
 };
 
-const mtprotoProxyRotationIndex = 0;
-
 export const getClient = async (sessionString: string) => {
   const session = new StringSession(sessionString);
 
   const proxy: any = undefined;
-  /*
-  if (ALL_PROXY_URIS.length > 0) {
-    const proxyUri = ALL_PROXY_URIS[mtprotoProxyRotationIndex];
-    mtprotoProxyRotationIndex =
-      (mtprotoProxyRotationIndex + 1) % ALL_PROXY_URIS.length;
-
-    try {
-      const url = new URL(proxyUri);
-      proxy = {
-        ip: url.hostname,
-        port: parseInt(url.port, 10),
-        socksType: url.protocol.replace(":", "") === "socks5" ? 5 : 4,
-        username: url.username || undefined,
-        password: url.password || undefined,
-        timeout: 120,
-      };
-      logger.info(
-        `Using Telegram client proxy (${mtprotoProxyRotationIndex}/${ALL_PROXY_URIS.length}): ${url.protocol}//${url.hostname}:${url.port}`
-      );
-    } catch (error) {
-      logger.error(`Failed to parse proxy URI ${proxyUri}:`, error);
-    }
-  }
-  */
 
   const _telegramClient = new TelegramClient(session, +API_ID, APP_HASH, {
     connectionRetries: 5,

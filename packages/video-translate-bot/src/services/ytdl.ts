@@ -1,16 +1,7 @@
-import fs from "fs";
-import path from "path";
 import axios, { AxiosError } from "axios";
 // import ytdl, { downloadOptions } from "@distube/ytdl-core";
-import { streamToBuffer } from "../core";
-import { importPRetry } from "../utils";
 import { logger } from "../logger";
-import {
-  DOTENV_DIR_PATH,
-  PROXY_SERVER_URI,
-  YTDL_API_BASE_URL,
-  YTDL_FUNCTION_URL,
-} from "../env";
+import { YTDL_API_BASE_URL, YTDL_FUNCTION_URL } from "../env";
 
 /**
  * Error thrown when ytdl download fails due to temporary issues

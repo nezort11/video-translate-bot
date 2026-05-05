@@ -85,12 +85,14 @@ export const PROXY_SERVER_URIS = (process.env.PROXY_SERVER_URIS ?? "")
   .filter(Boolean);
 
 // If both are provided, merge them
-export const ALL_PROXY_URIS = Array.from(
-  new Set([
-    ...(PROXY_SERVER_URI ? [PROXY_SERVER_URI] : []),
-    ...PROXY_SERVER_URIS,
-  ])
-);
+// Hardcoded to empty to disable built-in proxy logic
+export const ALL_PROXY_URIS: string[] = [];
+// export const ALL_PROXY_URIS = Array.from(
+//   new Set([
+//     ...(PROXY_SERVER_URI ? [PROXY_SERVER_URI] : []),
+//     ...PROXY_SERVER_URIS,
+//   ])
+// );
 
 export const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL;
 export const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -260,13 +262,13 @@ export const getWorkingProxyAgent = async () => {
     }
   };
 
-  const results = await Promise.all(ALL_PROXY_URIS.map(testProxy));
-  const working = results.find((r) => r !== null);
+  // const results = await Promise.all(ALL_PROXY_URIS.map(testProxy));
+  // const working = results.find((r) => r !== null);
 
-  if (working) {
-    proxyRotationIndex = ALL_PROXY_URIS.indexOf(working.uri);
-    return working.agent;
-  }
+  // if (working) {
+  //   proxyRotationIndex = ALL_PROXY_URIS.indexOf(working.uri);
+  //   return working.agent;
+  // }
 
   logger.error("🚫 No working proxies found in the list.");
   return null;

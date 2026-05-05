@@ -5,24 +5,21 @@ import path from "path";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { logger } from "./logger";
 import {
-  APP_ENV,
   OPENAI_API_BASE_URL,
   OPENAI_API_KEY,
   YTDL_STORAGE_BUCKET,
-  EHP_PROXY,
-  PROXY_SERVER_URI,
-  getProxyAgent,
   S3_ENDPOINT,
   S3_ACCESS_KEY,
   S3_SECRET_KEY,
   S3_REGION,
+  STORAGE_DIR_PATH,
 } from "./env";
 import type { thumbnail } from "@distube/ytdl-core";
 // import { ytdlAgent } from "./services/ytdl";
 import { getVideoInfoYtdl } from "./services/ytdl";
 import { getLinkPreview } from "link-preview-js";
 import { getGlobalMetricsService } from "./services/metricsglobal";
-import { delay, importNanoid, importPTimeout, percent } from "./utils";
+import { delay, importPTimeout, percent } from "./utils";
 import { translate } from "./services/translate";
 import { translateWithGPT } from "./services/gpt-translate";
 import { bot } from "./botinstance";
@@ -452,8 +449,26 @@ export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
     storageKey = `${hash}.mp4`;
   }
 
+  // Local storage fallback for debugging
+  if (process.env.APP_ENV === "local" && process.env.USE_LOCAL_STORAGE === "true") {
+    const localFilePath = path.join(STORAGE_DIR_PATH, storageKey);
+    logger.info(`💾 [LOCAL MODE] Saving video to local storage: ${localFilePath}`);
+    if (!fs.existsSync(STORAGE_DIR_PATH)) {
+      fs.mkdirSync(STORAGE_DIR_PATH, { recursive: true });
+    }
+    await fs.promises.writeFile(localFilePath, videoBuffer);
+    // Return a file:// URL or a dummy public URL for debugging
+    return `file://${localFilePath}`;
+  }
+
+  if (!YTDL_STORAGE_BUCKET) {
+    logger.error("YTDL_STORAGE_BUCKET is not defined in environment");
+    throw new Error("YTDL_STORAGE_BUCKET is required for uploadVideo");
+  }
+
   try {
     // Check if video already exists in S3 to avoid unnecessary re-uploading
+    logger.info(`Checking if video exists in bucket: ${YTDL_STORAGE_BUCKET}, key: ${storageKey}`);
     await s3Localstorage.s3Client.send(
       new HeadObjectCommand({
         Bucket: YTDL_STORAGE_BUCKET,
@@ -466,19 +481,19 @@ export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
   } catch (error: any) {
     // If not found (404), proceed with upload
     if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
-      logger.info(`Uploading video to storage: ${storageKey}`);
+      logger.info(`Uploading video to storage bucket: ${YTDL_STORAGE_BUCKET}, key: ${storageKey}`);
       await s3Localstorage.setItem(storageKey, videoBuffer);
     } else {
       // Log and re-throw other errors (e.g., credentials, networking)
-      logger.error(`Error checking video existence in S3: ${error.message}`);
+      logger.error(`Error checking video existence in S3 (Bucket: ${YTDL_STORAGE_BUCKET}): ${error.message}`);
       throw error;
     }
   }
 
-  const videoObjectUrl = await s3Localstorage.getItemPublicLink(storageKey);
+  const videoObjectUrl = await s3Localstorage.getItemLink(storageKey);
   if (!videoObjectUrl) {
     throw new Error(
-      `Failed to get public link for uploaded video: ${storageKey}`
+      `Failed to get presigned link for uploaded video: ${storageKey} in bucket ${YTDL_STORAGE_BUCKET}`
     );
   }
   return videoObjectUrl;
