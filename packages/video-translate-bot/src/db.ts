@@ -22,7 +22,7 @@ if (POSTGRES_URL) {
  */
 export const initPostgres = async () => {
   if (!pool) return;
-  
+
   const client = await pool.connect();
   try {
     await client.query(`
@@ -74,7 +74,10 @@ export const initPostgres = async () => {
 const postgresSessionStore = {
   get: async (key: string) => {
     if (!pool) return null;
-    const res = await pool.query('SELECT session FROM "telegraf-sessions" WHERE key = $1', [key]);
+    const res = await pool.query(
+      'SELECT session FROM "telegraf-sessions" WHERE key = $1',
+      [key]
+    );
     return res.rows[0]?.session || null;
   },
   set: async (key: string, session: any) => {
@@ -87,7 +90,7 @@ const postgresSessionStore = {
   delete: async (key: string) => {
     if (!pool) return;
     await pool.query('DELETE FROM "telegraf-sessions" WHERE key = $1', [key]);
-  }
+  },
 };
 
 /**
@@ -96,20 +99,22 @@ const postgresSessionStore = {
 const postgresStore = {
   get: async (key: string) => {
     if (!pool) return null;
-    const res = await pool.query('SELECT value FROM store WHERE key = $1', [key]);
+    const res = await pool.query("SELECT value FROM store WHERE key = $1", [
+      key,
+    ]);
     return res.rows[0]?.value || null;
   },
   set: async (key: string, value: any) => {
     if (!pool) return;
     await pool.query(
-      'INSERT INTO store (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2',
+      "INSERT INTO store (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2",
       [key, value]
     );
   },
   delete: async (key: string) => {
     if (!pool) return;
-    await pool.query('DELETE FROM store WHERE key = $1', [key]);
-  }
+    await pool.query("DELETE FROM store WHERE key = $1", [key]);
+  },
 };
 
 // --- YDB Implementation (Commented Out) ---
@@ -208,16 +213,19 @@ export const initUpdatesTable = async () => {
 export const store = POSTGRES_URL ? postgresStore : null; // ydbStore
 export const sessionStore = POSTGRES_URL ? postgresSessionStore : undefined;
 
+// ydbSessionStore
 
- // ydbSessionStore
-
-export const trackEvent = async (eventType: string, payload: Record<string, any>) => {
+export const trackEvent = async (
+  eventType: string,
+  payload: Record<string, any>
+) => {
   if (POSTGRES_URL && pool) {
     try {
-      const eventId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      const eventId =
+        Math.random().toString(36).substring(2) + Date.now().toString(36);
       const createdAt = Math.floor(Date.now() / 1000);
       await pool.query(
-        'INSERT INTO events (event_id, event_type, created_at, payload) VALUES ($1, $2, $3, $4)',
+        "INSERT INTO events (event_id, event_type, created_at, payload) VALUES ($1, $2, $3, $4)",
         [eventId, eventType, createdAt, payload]
       );
     } catch (error) {
@@ -233,7 +241,7 @@ export const trackUpdate = async (update: Update) => {
     try {
       const eventTimestamp = extractTimestamp(update);
       await pool.query(
-        'INSERT INTO updates (update_id, update_data, event_timestamp) VALUES ($1, $2, $3) ON CONFLICT (update_id) DO NOTHING',
+        "INSERT INTO updates (update_id, update_data, event_timestamp) VALUES ($1, $2, $3) ON CONFLICT (update_id) DO NOTHING",
         [update.update_id, update, eventTimestamp]
       );
       await trackNewUser(update, eventTimestamp);
@@ -245,10 +253,15 @@ export const trackUpdate = async (update: Update) => {
   // YDB trackUpdate logic here...
 };
 
-export const getUserIdByUsername = async (username: string): Promise<number | null> => {
+export const getUserIdByUsername = async (
+  username: string
+): Promise<number | null> => {
   const cleanUsername = username.startsWith("@") ? username.slice(1) : username;
   if (POSTGRES_URL && pool) {
-    const res = await pool.query('SELECT user_id FROM users WHERE username = $1 LIMIT 1', [cleanUsername]);
+    const res = await pool.query(
+      "SELECT user_id FROM users WHERE username = $1 LIMIT 1",
+      [cleanUsername]
+    );
     return res.rows[0] ? Number(res.rows[0].user_id) : null;
   }
   return null;
@@ -263,7 +276,9 @@ export interface SessionData {
   [key: string]: unknown;
 }
 
-export const getUserSession = async (userId: number): Promise<SessionData | null> => {
+export const getUserSession = async (
+  userId: number
+): Promise<SessionData | null> => {
   const sessionKey = `${userId}:${userId}`;
   if (POSTGRES_URL && sessionStore) {
     return await sessionStore.get(sessionKey);
@@ -271,9 +286,12 @@ export const getUserSession = async (userId: number): Promise<SessionData | null
   return null;
 };
 
-export const updateUserSessionBalance = async (userId: number, creditsToAdd: number): Promise<number> => {
+export const updateUserSessionBalance = async (
+  userId: number,
+  creditsToAdd: number
+): Promise<number> => {
   const sessionKey = `${userId}:${userId}`;
-  let currentSession = await getUserSession(userId) || {};
+  const currentSession = (await getUserSession(userId)) || {};
   const newBalance = (currentSession.balance ?? 0) + creditsToAdd;
   currentSession.balance = newBalance;
   if (POSTGRES_URL && sessionStore) {
@@ -284,9 +302,12 @@ export const updateUserSessionBalance = async (userId: number, creditsToAdd: num
 
 const extractTimestamp = (update: Update): number => {
   if ("message" in update && update.message) return update.message.date;
-  if ("edited_message" in update && update.edited_message) return update.edited_message.edit_date || update.edited_message.date;
-  if ("callback_query" in update && update.callback_query?.message) return update.callback_query.message.date;
-  if ("my_chat_member" in update && update.my_chat_member) return update.my_chat_member.date;
+  if ("edited_message" in update && update.edited_message)
+    return update.edited_message.edit_date || update.edited_message.date;
+  if ("callback_query" in update && update.callback_query?.message)
+    return update.callback_query.message.date;
+  if ("my_chat_member" in update && update.my_chat_member)
+    return update.my_chat_member.date;
   return Math.floor(Date.now() / 1000);
 };
 
@@ -300,13 +321,13 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (user_id) DO NOTHING`,
         [
-          userInfo.userId, 
-          eventTimestamp, 
-          eventTimestamp, 
-          userInfo.username, 
-          userInfo.firstName, 
-          userInfo.lastName, 
-          userInfo.languageCode
+          userInfo.userId,
+          eventTimestamp,
+          eventTimestamp,
+          userInfo.username,
+          userInfo.firstName,
+          userInfo.lastName,
+          userInfo.languageCode,
         ]
       );
     } catch (error) {
@@ -316,12 +337,13 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
 };
 
 const extractUserInfo = (update: Update) => {
-  let from = (update as any).message?.from || 
-             (update as any).callback_query?.from || 
-             (update as any).inline_query?.from || 
-             (update as any).my_chat_member?.from || 
-             (update as any).edited_message?.from || 
-             (update as any).chosen_inline_result?.from;
+  const from =
+    (update as any).message?.from ||
+    (update as any).callback_query?.from ||
+    (update as any).inline_query?.from ||
+    (update as any).my_chat_member?.from ||
+    (update as any).edited_message?.from ||
+    (update as any).chosen_inline_result?.from;
   if (!from) return null;
   return {
     userId: from.id,

@@ -18,8 +18,8 @@ const YANDEX_VIDEO_TRANSLATE_URL =
   "https://api.browser.yandex.ru/video-translation/translate";
 const YANDEX_SESSION_CREATE_URL =
   "https://api.browser.yandex.ru/session/create";
-const YANDEX_BROWSER_VERSION = "25.12.0.2215";
-const YANDEX_BROWSER_USER_AGENT = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 YaBrowser/${YANDEX_BROWSER_VERSION} Safari/537.36`;
+const YANDEX_BROWSER_VERSION = "24.4.0.0";
+const YANDEX_BROWSER_USER_AGENT = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 YaBrowser/${YANDEX_BROWSER_VERSION} Safari/537.36`;
 
 export const YANDEX_VIDEO_TRANSLATE_LANGUAGES = ["ru", "en", "kk"];
 
@@ -53,7 +53,7 @@ const VideoTranslateRequestProto = new protobuf.Type("VideoTranslationRequest")
   .add(new protobuf.Field("wasStream", 13, "bool")) // set true if it's ended stream
   .add(new protobuf.Field("responseLanguage", 14, "string")) // YANDEX_VIDEO_TRANSLATE_LANGUAGES
   .add(new protobuf.Field("unknown2", 15, "int32")) // 1?
-  .add(new protobuf.Field("unknown3", 16, "int32")) // before april 2025 is 1, but now it's 2
+  .add(new protobuf.Field("unknown3", 16, "int32")) // version check? 2026?
   // they have some kind of limiter on requests from one IP - because after one such request it stops working
   .add(new protobuf.Field("bypassCache", 17, "bool"))
   // translates videos with higher-quality voices, but sometimes the voice of one person can constantly change
@@ -319,7 +319,7 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
   // console.log("vtransSignature", vtransSignature);
 
   const vtransPath = new URL(YANDEX_VIDEO_TRANSLATE_URL).pathname;
-  const vtransTokenString = `${vtransTokenUUID}:${vtransPath}:${YANDEX_BROWSER_VERSION}`;
+  const vtransTokenString = `${vtransPath}:${vtransTokenUUID}:${YANDEX_BROWSER_VERSION}`;
 
   const vtransTokenSignature = await crypto.subtle.sign(
     "HMAC",
@@ -338,38 +338,56 @@ const translateVideoRequest = async (opts: VideoTranslateOptions) => {
 
   const vtransSk = session.secretKey;
 
-  const videoTranslateResponse = await axios<Uint8Array>({
-    url: YANDEX_VIDEO_TRANSLATE_URL,
-    method: "POST",
-    headers: {
-      Accept: "application/x-protobuf",
-      "Accept-Language": "en",
-      "Content-Type": "application/x-protobuf",
-      "User-Agent": YANDEX_BROWSER_USER_AGENT,
-      Pragma: "no-cache",
-      "Cache-Control": "no-cache",
-      "Sec-Fetch-Mode": "no-cors",
-      "sec-ch-ua": `"Chromium";v="142", "YaBrowser";v="25.12", "Not_A Brand";v="99", "Yowser";v="2.5"`,
-      "sec-ch-ua-mobile": "?0",
-      "sec-ch-ua-platform": `"macOS"`,
-      "Vtrans-Signature": vtransSignature,
-      "Sec-Vtrans-Token": vtransToken,
-      "Sec-Vtrans-Sk": vtransSk,
-      ...(opts.useLivelyVoice
-        ? YANDEX_OAUTH_ACCESS_TOKEN
-          ? // The token is required for the translation of the video with the voice of the original speaker (lively voice) cuz of high resource usage.
-            { Authorization: `OAuth ${YANDEX_OAUTH_ACCESS_TOKEN}` }
-          : {
-              /* Authorization: `Session ${vtransTokenUUID}` */
-            }
-        : {}),
-    },
-    // withCredentials: false,
-    responseType: "arraybuffer",
-    data: Buffer.from(videoTranslateRequest),
-  });
+  try {
+    const videoTranslateResponse = await axios<Uint8Array>({
+      url: YANDEX_VIDEO_TRANSLATE_URL,
+      method: "POST",
+      headers: {
+        Accept: "application/x-protobuf",
+        "Accept-Language": "en",
+        "Content-Type": "application/x-protobuf",
+        "User-Agent": YANDEX_BROWSER_USER_AGENT,
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        "Sec-Fetch-Mode": "no-cors",
+        "sec-ch-ua": `"Chromium";v="142", "YaBrowser";v="25.12", "Not_A Brand";v="99", "Yowser";v="2.5"`,
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": `"macOS"`,
+        "Vtrans-Signature": vtransSignature,
+        "Sec-Vtrans-Token": vtransToken,
+        "Sec-Vtrans-Sk": vtransSk,
+        ...(opts.useLivelyVoice
+          ? YANDEX_OAUTH_ACCESS_TOKEN
+            ? // The token is required for the translation of the video with the voice of the original speaker (lively voice) cuz of high resource usage.
+              { Authorization: `OAuth ${YANDEX_OAUTH_ACCESS_TOKEN}` }
+            : {}
+          : {}),
+      },
+      responseType: "arraybuffer",
+      data: Buffer.from(videoTranslateRequest),
+    });
 
-  return videoTranslateResponse.data;
+    if (videoTranslateResponse.data) {
+      const data = new Uint8Array(videoTranslateResponse.data);
+      const text = Buffer.from(data).toString();
+      if (text.startsWith("(") || text.includes("error_id")) {
+        throw new TranslateException(`Yandex API Error: ${text}`);
+      }
+    }
+
+    return videoTranslateResponse.data;
+  } catch (error: any) {
+    if (error instanceof TranslateException) throw error;
+    if (error.response?.data) {
+      try {
+        const decodedError = decodeVideoTranslateResponse(new Uint8Array(error.response.data));
+        logger.error("Yandex Translation Error (Decoded):", JSON.stringify(decodedError, null, 2));
+      } catch (e) {
+        logger.error("Yandex Translation Error (Raw):", error.response.data.toString());
+      }
+    }
+    throw error;
+  }
 };
 
 type VideoTranslateErrorOptions = ErrorOptions & {

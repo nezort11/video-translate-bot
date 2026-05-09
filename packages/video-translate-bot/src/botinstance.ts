@@ -1,5 +1,5 @@
 import { duration } from "./time";
-import { BOT_TOKEN, EXECUTION_TIMEOUT, getProxyAgent } from "./env";
+import { BOT_TOKEN, EXECUTION_TIMEOUT } from "./env";
 import { Telegraf } from "telegraf";
 import { SceneActionContext, SceneActionSession } from "./actions";
 import {
@@ -26,7 +26,6 @@ export const bot = new Telegraf<BotContext>(BOT_TOKEN, {
   // REQUIRED for `sendChatAction` to work in serverless/webhook environment https://github.com/telegraf/telegraf/issues/1047
   telegram: {
     webhookReply: false,
-    agent: getProxyAgent(),
   },
   // default telegraf handler timeout is 90 sec
   handlerTimeout: BOT_TIMEOUT,

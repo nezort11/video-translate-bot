@@ -207,11 +207,8 @@ export const getProxyAgent = (forceRotate = false, uri?: string) => {
  * @returns A working proxy agent or null
  */
 export const getWorkingProxyAgent = async () => {
-  if (ALL_PROXY_URIS.length === 0) return null;
-
-  await loadProxyAgents();
-
-  logger.info(`🔍 Testing ${ALL_PROXY_URIS.length} proxies in parallel...`);
+  return null;
+  // if (ALL_PROXY_URIS.length === 0) return null;
 
   const testProxy = async (uri: string) => {
     try {

@@ -32,7 +32,7 @@ import {
   translateVideo,
 } from "./services/vtrans";
 import { trackEvent } from "./db";
-import { duration, subtract, diff, isValidDate } from "./time";
+import { duration, subtract, isValidDate } from "./time";
 import http from "http";
 import https from "https";
 import ffmpeg from "fluent-ffmpeg";
@@ -43,9 +43,6 @@ const LINK_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:[\w-]+\.)+\w{2,}(?:\/\S*)?/gi;
 const YOUTUBE_LINK_REGEX =
   /((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.[a-z.]{2,}|youtu.be))(\/(?:[\w-]+\?v=|embed\/|live\/|shorts\/|v\/)?)([\w-]{11})(\S+)?/gi;
 
-const BILIBILI_LINK_REGEX =
-  /(?:https?:\/\/)?(?:www\.)?bilibili\.com\/video\/(\S{13})/g;
-
 export class UnsupportedPlatformError extends Error {
   constructor(message?: string) {
     super(message);
@@ -53,10 +50,12 @@ export class UnsupportedPlatformError extends Error {
   }
 }
 
+import fs from "fs";
+
 export enum VideoPlatform {
   YouTube = "YOUTUBE",
   Telegram = "TELEGRAM",
-
+  Local = "LOCAL",
   Bilibili = "BILIBILI",
   Other = "OTHER",
 }
@@ -66,6 +65,11 @@ export const getVideoPlatform = (link: string) => {
   // but https://stackoverflow.com/a/34034823/13774599
   if (link.match(YOUTUBE_LINK_REGEX)) {
     return VideoPlatform.YouTube;
+  }
+
+  // Check if it's a local file
+  if (fs.existsSync(link)) {
+    return VideoPlatform.Local;
   }
 
   // Validate URL before creating URL object
@@ -109,6 +113,9 @@ export const getLinkMatch = (text: string) => {
 //  use getLinkMatch if string contains link inside
 export const isValidUrl = (string) => {
   try {
+    if (fs.existsSync(string)) {
+      return true;
+    }
     new URL(string);
     return true;
   } catch (error) {
@@ -144,6 +151,14 @@ const findMaxJpgYoutubeThumbnail = (thumbnails: thumbnail[]) => {
 
 export const getVideoInfo = async (link: string) => {
   const videoPlatform = getVideoPlatform(link);
+
+  if (videoPlatform === VideoPlatform.Local) {
+    return {
+      title: path.basename(link),
+      duration: 0, // Should be extracted with ffprobe if needed
+      language: undefined,
+    };
+  }
 
   if (videoPlatform === VideoPlatform.Telegram) {
     const videoUrl = new URL(link);
@@ -317,49 +332,11 @@ const handleRequestError = (error: unknown, warning: string) => {
   }
 };
 
-/**
- * Proxies a URL through EHP proxy if configured and the URL is from YouTube
- * @param url - Original URL to potentially proxy
- * @returns Proxied URL or original URL if proxy not needed
- */
-export const proxyUrlIfNeeded = (url: string): string => {
-  if (!EHP_PROXY) {
-    return url;
-  }
-
-  // Check if URL is from YouTube/Google (i.ytimg.com, ytimg.com, youtube.com, etc.)
-  const isYouTubeUrl =
-    url.includes("ytimg.com") ||
-    url.includes("youtube.com") ||
-    url.includes("youtu.be") ||
-    url.includes("ggpht.com"); // YouTube profile images
-
-  if (isYouTubeUrl) {
-    const proxyUrl = new URL(url, EHP_PROXY);
-    const proxiedUrl = proxyUrl.href;
-    logger.info(`Proxying YouTube URL: ${url} -> ${proxiedUrl}`);
-    return proxiedUrl;
-  }
-
-  return url;
-};
-
 export const getVideoThumbnail = async (videoThumbnailUrl: string) => {
   logger.info("Downloading original video thumbnail...");
   try {
-    // Use proxy for YouTube URLs if configured
-    const finalThumbnailUrl = proxyUrlIfNeeded(videoThumbnailUrl);
-
-    const isYouTubeUrl =
-      finalThumbnailUrl.includes("ytimg.com") ||
-      finalThumbnailUrl.includes("youtube.com") ||
-      finalThumbnailUrl.includes("youtu.be");
-
-    // const agent = getProxyAgent();
-    const { data } = await axios.get<ArrayBuffer>(finalThumbnailUrl, {
+    const { data } = await axios.get<ArrayBuffer>(videoThumbnailUrl, {
       responseType: "arraybuffer",
-      // httpAgent: isYouTubeUrl ? agent : undefined,
-      // httpsAgent: isYouTubeUrl ? agent : undefined,
     });
     return createThumbnailBuffer(data);
   } catch (error) {
@@ -427,15 +404,23 @@ export const streamToBuffer = async (stream: Readable) => {
 export const s3Localstorage = new S3LocalStorage(YTDL_STORAGE_BUCKET!, {
   endpoint: S3_ENDPOINT,
   region: S3_REGION,
-  credentials: (S3_ACCESS_KEY && S3_SECRET_KEY) ? {
-    accessKeyId: S3_ACCESS_KEY!,
-    secretAccessKey: S3_SECRET_KEY!,
-  } : undefined,
+  credentials:
+    S3_ACCESS_KEY && S3_SECRET_KEY
+      ? {
+          accessKeyId: S3_ACCESS_KEY!,
+          secretAccessKey: S3_SECRET_KEY!,
+        }
+      : undefined,
   requestHandler: {
     requestTimeout: 300000, // 5 minutes
   },
-  // Ensure we use path-style addressing for MinIO
-  forcePathStyle: S3_ENDPOINT?.includes("localhost") || S3_ENDPOINT?.includes("minio") || false,
+  // Ensure we use path-style addressing for MinIO or when requested
+  forcePathStyle:
+    process.env.S3_FORCE_PATH_STYLE === "true" ||
+    S3_ENDPOINT?.includes("localhost") ||
+    S3_ENDPOINT?.includes("minio") ||
+    S3_ENDPOINT?.includes("cloud.ru") ||
+    false,
 });
 
 export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
@@ -794,11 +779,22 @@ export const translateVideoFull = async (
   type: "video" | "audio" | "voice" = "video"
 ): Promise<VideoTranslateResponse> => {
   let sourceLanguage: string | undefined = sourceLanguageOverride;
+  let processingUrl = url;
 
+  const videoPlatform = getVideoPlatform(url);
   const isDirectMp4 = url.toLowerCase().includes(".mp4");
 
+  if (videoPlatform === VideoPlatform.Local) {
+    logger.info(`📦 Handling local file translation: ${url}`);
+    const fileBuffer = await fs.promises.readFile(url);
+    const fileName = path.basename(url);
+    const uploadedUrl = await uploadVideo(fileBuffer, fileName);
+    logger.info(`🚀 Local file uploaded to: ${uploadedUrl}`);
+    processingUrl = uploadedUrl;
+  }
+
   // Only auto-detect if no manual override was provided and it's not a direct mp4
-  if (sourceLanguage === undefined && !isDirectMp4) {
+  if (sourceLanguage === undefined && !isDirectMp4 && videoPlatform !== VideoPlatform.Local) {
     // Detect source language from video
     try {
       logger.info("🔍 Detecting video language...");
@@ -820,7 +816,7 @@ export const translateVideoFull = async (
 
   // Call translateVideoFinal with detected or manual language
   return await translateVideoFinal(
-    url,
+    processingUrl,
     targetLanguage,
     sourceLanguage,
     preferEnhanced,

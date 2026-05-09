@@ -10,7 +10,7 @@ import { handler } from "./main";
 import type { Http } from "@yandex-cloud/function-types/dist/src/http";
 import type Context from "@yandex-cloud/function-types/dist/src/context";
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(async (req, res) => {
   try {

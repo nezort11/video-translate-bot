@@ -10,6 +10,7 @@ import {
   Context,
   Markup,
   MiddlewareFn,
+  Telegraf,
   TelegramError,
   session,
 } from "telegraf";

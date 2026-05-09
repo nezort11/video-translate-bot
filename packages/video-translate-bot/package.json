@@ -27,7 +27,7 @@
     "env:pull": "rclone sync yandex-cloud-nezort11:video-translate-bot-env ./env --progress",
     "env:push": "rclone sync ./env yandex-cloud-nezort11:video-translate-bot-env --progress",
     "bundle": "node ./scripts/bundle.mjs",
-    "app:package:bundle": "rm -f ./video-translate-bot.zip && zip -r ./video-translate-bot.zip ./build/index.js ./build/cleanup.js ./build/report.js ./locales",
+    "app:package:bundle": "rm -f ./video-translate-bot.zip && zip -r ./video-translate-bot.zip ./build/index.js ./build/cleanup.js ./build/report.js ./locales"
   },
   "deprecatedScripts": {
     "video-translate-bot:upload": "yc storage s3api put-object --bucket video-translate-bot-code --key function.zip --body ./video-translate-bot.zip",
@@ -72,7 +72,6 @@
     "axios": "1.3.4",
     "cors": "2.8.5",
     "debug": "^4.3.4",
-    "dotenv": "16.0.3",
     "express": "4.18.2",
     "fluent-ffmpeg": "2.1.3",
     "https-proxy-agent": "9.0.0",
@@ -114,6 +113,7 @@
     "@yandex-cloud/function-types": "2.1.2",
     "abort-controller": "^3.0.0",
     "bottleneck": "^2.19.5",
+    "dotenv": "16.0.3",
     "esbuild": "0.28.0",
     "eslint": "8.57.1",
     "eslint-config-prettier": "10.1.8",

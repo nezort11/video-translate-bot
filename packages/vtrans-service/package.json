@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
+    "start": "node build/dev.js",
     "dev": "tsx src/dev.ts",
     "env:pull": "rclone sync yandex-cloud-nezort11:video-translate-vtrans-service-env ./env --progress",
     "env:push": "rclone sync ./env yandex-cloud-nezort11:video-translate-vtrans-service-env --progress",

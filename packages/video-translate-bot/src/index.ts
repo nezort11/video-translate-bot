@@ -8,7 +8,6 @@ import {
   BOT_TOKEN_PROD,
   APP_ENV,
   getProxyAgent,
-  getWorkingProxyAgent,
   PROXY_SERVER_URI,
 } from "./env";
 
@@ -221,6 +220,24 @@ process.on("warning", (warning) => {
   logger.warn("Warning:", warning.name, warning.message, warning.stack);
 });
 
+/**
+ * Re-initialises the proxy agent for `bot.telegram` when the current one drops.
+ * Safe to call multiple times concurrently – only one reconnect runs at a time.
+ */
+  // Proxy logic disabled
+
+const isNetworkError = (err: unknown): boolean => {
+  if (!err || typeof err !== "object") return false;
+  const msg: string = (err as any).message ?? "";
+  return (
+    msg.includes("ECONNRESET") ||
+    msg.includes("ECONNREFUSED") ||
+    msg.includes("ETIMEDOUT") ||
+    msg.includes("ENOTFOUND") ||
+    msg.includes("socket hang up")
+  );
+};
+
 const main = async () => {
   if (BOT_TOKEN === BOT_TOKEN_PROD && process.env.BOT_POLLING !== "true") {
     logger.error(
@@ -235,27 +252,36 @@ const main = async () => {
   logger.info(`VERSION: ${process.version}`);
   logger.info(`DEBUG: ${DEBUG}`);
 
-  // await storage.init({ dir: "./session/storage" });
+  // Proxy logic disabled
 
-  // Find a working proxy before starting
-  const workingAgent = await getWorkingProxyAgent();
-  if (workingAgent) {
-    bot.telegram.options.agent = workingAgent;
-    // debugBot.telegram.options.agent = workingAgent;
-  }
+  // Auto-reconnect proxy on network errors during update handling
+  bot.catch(async (error: unknown, _ctx: any) => {
+    // Network error handling (proxy logic disabled)
+    // Re-throw so the original bot.catch in bot.ts handles the user reply
+    throw error;
+  });
 
-  try {
-    logger.info("Deleteting webhook before launch...");
-    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    
-    bot.launch({ dropPendingUpdates: true });
-    const botInfo = await bot.telegram.getMe();
+  const RETRY_DELAY_MS = 10_000;
 
-    setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
-    logger.info(`🚀 Started bot server on https://t.me/${botInfo.username}`);
-  } catch (error) {
-    logger.error("❌ Failed to start bot or connect to Telegram:", error);
-    // Continue anyway, it might be a temporary network issue
+  // Retry loop: keep trying to connect until Telegram is reachable.
+  // This handles the case where the host VPN isn't up yet when the container starts.
+  while (true) {
+    try {
+      logger.info("Deleteting webhook before launch...");
+      await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+
+      bot.launch({ dropPendingUpdates: true });
+      const botInfo = await bot.telegram.getMe();
+
+      setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
+      logger.info(`🚀 Started bot server on https://t.me/${botInfo.username}`);
+      break; // success — exit the retry loop
+    } catch (error) {
+      logger.error("❌ Failed to connect to Telegram:", error);
+      // Network error handling (proxy logic disabled)
+      logger.warn(`⏳ Retrying in ${RETRY_DELAY_MS / 1000}s... (make sure VPN / proxy is active)`);
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    }
   }
 };
 

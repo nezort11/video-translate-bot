@@ -10,8 +10,6 @@ declare global {
       DEBUG: string;
       EXECUTION_TIMEOUT: string;
 
-      PROXY_SERVER_URI: string;
-
       OPENAI_API_BASE_URL: string;
       OPENAI_API_KEY: string;
 

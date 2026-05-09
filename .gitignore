@@ -19,7 +19,12 @@ node_modules*
 # Terraform
 .terraform
 *.tfstate*
+*.tfvars
 
 *.zip
 
 *.local.md
+
+__pycache__/
+
+*.mp4

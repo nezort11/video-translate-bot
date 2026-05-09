@@ -1,10 +1,3 @@
-resource "yandex_logging_group" "video_translate_bot_logs" {
-  name        = "video-translate-bot-logs"
-  description = "Log group for video-translate-bot structured metrics"
-  folder_id   = var.yc_folder_id
-  retention_period = "720h" # 30 days
-}
-
 # Note: Log-based metrics (translation_success, translation_error, etc.)
 # must be created manually in the Yandex Cloud Console -> Logging -> Log-based metrics
 # following the documentation in docs/yandex-monitoring-setup.md
@@ -74,10 +67,10 @@ resource "yandex_monitoring_dashboard" "bot_dashboard" {
       chart_id = "invocations"
       queries {
         target {
-          query = "functions.invocations_count{service_account_id=\"${var.service_account_id}\"}"
+          query = "functions.invocations_count{service_account_id=\"${yandex_iam_service_account.bot-sa.id}\"}"
         }
         target {
-          query = "functions.errors_count{service_account_id=\"${var.service_account_id}\"}"
+          query = "functions.errors_count{service_account_id=\"${yandex_iam_service_account.bot-sa.id}\"}"
         }
       }
       visualization_settings {
@@ -97,7 +90,7 @@ resource "yandex_monitoring_dashboard" "bot_dashboard" {
       chart_id = "cpu_usage"
       queries {
         target {
-          query = "functions.cpu_usage{service_account_id=\"${var.service_account_id}\"}"
+          query = "functions.cpu_usage{service_account_id=\"${yandex_iam_service_account.bot-sa.id}\"}"
         }
       }
       visualization_settings {
@@ -117,7 +110,7 @@ resource "yandex_monitoring_dashboard" "bot_dashboard" {
       chart_id = "ram_usage"
       queries {
         target {
-          query = "functions.ram_usage{service_account_id=\"${var.service_account_id}\"}"
+          query = "functions.ram_usage{service_account_id=\"${yandex_iam_service_account.bot-sa.id}\"}"
         }
       }
       visualization_settings {
