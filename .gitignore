@@ -1,3 +1,21 @@
+# Credentials and Secrets
+.env
+.env.*
+**/env/*.json
+**/env/*.txt
+**/yc_env/*.json
+**/*.key
+**/*.pem
+**/*.json
+!package.json
+!tsconfig.json
+!composer.json
+!project.json
+!pnpm-workspace.yaml
+!packages/**/package.json
+!**/compose*.yaml
+!**/Dockerfile*
+
 node_modules*
 **/build
 .serverless
