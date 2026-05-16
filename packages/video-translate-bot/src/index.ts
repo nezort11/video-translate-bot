@@ -225,137 +225,6 @@ process.on("warning", (warning) => {
   logger.warn("Warning:", warning.name, warning.message, warning.stack);
 });
 
-/**
- * Re-initialises the proxy agent for `bot.telegram` when the current one drops.
- * Safe to call multiple times concurrently – only one reconnect runs at a time.
- */
-  // Proxy logic disabled
-
-const isNetworkError = (err: unknown): boolean => {
-  if (!err || typeof err !== "object") return false;
-  const msg: string = (err as any).message ?? "";
-  return (
-    msg.includes("ECONNRESET") ||
-    msg.includes("ECONNREFUSED") ||
-    msg.includes("ETIMEDOUT") ||
-    msg.includes("ENOTFOUND") ||
-    msg.includes("socket hang up")
-  );
-};
-
-const main = async () => {
-  if (BOT_TOKEN === BOT_TOKEN_PROD && process.env.BOT_POLLING !== "true") {
-    logger.error(
-      "❌ CRITICAL ERROR: Attempting to run PRODUCTION bot locally with polling! This will delete the webhook."
-    );
-    logger.error("Please use BOT_TOKEN_DEV or set NODE_ENV=development.");
-    process.exit(1);
-  }
-
-  await initUpdatesTable();
-
-  logger.info(`VERSION: ${process.version}`);
-  logger.info(`DEBUG: ${DEBUG}`);
-
-  // Proxy logic disabled
-
-  // Auto-reconnect proxy on network errors during update handling
-  bot.catch(async (error: unknown, _ctx: any) => {
-    // Network error handling (proxy logic disabled)
-    // Re-throw so the original bot.catch in bot.ts handles the user reply
-    throw error;
-  });
-
-  const RETRY_DELAY_MS = 10_000;
-
-  // Retry loop: keep trying to connect until Telegram is reachable.
-  // This handles the case where the host VPN isn't up yet when the container starts.
-  while (true) {
-    try {
-      logger.info("Deleteting webhook before launch...");
-      await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-
-      bot.launch({ dropPendingUpdates: true });
-      const botInfo = await bot.telegram.getMe();
-
-      setIsPublic(botInfo.username === BOT_PUBLIC_USERNAME);
-      logger.info(`🚀 Started bot server on https://t.me/${botInfo.username}`);
-      break; // success — exit the retry loop
-    } catch (error) {
-      logger.error("❌ Failed to connect to Telegram:", error);
-      // Network error handling (proxy logic disabled)
-      logger.warn(`⏳ Retrying in ${RETRY_DELAY_MS / 1000}s... (make sure VPN / proxy is active)`);
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-    }
-  }
-};
-
-/*
-// DEPRECATED: debugBot is no longer used in the main flow
-const debugBot = new Telegraf(BOT_TOKEN, {
-  // REQUIRED for `sendChatAction` to work in serverless/webhook environment https://github.com/telegraf/telegraf/issues/1047
-  telegram: {
-    webhookReply: false,
-    // agent: getProxyAgent(),
-  },
-  handlerTimeout: duration.hours(1),
-});
-
-debugBot.start(async (context) => await context.reply("Hi, lol"));
-
-debugBot.command("debug_timeout", async (context) => {
-  // pending promise
-  await new Promise((_resolve, _reject) => {
-    setInterval(() => {
-      logger.info(`Debug timeout ${new Date().toLocaleString()}`);
-    }, 5000);
-  });
-});
-
-// app.use(debugBot.webhookCallback("/webhook"));
-*/
-
-/*
-// DEPRECATED: Standard types from @yandex-cloud/function-types are used instead
-interface EventMetadata {
-  event_id: string;
-  event_type: string;
-  created_at: string;
-  cloud_id: string;
-  folder_id: string;
-  tracing_context?: Record<string, unknown> | null;
-}
-
-interface MessageAttributes {
-  data_type: string;
-  string_value?: string;
-}
-
-interface Message {
-  message_id: string;
-  md5_of_body: string;
-  body: string;
-  attributes: {
-    SentTimestamp: string;
-    ApproximateFirstReceiveTimestamp?: string;
-    ApproximateReceiveCount?: string;
-    SenderId?: string;
-  };
-  message_attributes: Record<string, MessageAttributes>;
-  md5_of_message_attributes: string;
-}
-
-interface QueueMessageDetails {
-  queue_id: string;
-  message: Message;
-}
-
-interface YandexQueueEvent {
-  event_metadata: EventMetadata;
-  details: QueueMessageDetails;
-}
-*/
-
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
   // Initialize database schema
@@ -363,16 +232,22 @@ if (require.main === module) {
     logger.error("Failed to initialize database:", err);
   });
 
-  // Start long polling server locally and webhook handler on the server
-  if (APP_ENV === "local" || process.env.BOT_POLLING === "true") {
-    main();
+  const isPolling = process.env.BOT_POLLING === "true";
+
+  if (isPolling) {
+    logger.info("Starting bot in POLLING mode...");
+    bot.launch({
+      dropPendingUpdates: true,
+    });
+
+    process.once("SIGINT", () => bot.stop("SIGINT"));
+    process.once("SIGTERM", () => bot.stop("SIGTERM"));
   } else {
     logger.info("Starting bot in WEBHOOK mode...");
 
     // Use a provided secret token or generate a random one for this session if not provided
     const secretToken =
-      WEBHOOK_SECRET_TOKEN ||
-      require("crypto").randomBytes(32).toString("hex");
+      WEBHOOK_SECRET_TOKEN || require("crypto").randomBytes(32).toString("hex");
 
     if (!WEBHOOK_SECRET_TOKEN) {
       logger.warn(
@@ -422,46 +297,45 @@ if (require.main === module) {
       }
     };
     setupWebhook();
-
-    // adjust according to trigger container path
-
-    const QUEUE_WEBHOOK_PATH = "/queue/callback";
-    // webhook callback called by trigger from message queue
-    handlerApp.post(
-      QUEUE_WEBHOOK_PATH,
-      async (req: Request<object, object, MessageQueue.Event>, res) => {
-        try {
-          const messages = req.body.messages;
-          const message = messages[0];
-          const updateBody = message.details.message.body;
-          const update =
-            typeof updateBody === "string"
-              ? JSON.parse(updateBody)
-              : updateBody;
-
-          logger.info("queue webhook incoming request", {
-            update_id: update?.update_id,
-            message_id: (message.event_metadata as any)?.message_id,
-            path: QUEUE_WEBHOOK_PATH,
-          });
-
-          // Proxy all queue request as update requests to webhook handler
-          await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
-            {
-              ...req,
-              // Replace queue request body with telegram update body
-              // @ts-expect-error body can be object, buffer or string
-              body: updateBody,
-            },
-            res
-          );
-        } catch (error) {
-          logger.error("Error in queue webhook handler:", error);
-          await handleInternalErrorExpress(error, res);
-        }
-      }
-    );
   }
+
+  const QUEUE_WEBHOOK_PATH = "/queue/callback";
+
+  // webhook callback called by trigger from message queue
+  handlerApp.post(
+    QUEUE_WEBHOOK_PATH,
+    async (req: Request<object, object, MessageQueue.Event>, res) => {
+      try {
+        const messages = req.body.messages;
+        const message = messages[0];
+        const updateBody = message.details.message.body;
+        const update =
+          typeof updateBody === "string"
+            ? JSON.parse(updateBody)
+            : updateBody;
+
+        logger.info("queue webhook incoming request", {
+          update_id: update?.update_id,
+          message_id: (message.event_metadata as any)?.message_id,
+          path: QUEUE_WEBHOOK_PATH,
+        });
+
+        // Proxy all queue request as update requests to webhook handler
+        await bot.webhookCallback(QUEUE_WEBHOOK_PATH)(
+          {
+            ...req,
+            // Replace queue request body with telegram update body
+            // @ts-expect-error body can be object, buffer or string
+            body: updateBody,
+          },
+          res
+        );
+      } catch (error) {
+        logger.error("Error in queue webhook handler:", error);
+        await handleInternalErrorExpress(error, res);
+      }
+    }
+  );
 
   handlerApp.use(app);
 
