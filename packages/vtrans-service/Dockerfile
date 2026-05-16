@@ -4,12 +4,17 @@ RUN corepack enable && corepack prepare pnpm@8.3.1 --activate
 
 WORKDIR /app
 
+# Set pnpm store directory for caching
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 # Copy root monorepo files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/vtrans-service/package.json ./packages/vtrans-service/package.json
 
-# Install dependencies
-RUN pnpm install --filter vtrans-service...
+# Install dependencies using cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --filter vtrans-service...
 
 # Copy source
 COPY packages/vtrans-service ./packages/vtrans-service
@@ -17,8 +22,9 @@ COPY packages/vtrans-service ./packages/vtrans-service
 # Build
 RUN pnpm --filter vtrans-service build
 
-# Deploy to a self-contained directory
-RUN pnpm --filter vtrans-service --prod deploy /app-deployed
+# Deploy to a self-contained directory using cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm --filter vtrans-service --prod deploy /app-deployed
 
 FROM node:18-bullseye-slim
 

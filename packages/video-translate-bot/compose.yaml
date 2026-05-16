@@ -42,9 +42,9 @@ services:
       - APP_ENV=production
       - BOT_POLLING=true
       - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@localhost:5432/${DB_NAME:-vtb_db}
-      - S3_ENDPOINT=https://s3.cloud.ru
-      - S3_REGION=ru-central-1
-      - S3_FORCE_PATH_STYLE=true
+      - S3_ENDPOINT=${S3_ENDPOINT:-https://storage.yandexcloud.net}
+      - S3_REGION=${S3_REGION:-ru-central1}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
       - PROXY_SERVER_URI=
       - PROXY_SERVER_URIS=
     network_mode: host
@@ -84,12 +84,13 @@ services:
     restart: unless-stopped
     env_file:
       - ./.env
+    network_mode: host
     environment:
       - PORT=3001
-      - S3_BUCKET=video-translate-bot-storage
-      - S3_REGION=ru-central-1
-      - S3_ENDPOINT=https://s3.cloud.ru
-      - S3_FORCE_PATH_STYLE=true
+      - S3_BUCKET=${YTDL_STORAGE_BUCKET}
+      - S3_REGION=${S3_REGION:-ru-central1}
+      - S3_ENDPOINT=${S3_ENDPOINT:-https://storage.yandexcloud.net}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
       - TELEGRAM_SESSIONS_PATH=/app/env/telegram_sessions.json
       # PUBLIC_IP must be unset so download.go returns a real S3 URL (accessible by Yandex API).
       # When PUBLIC_IP is set, it returns http://<PUBLIC_IP>:3001/video?key=... which is a local
@@ -97,8 +98,6 @@ services:
       - PUBLIC_IP=
     volumes:
       - ./env:/app/env:ro
-    networks:
-      - vtb-network
     deploy:
       resources:
         limits:

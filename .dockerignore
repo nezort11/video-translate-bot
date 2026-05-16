@@ -4,6 +4,10 @@ node_modules
 .git
 .github
 .terraform
+terraform
+deprecated
+yc_storage
+test.mp4
 *.tfstate*
 *.zip
 *.log
@@ -12,3 +16,4 @@ packages/admin-dashboard
 packages/video-translate-app
 packages/video-translate-server
 # Add others only if not needed for the bot or worker
+node_modules_prod
