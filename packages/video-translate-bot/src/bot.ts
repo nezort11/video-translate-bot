@@ -1278,7 +1278,7 @@ const renderTranslateScreen = async (context: BotContext, router: Router) => {
       disable_notification: true,
       // reply_to_message_id: context.message.message_id,
       reply_markup: Markup.inlineKeyboard([
-        // [voiceTranslateActionButton],
+        [voiceTranslateActionButton],
         [onlineVideoTranslateActionButton],
         [translationLanguageActionButton, sourceLanguageActionButton],
       ]).reply_markup,
@@ -1839,7 +1839,8 @@ bot.action(/.+/, async (context) => {
 
           if (
             actionType === ActionType.TranslateVideo ||
-            actionType === ActionType.TranslateAudio
+            actionType === ActionType.TranslateAudio ||
+            actionType === ActionType.TranslateVoice
           ) {
             logger.info(
               `Setting action data for router: ${routerId}, action: ${actionId}`

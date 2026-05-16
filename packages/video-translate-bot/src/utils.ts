@@ -66,6 +66,36 @@ export const serializeErrorAsync = async (error: unknown) => {
   return serializedError;
 };
 
+export const getPublicIP = async (): Promise<string> => {
+  const { logger } = await import("./logger");
+  const { default: axios } = await import("axios");
+
+  const providers = [
+    "https://api.ipify.org?format=json",
+    "https://ifconfig.me/all.json",
+    "https://ipinfo.io/json",
+  ];
+
+  for (const url of providers) {
+    try {
+      const response = await axios.get(url, { timeout: 5000 });
+      const ip =
+        response.data.ip ||
+        response.data.ip_addr ||
+        response.data.query ||
+        response.data;
+      if (typeof ip === "string" && ip.length > 0) {
+        logger.info(`Detected public IP: ${ip} (from ${url})`);
+        return ip;
+      }
+    } catch (error) {
+      logger.warn(`Failed to fetch IP from ${url}:`, (error as Error).message);
+    }
+  }
+
+  throw new Error("Failed to detect public IP address");
+};
+
 export const handleInternalErrorExpress = async (
   error: unknown,
   res: Response<ErrorObject>

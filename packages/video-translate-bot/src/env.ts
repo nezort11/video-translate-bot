@@ -140,6 +140,8 @@ export const BOT_TOKEN_DEV = process.env.BOT_TOKEN_DEV!;
 
 export const BOT_TOKEN = (IS_PRODUCTION ? BOT_TOKEN_PROD : BOT_TOKEN_DEV)!;
 
+export const WEBHOOK_SECRET_TOKEN = process.env.WEBHOOK_SECRET_TOKEN;
+
 export const OWNER_USERNAME = process.env.OWNER_USERNAME!;
 
 export const ADMIN_IDS = (process.env.ADMIN_IDS ?? "")

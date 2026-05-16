@@ -9,6 +9,8 @@ import {
   APP_ENV,
   getProxyAgent,
   PROXY_SERVER_URI,
+  ROOT_DIR_PATH,
+  WEBHOOK_SECRET_TOKEN,
 } from "./env";
 
 // Suppress NODE_TLS_REJECT_UNAUTHORIZED warning before imports
@@ -25,6 +27,9 @@ process.emitWarning = (warning, ...args) => {
 
 // import http from "http";
 import * as http from "http";
+import * as https from "https";
+import fs from "fs";
+import path from "path";
 // Package subpath './src/core/network/webhook' is not defined by "exports" in /function/code/node_modules/telegraf/package.json
 // import generateWebhook from "telegraf/src/core/network/webhook";
 // NOTE: serverless-http is used as a shim library to bridge Cloud Function events to Express/Telegraf handlers.
@@ -57,7 +62,7 @@ interface YandexHttpEvent extends Http.Event {
 type HandledEvent = MessageQueue.Event | YandexHttpEvent;
 import { MetricsService } from "./services/metrics";
 import { setGlobalMetricsService } from "./services/metricsglobal";
-import { handleInternalErrorExpress } from "./utils";
+import { handleInternalErrorExpress, getPublicIP } from "./utils";
 import { initUpdatesTable } from "./db";
 
 // import { telegramLoggerContext } from "./telegramlogger";
@@ -354,7 +359,7 @@ interface YandexQueueEvent {
 // if (process.argv[1] === fileURLToPath(import.meta.url)) {
 if (require.main === module) {
   // Initialize database schema
-  initUpdatesTable().catch(err => {
+  initUpdatesTable().catch((err) => {
     logger.error("Failed to initialize database:", err);
   });
 
@@ -362,9 +367,64 @@ if (require.main === module) {
   if (APP_ENV === "local" || process.env.BOT_POLLING === "true") {
     main();
   } else {
-    handlerApp.use(bot.webhookCallback("/webhook"));
+    logger.info("Starting bot in WEBHOOK mode...");
+
+    // Use a provided secret token or generate a random one for this session if not provided
+    const secretToken =
+      WEBHOOK_SECRET_TOKEN ||
+      require("crypto").randomBytes(32).toString("hex");
+
+    if (!WEBHOOK_SECRET_TOKEN) {
+      logger.warn(
+        "WEBHOOK_SECRET_TOKEN is not set. A random token has been generated for this session."
+      );
+    }
+
+    handlerApp.use(bot.webhookCallback("/webhook", { secretToken }));
+
+    // Set webhook automatically on startup
+    const setupWebhook = async () => {
+      try {
+        const ip = await getPublicIP();
+        // Bot API supports ports 443, 80, 88, 8443
+        const portNumber = Number(PORT);
+        const isSupportedPort = [80, 443, 88, 8443].includes(portNumber);
+        const portSuffix = isSupportedPort
+          ? portNumber === 443
+            ? ""
+            : `:${portNumber}`
+          : `:${portNumber}`; // Still add it, but it might fail if not in supported list
+
+        const webhookUrl = `https://${ip}${portSuffix}/webhook`;
+
+        const certPath = path.resolve(ROOT_DIR_PATH, "certificates/cert.pem");
+        const hasCert = fs.existsSync(certPath);
+
+        logger.info(
+          `Setting webhook to ${webhookUrl}... (PORT: ${PORT}, hasCert: ${hasCert}, hasSecret: ${!!secretToken})`
+        );
+        await bot.telegram.setWebhook(webhookUrl, {
+          drop_pending_updates: true,
+          certificate: hasCert ? { source: certPath } : undefined,
+          secret_token: secretToken,
+        });
+
+        const info = await bot.telegram.getWebhookInfo();
+        logger.info("Webhook info:", info);
+
+        if (!isSupportedPort) {
+          logger.warn(
+            `Port ${PORT} is not officially supported by Telegram Bot API webhooks. Supported ports: 443, 80, 88, 8443.`
+          );
+        }
+      } catch (error) {
+        logger.error("Failed to set webhook:", error);
+      }
+    };
+    setupWebhook();
 
     // adjust according to trigger container path
+
     const QUEUE_WEBHOOK_PATH = "/queue/callback";
     // webhook callback called by trigger from message queue
     handlerApp.post(
@@ -417,7 +477,20 @@ if (require.main === module) {
     res.sendStatus(200);
   });
 
-  handlerApp.listen(PORT, () => {
-    logger.info(`🚀 Started express server on port ${PORT}`);
-  });
+  const keyPath = path.resolve(ROOT_DIR_PATH, "certificates/key.pem");
+  const certPath = path.resolve(ROOT_DIR_PATH, "certificates/cert.pem");
+
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    const options = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    https.createServer(options, handlerApp).listen(PORT, () => {
+      logger.info(`🚀 Started HTTPS express server on port ${PORT}`);
+    });
+  } else {
+    handlerApp.listen(PORT, () => {
+      logger.info(`🚀 Started express server on port ${PORT}`);
+    });
+  }
 }
