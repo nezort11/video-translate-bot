@@ -67,6 +67,10 @@ export const serializeErrorAsync = async (error: unknown) => {
 };
 
 export const getPublicIP = async (): Promise<string> => {
+  if (process.env.PUBLIC_IP) {
+    return process.env.PUBLIC_IP;
+  }
+
   const { logger } = await import("./logger");
   const { default: axios } = await import("axios");
 
@@ -78,7 +82,7 @@ export const getPublicIP = async (): Promise<string> => {
 
   for (const url of providers) {
     try {
-      const response = await axios.get(url, { timeout: 5000 });
+      const response = await axios.get(url, { timeout: 10000 });
       const ip =
         response.data.ip ||
         response.data.ip_addr ||
