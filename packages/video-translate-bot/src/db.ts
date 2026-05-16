@@ -300,6 +300,19 @@ export const updateUserSessionBalance = async (
   return newBalance;
 };
 
+export const setUserSessionBalance = async (
+  userId: number,
+  newBalance: number
+): Promise<number> => {
+  const sessionKey = `${userId}:${userId}`;
+  const currentSession = (await getUserSession(userId)) || {};
+  currentSession.balance = newBalance;
+  if (POSTGRES_URL && sessionStore) {
+    await sessionStore.set(sessionKey, currentSession);
+  }
+  return newBalance;
+};
+
 const extractTimestamp = (update: Update): number => {
   if ("message" in update && update.message) return update.message.date;
   if ("edited_message" in update && update.edited_message)

@@ -150,6 +150,7 @@ import {
   trackUpdate,
   getUserIdByUsername,
   updateUserSessionBalance,
+  setUserSessionBalance,
 } from "./db";
 import { PassThrough, Readable } from "stream";
 
@@ -2827,6 +2828,75 @@ bot.command("admin_topup", adminOnly(), async (context) => {
     logger.error("Failed to update user balance:", error);
     await context.reply(
       `Failed to update balance for ${displayName}. Please try again.`
+    );
+  }
+});
+
+/**
+ * Admin command to set credits balance for a user.
+ * Usage: /admin_set_balance <username or user_id> <amount>
+ * Examples:
+ *   /admin_set_balance @username 100
+ *   /admin_set_balance 123456789 50
+ */
+bot.command("admin_set_balance", adminOnly(), async (context) => {
+  const args = context.message.text.split(/\s+/).slice(1);
+
+  if (args.length < 2) {
+    await context.reply(
+      "Usage: /admin_set_balance <username or user_id> <amount>\n\n" +
+        "Examples:\n" +
+        "  /admin_set_balance @username 100\n" +
+        "  /admin_set_balance 123456789 50"
+    );
+    return;
+  }
+
+  const userArg = args[0];
+  const amountArg = args[1];
+
+  // Parse amount
+  const amount = parseInt(amountArg, 10);
+  if (isNaN(amount) || amount < 0) {
+    await context.reply("Amount must be a non-negative number");
+    return;
+  }
+
+  // Determine if userArg is a username or user ID
+  let userId: number | null = null;
+  let displayName: string = userArg;
+
+  // Check if it's a numeric user ID
+  const parsedUserId = parseInt(userArg, 10);
+  if (!isNaN(parsedUserId) && String(parsedUserId) === userArg) {
+    // It's a user ID
+    userId = parsedUserId;
+  } else {
+    // It's a username - look it up in the database
+    userId = await getUserIdByUsername(userArg);
+    if (!userId) {
+      await context.reply(
+        `User not found: ${userArg}\n\n` +
+          "Make sure the user has interacted with the bot at least once."
+      );
+      return;
+    }
+    displayName = userArg.startsWith("@") ? userArg : `@${userArg}`;
+  }
+
+  try {
+    // Set the user's balance
+    const newBalance = await setUserSessionBalance(userId, amount);
+
+    await context.reply(
+      `✅ Successfully set balance to ${amount} credits for ${displayName} (ID: ${userId})\n\n` +
+        `New balance: ${newBalance + DEFAULT_CREDITS_BALANCE} credits ` +
+        `(${newBalance} purchased + ${DEFAULT_CREDITS_BALANCE} free)`
+    );
+  } catch (error) {
+    logger.error("Failed to set user balance:", error);
+    await context.reply(
+      `Failed to set balance for ${displayName}. Please try again.`
     );
   }
 });
