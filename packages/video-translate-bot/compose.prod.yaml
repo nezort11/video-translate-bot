@@ -1,0 +1,133 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: vtb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-vtb_db}
+      POSTGRES_USER: ${DB_USER:-vtb_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vtb_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vtb-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  bot:
+    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-bot:latest
+    container_name: vtb-bot
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - telegram-service
+      - ytdl-service
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./.env
+    environment:
+      - TELEGRAM_SERVICE_URL=http://localhost:3001
+      - YTDL_API_BASE_URL=http://localhost:8000
+      - VTRANS_SERVICE_URL=http://localhost:3002
+      - APP_ENV=production
+      - BOT_POLLING=false
+      - PORT=8443
+      - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@localhost:5432/${DB_NAME:-vtb_db}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_REGION=${S3_REGION:-ru-central1-a}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+      - PROXY_SERVER_URI=
+      - PROXY_SERVER_URIS=
+    network_mode: host
+    volumes:
+      - ./docker_session:/app/session
+      - ./storage:/app/storage
+      - ./certificates:/app/certificates
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 400M
+
+  worker:
+    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-worker:latest
+    container_name: vtb-worker
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    env_file:
+      - ./.env
+    networks:
+      - vtb-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 400M
+
+  telegram-service:
+    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-telegram:latest
+    container_name: vtb-telegram
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    network_mode: host
+    environment:
+      - PORT=3001
+      - S3_BUCKET=${S3_BUCKET:-video-translate-bot-storage}
+      - S3_REGION=${S3_REGION:-ru-central1-a}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+      - TELEGRAM_SESSIONS_PATH=/app/env/telegram_sessions.json
+      - PUBLIC_IP=
+    volumes:
+      - ./env:/app/env:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 150M
+
+  ytdl-service:
+    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-ytdl:latest
+    container_name: vtb-ytdl
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    environment:
+      - BUCKET_NAME=${S3_BUCKET:-video-translate-bot-storage}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_REGION=${S3_REGION:-ru-central1-a}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+    networks:
+      - vtb-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.2'
+          memory: 1200M
+
+networks:
+  vtb-network:
+    name: vtb-network
+
+volumes:
+  postgres_data:
