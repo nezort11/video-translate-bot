@@ -57,18 +57,38 @@ const main = async () => {
     console.log("Initializing bot settings...");
 
     await Promise.all([
-      // runWithLog("setName (default)", bot.telegram.setMyName(
-      //   "Video Translator 🤖: voice-over 🔄 video translation 🇬🇧🇨🇳🇷🇺"
-      // )),
-      // runWithLog("setName (ru)", bot.telegram.setMyName(
-      //   "Видео Переводчик 🤖: закадровый 🔄 перевод видео с 🇬🇧🇨🇳🇯🇵🇰🇷",
-      //   "ru"
-      // )),
+      runWithLog(
+        "setName (default)",
+        bot.telegram.setMyName(
+          "Video Translator 🤖: voice-over 🔄 video translation 🇬🇧🇨🇳🇷🇺"
+        )
+      ),
+      runWithLog(
+        "setName (en)",
+        bot.telegram.setMyName(
+          "Video Translator 🤖: voice-over 🔄 video translation 🇬🇧🇨🇳🇷🇺",
+          "en"
+        )
+      ),
+      runWithLog(
+        "setName (ru)",
+        bot.telegram.setMyName(
+          "Видео Переводчик 🤖: закадровый 🔄 перевод видео с 🇬🇧🇨🇳🇯🇵🇰🇷",
+          "ru"
+        )
+      ),
 
       runWithLog(
         "setShortDescription (default)",
         bot.telegram.setMyShortDescription(
           "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew"
+        )
+      ),
+      runWithLog(
+        "setShortDescription (en)",
+        bot.telegram.setMyShortDescription(
+          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew",
+          "en"
         )
       ),
       runWithLog(
@@ -83,6 +103,13 @@ const main = async () => {
         "setDescription (default)",
         bot.telegram.setMyDescription(
           "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew"
+        )
+      ),
+      runWithLog(
+        "setDescription (en)",
+        bot.telegram.setMyDescription(
+          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew",
+          "en"
         )
       ),
       runWithLog(
