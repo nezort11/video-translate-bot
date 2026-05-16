@@ -128,6 +128,7 @@ export const VIDEO_TRANSLATE_APP_URL = process.env.VIDEO_TRANSLATE_APP_URL;
 export const VTRANS_SERVICE_URL = process.env.VTRANS_SERVICE_URL;
 
 export const YTDL_API_BASE_URL = process.env.YTDL_API_BASE_URL;
+export const YTDL_API_SECRET = process.env.YTDL_API_SECRET;
 
 export const YANDEX_TRANSLATE_HMAC_SHA254_SECRET =
   process.env.YANDEX_TRANSLATE_HMAC_SHA254_SECRET!;

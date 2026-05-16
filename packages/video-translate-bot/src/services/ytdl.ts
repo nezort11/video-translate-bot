@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
 // import ytdl, { downloadOptions } from "@distube/ytdl-core";
 import { logger } from "../logger";
-import { YTDL_API_BASE_URL, YTDL_FUNCTION_URL } from "../env";
+import { YTDL_API_BASE_URL, YTDL_API_SECRET, YTDL_FUNCTION_URL } from "../env";
 
 /**
  * Error thrown when ytdl download fails due to temporary issues
@@ -29,6 +29,7 @@ export class YtdlServiceError extends Error {
 
 const ytdlClient = axios.create({
   baseURL: YTDL_API_BASE_URL,
+  headers: YTDL_API_SECRET ? { "X-API-Key": YTDL_API_SECRET } : {},
   // validateStatus: (status) => status < 500, // Don't throw on 4xx errors
 });
 
@@ -73,12 +74,19 @@ type VideoDownloadUrlResponseData = {
 export const downloadVideo = async (url: string, format?: string | number) => {
   // Use direct function invocation to bypass API Gateway's 5-minute timeout
   // Function has 10-minute timeout which is enough for large videos
-  const functionUrl = YTDL_FUNCTION_URL || YTDL_API_BASE_URL;
+  let functionUrl = YTDL_FUNCTION_URL || YTDL_API_BASE_URL;
 
   if (!functionUrl) {
     throw new Error(
       "YTDL service is not configured. Please set YTDL_FUNCTION_URL or YTDL_API_BASE_URL environment variable."
     );
+  }
+
+  // If using local/mock service (base url instead of actual cloud function url), append /download
+  if (!YTDL_FUNCTION_URL && functionUrl === YTDL_API_BASE_URL) {
+    functionUrl = functionUrl.endsWith("/")
+      ? functionUrl + "download"
+      : functionUrl + "/download";
   }
 
   try {
@@ -89,6 +97,7 @@ export const downloadVideo = async (url: string, format?: string | number) => {
         ...(format && { format: format.toString() }),
       },
       {
+        headers: YTDL_API_SECRET ? { "X-API-Key": YTDL_API_SECRET } : {},
         timeout: 600000, // 10 minutes
       }
     );
