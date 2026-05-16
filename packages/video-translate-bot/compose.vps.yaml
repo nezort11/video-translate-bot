@@ -39,7 +39,7 @@ services:
       - YTDL_API_BASE_URL=http://localhost:8000
       - VTRANS_SERVICE_URL=http://localhost:3002
       - APP_ENV=production
-      - BOT_POLLING=true
+      - BOT_POLLING=false
       - PORT=8443
       - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@localhost:5432/${DB_NAME:-vtb_db}
       - S3_ENDPOINT=${S3_ENDPOINT}
@@ -51,7 +51,7 @@ services:
     volumes:
       - ./docker_session:/app/session
       - ./storage:/app/storage
-      - ./certificates:/app/certificates
+      - ./certificates:/app/packages/video-translate-bot/certificates
     deploy:
       resources:
         limits:
