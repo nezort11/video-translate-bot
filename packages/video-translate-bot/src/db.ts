@@ -287,8 +287,10 @@ export const getUserSession = async (
       [defaultKey, String(userId), `${userId}:%`, `%:${userId}`]
     );
     if (res.rows[0]) {
+      logger.info(`Found session key ${res.rows[0].key} for userId ${userId}`);
       return { session: res.rows[0].session, key: res.rows[0].key };
     }
+    logger.info(`No existing session key found for userId ${userId}, using default ${defaultKey}`);
   }
   return { session: null, key: defaultKey };
 };
