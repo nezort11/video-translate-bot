@@ -278,20 +278,28 @@ export interface SessionData {
 
 export const getUserSession = async (
   userId: number
-): Promise<SessionData | null> => {
-  const sessionKey = `${userId}:${userId}`;
-  if (POSTGRES_URL && sessionStore) {
-    return await sessionStore.get(sessionKey);
+): Promise<{ session: SessionData | null; key: string }> => {
+  const defaultKey = `${userId}:${userId}`;
+  if (POSTGRES_URL && pool) {
+    // Try to find the session using multiple common key formats
+    const res = await pool.query(
+      'SELECT key, session FROM "telegraf-sessions" WHERE key = $1 OR key = $2 OR key LIKE $3 OR key LIKE $4 LIMIT 1',
+      [defaultKey, String(userId), `${userId}:%`, `%:${userId}`]
+    );
+    if (res.rows[0]) {
+      return { session: res.rows[0].session, key: res.rows[0].key };
+    }
   }
-  return null;
+  return { session: null, key: defaultKey };
 };
 
 export const updateUserSessionBalance = async (
   userId: number,
   creditsToAdd: number
 ): Promise<number> => {
-  const sessionKey = `${userId}:${userId}`;
-  const currentSession = (await getUserSession(userId)) || {};
+  const { session: currentSessionData, key: sessionKey } =
+    await getUserSession(userId);
+  const currentSession = currentSessionData || {};
   const newBalance = (currentSession.balance ?? 0) + creditsToAdd;
   currentSession.balance = newBalance;
   if (POSTGRES_URL && sessionStore) {
@@ -304,8 +312,9 @@ export const setUserSessionBalance = async (
   userId: number,
   newBalance: number
 ): Promise<number> => {
-  const sessionKey = `${userId}:${userId}`;
-  const currentSession = (await getUserSession(userId)) || {};
+  const { session: currentSessionData, key: sessionKey } =
+    await getUserSession(userId);
+  const currentSession = currentSessionData || {};
   currentSession.balance = newBalance;
   if (POSTGRES_URL && sessionStore) {
     await sessionStore.set(sessionKey, currentSession);
