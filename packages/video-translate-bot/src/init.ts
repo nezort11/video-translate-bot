@@ -81,20 +81,20 @@ const main = async () => {
       runWithLog(
         "setShortDescription (default)",
         bot.telegram.setMyShortDescription(
-          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew"
+          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnews"
         )
       ),
       runWithLog(
         "setShortDescription (en)",
         bot.telegram.setMyShortDescription(
-          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew",
+          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnews",
           "en"
         )
       ),
       runWithLog(
         "setShortDescription (ru)",
         bot.telegram.setMyShortDescription(
-          "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @vidtransnew",
+          "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @vidtransnews",
           "ru"
         )
       ),
@@ -102,20 +102,20 @@ const main = async () => {
       runWithLog(
         "setDescription (default)",
         bot.telegram.setMyDescription(
-          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew"
+          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnews"
         )
       ),
       runWithLog(
         "setDescription (en)",
         bot.telegram.setMyDescription(
-          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnew",
+          "🤖 best voice-over 🔄 video translation bot 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 to 🇬🇧🇷🇺🇰🇿. ✅ work 24/7. 💬 contact @vidtransnews",
           "en"
         )
       ),
       runWithLog(
         "setDescription (ru)",
         bot.telegram.setMyDescription(
-          "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @vidtransnew",
+          "🤖 лучший бот для полного перевода видео 🔄 с 🇬🇧🇨🇳🇪🇸🇸🇦🇯🇵🇰🇷 языков. ✅ Работает 24/7. 💬 связь @vidtransnews",
           "ru"
         )
       ),
