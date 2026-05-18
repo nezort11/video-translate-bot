@@ -71,6 +71,8 @@ import {
   OPENAI_API_KEY,
   EXECUTION_TIMEOUT,
   MAX_VIDEO_DURATION_MINUTES,
+  GLOBAL_CONCURRENT_VIDEO_TRANSLATE_LIMIT,
+  PER_USER_CONCURRENT_VIDEO_TRANSLATE_LIMIT,
   ALERTS_CHANNEL_CHAT_ID,
   ADMIN_IDS,
   ADMIN_DASHBOARD_URL,
@@ -1596,7 +1598,9 @@ bot.action(/.+/, async (context) => {
     try {
       logger.info("Deleting current message on NO action data found...");
       await context.deleteMessage();
-    } catch (_) {}
+    } catch (_) {
+      /* ignore */
+    }
     // throw new Error("Action data is undefined");
     return;
   }
@@ -1714,7 +1718,9 @@ bot.action(/.+/, async (context) => {
     );
     try {
       await context.deleteMessage();
-    } catch (_) {}
+    } catch (_) {
+      /* ignore */
+    }
     return;
   }
   // const originalVideoDuration = videoInfo.duration;
@@ -1778,24 +1784,49 @@ bot.action(/.+/, async (context) => {
     try {
       logger.info("Deleting current message on validation error...");
       await context.deleteMessage();
-    } catch (_) {}
+    } catch (_) {
+      /* ignore */
+    }
     return;
   }
 
-  // const CONCURRENT_VIDEO_TRANSLATE_LIMIT = 1;
+  // Check global limit
+  if (videoTranslateProgressCount >= GLOBAL_CONCURRENT_VIDEO_TRANSLATE_LIMIT) {
+    return await replyError(context, t("system_capacity_reached"));
+  }
 
-  if (context.session.translationStartedAt) {
-    if (
-      diff.inSeconds(
-        new Date(),
-        new Date(context.session.translationStartedAt)
-      ) < EXECUTION_TIMEOUT
-    ) {
-      return await replyError(context, t("concurrent_translations_limit"));
+  // Check per-user limit
+  const now = new Date();
+  if (!context.session.translationsStartedAt) {
+    context.session.translationsStartedAt = [];
+    // Migrate legacy field if present and not expired
+    if (context.session.translationStartedAt) {
+      const legacyStartedAt = new Date(context.session.translationStartedAt);
+      if (diff.inSeconds(now, legacyStartedAt) < EXECUTION_TIMEOUT) {
+        context.session.translationsStartedAt.push(
+          context.session.translationStartedAt
+        );
+      }
     }
   }
 
-  context.session.translationStartedAt = new Date().toISOString();
+  // Filter out expired translations
+  context.session.translationsStartedAt =
+    context.session.translationsStartedAt.filter(
+      (startedAt) =>
+        diff.inSeconds(now, new Date(startedAt)) < EXECUTION_TIMEOUT
+    );
+
+  if (
+    context.session.translationsStartedAt.length >=
+    PER_USER_CONCURRENT_VIDEO_TRANSLATE_LIMIT
+  ) {
+    return await replyError(context, t("concurrent_translations_limit"));
+  }
+
+  const currentTranslationStartedAt = now.toISOString();
+  context.session.translationStartedAt = currentTranslationStartedAt;
+  context.session.translationsStartedAt.push(currentTranslationStartedAt);
 
   let progressInterval: NodeJS.Timer | undefined;
   const ffmpegProgress = 0;
@@ -1924,7 +1955,9 @@ bot.action(/.+/, async (context) => {
           );
           try {
             await context.deleteMessage();
-          } catch (ignored) {}
+          } catch (ignored) {
+            /* ignore */
+          }
           return;
         }
 
@@ -1981,7 +2014,9 @@ bot.action(/.+/, async (context) => {
             // Only if error message sent successfully, delete the processing message
             try {
               await context.deleteMessage();
-            } catch (ignored) {}
+            } catch (ignored) {
+              /* ignore */
+            }
             return;
           }
 
@@ -2240,7 +2275,9 @@ bot.action(/.+/, async (context) => {
           "Deleting current message on finish after sending translated audio..."
         );
         await context.deleteMessage();
-      } catch (_) {}
+      } catch (_) {
+        /* ignore */
+      }
 
       // We don't delete message from STORAGE_CHANNEL_CHAT_ID anymore because it was sent directly to user context.chat!.id
       return;
@@ -2588,17 +2625,75 @@ bot.action(/.+/, async (context) => {
               `Video uploaded to storage channel, channelMessageId: ${channelMessageId}`
             );
 
+            // Store metadata for RuTube upload (admin only)
+            const isAdmin = ADMIN_IDS.includes(String(context.from?.id ?? 0));
+            if (isAdmin) {
+              setRouterSessionData(
+                context,
+                routerId,
+                "rutubeVideoKey",
+                videoKey
+              );
+              setRouterSessionData(
+                context,
+                routerId,
+                "rutubeTitle",
+                videoTitle
+              );
+              setRouterSessionData(context, routerId, "rutubeDescription", "");
+            }
+
+            const replyMarkup = isAdmin
+              ? Markup.inlineKeyboard([
+                  [
+                    createActionButton(t("upload_to_rutube"), {
+                      context,
+                      routerId,
+                      data: {
+                        type: ActionType.UploadToRutube,
+                        videoKey: videoKey,
+                      },
+                    }),
+                  ],
+                ]).reply_markup
+              : undefined;
+
             // Deliver the video to the user by copying it from the storage channel
             // This ensures the message comes from the current bot instance (Dev or Prod)
-            await bot.telegram.copyMessage(
-              context.chat?.id ?? 0,
-              STORAGE_CHANNEL_CHAT_ID,
-              channelMessageId,
-              {
-                caption: videoCaption,
-                parse_mode: "HTML",
+            let copySuccess = false;
+            let lastError: any;
+            for (let i = 0; i < 5; i++) {
+              try {
+                await bot.telegram.copyMessage(
+                  context.chat?.id ?? 0,
+                  STORAGE_CHANNEL_CHAT_ID,
+                  channelMessageId,
+                  {
+                    caption: videoCaption,
+                    parse_mode: "HTML",
+                    reply_markup: replyMarkup,
+                  }
+                );
+                copySuccess = true;
+                break;
+              } catch (err: any) {
+                lastError = err;
+                if (
+                  err.description &&
+                  err.description.includes("message to copy not found")
+                ) {
+                  logger.warn(
+                    `copyMessage failed (sync delay), retrying in 2s... (attempt ${i + 1}/5)`
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 2000));
+                } else {
+                  throw err;
+                }
               }
-            );
+            }
+            if (!copySuccess) {
+              throw lastError;
+            }
 
             // Set sentinel value to indicate successful delegation and skip local cleanup
             translatedFileMessage = { id: 0 } as any;
@@ -2718,16 +2813,24 @@ bot.action(/.+/, async (context) => {
     try {
       logger.info("Deleting in-progress message on the end...");
       await context.deleteMessage();
-    } catch (_) {}
+    } catch (_) {
+      /* ignore */
+    }
   } catch (error) {
     logger.error("Catched action error:", error);
     // delete in progress message in case of error
     // try {
     //   logger.info("Deleting in-progress message on error...");
     //   await context.deleteMessage();
-    // } catch (_) {}
+    // } catch (_) { /* ignore */ }
     throw error;
   } finally {
+    if (context.session.translationsStartedAt && currentTranslationStartedAt) {
+      context.session.translationsStartedAt =
+        context.session.translationsStartedAt.filter(
+          (startedAt) => startedAt !== currentTranslationStartedAt
+        );
+    }
     context.session.translationStartedAt = undefined;
     videoTranslateProgressCount -= 1;
     clearInterval(progressInterval);

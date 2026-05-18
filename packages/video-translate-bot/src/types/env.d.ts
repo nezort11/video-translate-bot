@@ -47,6 +47,7 @@ declare global {
       DEBUG_USER_CHAT_ID: string;
       ADMIN_IDS?: string;
       ADMIN_DASHBOARD_URL?: string;
+      RUTUBE_SERVICE_URL?: string;
     }
   }
 }
