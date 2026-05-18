@@ -49,6 +49,7 @@ export enum ActionType {
   ChooseSourceLanguage = "CHOOSE_SOURCE_LANGUAGE",
   ToggleEnhancedTranslate = "TOGGLE_ENHANCED_TRANSLATE",
   RetryRegularTranslate = "RETRY_REGULAR_TRANSLATE",
+  UploadToRutube = "UPLOAD_TO_RUTUBE",
 }
 
 export interface ActionDataBase<T extends ActionType> {
@@ -74,6 +75,11 @@ export type ChooseSourceLanguageActionData =
     language: string | undefined;
   };
 
+export type UploadToRutubeActionData =
+  ActionDataBase<ActionType.UploadToRutube> & {
+    videoKey: string;
+  };
+
 export type ActionData =
   | NavigateActionData
   | ActionDataBase<ActionType.TranslateVoice>
@@ -83,7 +89,8 @@ export type ActionData =
   | ChooseLanguageActionData
   | ChooseSourceLanguageActionData
   | ActionDataBase<ActionType.ToggleEnhancedTranslate>
-  | ActionDataBase<ActionType.RetryRegularTranslate>;
+  | ActionDataBase<ActionType.RetryRegularTranslate>
+  | UploadToRutubeActionData;
 
 export interface Router {
   id: string;
@@ -103,7 +110,8 @@ export type SceneActionSession = WizardSession<WizardSessionData> & {
   routers?: Record<string, Router>;
 
   translateLanguage?: string;
-  translationStartedAt?: string; // ISO 8601 date
+  translationStartedAt?: string; // ISO 8601 date (Legacy: for backward compatibility)
+  translationsStartedAt?: string[]; // ISO 8601 dates for multiple concurrent translations
   balance?: number;
   preferEnhancedTranslate?: boolean; // User's preference for enhanced translate (persists across sessions)
 };
