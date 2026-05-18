@@ -290,19 +290,59 @@ export const getUserSession = async (
       logger.info(`Found session key ${res.rows[0].key} for userId ${userId}`);
       return { session: res.rows[0].session, key: res.rows[0].key };
     }
-    logger.info(`No existing session key found for userId ${userId}, using default ${defaultKey}`);
+    logger.info(
+      `No existing session key found for userId ${userId}, using default ${defaultKey}`
+    );
   }
   return { session: null, key: defaultKey };
 };
 
+/**
+ * Get user balance directly from the users table.
+ * Falls back to session balance if user row doesn't exist or balance is NULL.
+ */
+export const getUserBalance = async (userId: number): Promise<number> => {
+  if (POSTGRES_URL && pool) {
+    const res = await pool.query("SELECT balance FROM users WHERE user_id = $1", [
+      userId,
+    ]);
+    if (res.rows[0] && res.rows[0].balance !== null) {
+      return Number(res.rows[0].balance);
+    }
+  }
+
+  // Fallback to legacy session storage
+  const { session } = await getUserSession(userId);
+  return session?.balance ?? 0;
+};
+
+/**
+ * Atomic update of user balance in the users table.
+ * Synchronizes back to session for compatibility.
+ */
 export const updateUserSessionBalance = async (
   userId: number,
   creditsToAdd: number
 ): Promise<number> => {
+  let newBalance = 0;
+  if (POSTGRES_URL && pool) {
+    const res = await pool.query(
+      "UPDATE users SET balance = COALESCE(balance, 0) + $1 WHERE user_id = $2 RETURNING balance",
+      [creditsToAdd, userId]
+    );
+    if (res.rows[0]) {
+      newBalance = Number(res.rows[0].balance);
+    } else {
+      // User doesn't exist in users table yet, use session fallback
+      const { session: currentSessionData } = await getUserSession(userId);
+      newBalance = (currentSessionData?.balance ?? 0) + creditsToAdd;
+    }
+  }
+
+  // Sync to session for backward compatibility
   const { session: currentSessionData, key: sessionKey } =
     await getUserSession(userId);
   const currentSession = currentSessionData || {};
-  const newBalance = (currentSession.balance ?? 0) + creditsToAdd;
   currentSession.balance = newBalance;
   if (POSTGRES_URL && sessionStore) {
     await sessionStore.set(sessionKey, currentSession);
@@ -310,10 +350,22 @@ export const updateUserSessionBalance = async (
   return newBalance;
 };
 
+/**
+ * Set user balance directly in the users table.
+ * Synchronizes back to session for compatibility.
+ */
 export const setUserSessionBalance = async (
   userId: number,
   newBalance: number
 ): Promise<number> => {
+  if (POSTGRES_URL && pool) {
+    await pool.query(
+      "INSERT INTO users (user_id, balance) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET balance = $2",
+      [userId, newBalance]
+    );
+  }
+
+  // Sync to session for backward compatibility
   const { session: currentSessionData, key: sessionKey } =
     await getUserSession(userId);
   const currentSession = currentSessionData || {};

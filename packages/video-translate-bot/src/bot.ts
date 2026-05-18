@@ -153,6 +153,7 @@ import {
   getUserIdByUsername,
   updateUserSessionBalance,
   setUserSessionBalance,
+  getUserBalance,
 } from "./db";
 import { PassThrough, Readable } from "stream";
 
@@ -368,7 +369,12 @@ const disableEnhancedTranslatePreference = (
 
 const DEFAULT_CREDITS_BALANCE = 20; // 20 minutes
 
-const getCurrentBalance = (context: BotContext) => {
+const getCurrentBalance = async (context: BotContext) => {
+  const userId = context.from?.id;
+  if (userId) {
+    const balance = await getUserBalance(userId);
+    return balance + DEFAULT_CREDITS_BALANCE;
+  }
   return (context.session.balance ?? 0) + DEFAULT_CREDITS_BALANCE;
 };
 
@@ -868,7 +874,7 @@ const starsAmountToOptionMap = {
 };
 
 bot.command("balance", async (context) => {
-  const balance = getCurrentBalance(context);
+  const balance = await getCurrentBalance(context);
   await context.replyWithHTML(
     t("balance", { balance }),
     Markup.inlineKeyboard([
@@ -1542,12 +1548,17 @@ bot.on(message("successful_payment"), async (context, next) => {
     .total_amount as keyof typeof starsAmountToOptionMap;
   const creditsOptionPurchased = starsAmountToOptionMap[starsAmountPaid];
 
-  context.session.balance =
-    (context.session.balance ?? 0) + creditsOptionPurchased.credits;
+  const userId = context.from?.id;
+  if (userId) {
+    await updateUserSessionBalance(userId, creditsOptionPurchased.credits);
+  } else {
+    context.session.balance =
+      (context.session.balance ?? 0) + creditsOptionPurchased.credits;
+  }
 
   // the successful payment update should be stored in the updates table
 
-  const balance = getCurrentBalance(context);
+  const balance = await getCurrentBalance(context);
   await context.reply(
     t("success_payment", {
       credits: creditsOptionPurchased.credits,
@@ -1725,7 +1736,7 @@ bot.action(/.+/, async (context) => {
   }
   // const originalVideoDuration = videoInfo.duration;
 
-  const currentCreditsBalance = getCurrentBalance(context);
+  const currentCreditsBalance = await getCurrentBalance(context);
   const videoDuration = videoInfo.duration ?? toSeconds.fromMinutes(30);
 
   let isValidationError = true;
@@ -2807,8 +2818,13 @@ bot.action(/.+/, async (context) => {
     const videoDurationCredits = Math.ceil(
       fromSeconds.toMinutes(videoDuration)
     );
-    context.session.balance =
-      (context.session.balance ?? 0) - videoDurationCredits;
+    const userId = context.from?.id;
+    if (userId) {
+      await updateUserSessionBalance(userId, -videoDurationCredits);
+    } else {
+      context.session.balance =
+        (context.session.balance ?? 0) - videoDurationCredits;
+    }
 
     try {
       logger.info("Deleting in-progress message on the end...");
