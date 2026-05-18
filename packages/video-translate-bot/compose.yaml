@@ -21,14 +21,30 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  bot:
+  redis:
+    image: redis:7-alpine
+    container_name: vtb-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - vtb-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+
+  bot-receiver:
     build:
       context: ../../
       dockerfile: packages/video-translate-bot/Dockerfile
-    container_name: vtb-bot
+    container_name: vtb-bot-receiver
+    command: pnpm run start:receiver
     restart: unless-stopped
     depends_on:
       - postgres
+      - redis
       - telegram-service
       - ytdl-service
     ports:
@@ -39,14 +55,17 @@ services:
       - TELEGRAM_SERVICE_URL=http://localhost:3001
       - YTDL_API_BASE_URL=http://localhost:8000
       - VTRANS_SERVICE_URL=http://localhost:3002
+      - RUTUBE_SERVICE_URL=http://localhost:8080
       - APP_ENV=production
       - BOT_POLLING=false
+      - USE_QUEUE=true
+      - BOT_ROLE=receiver
+      - PORT=3000
+      - REDIS_URL=redis://localhost:6379
       - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@localhost:5432/${DB_NAME:-vtb_db}
       - S3_ENDPOINT=${S3_ENDPOINT:-https://storage.yandexcloud.net}
       - S3_REGION=${S3_REGION:-ru-central1}
       - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
-      - PROXY_SERVER_URI=
-      - PROXY_SERVER_URIS=
     network_mode: host
     volumes:
       - ./docker_session:/app/packages/video-translate-bot/session
@@ -54,8 +73,47 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 400M
+          cpus: '0.3'
+          memory: 200M
+
+  bot-worker:
+    build:
+      context: ../../
+      dockerfile: packages/video-translate-bot/Dockerfile
+    container_name: vtb-bot-worker
+    command: pnpm run start:worker
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - telegram-service
+      - ytdl-service
+    env_file:
+      - ./.env
+    environment:
+      - TELEGRAM_SERVICE_URL=http://localhost:3001
+      - YTDL_API_BASE_URL=http://localhost:8000
+      - VTRANS_SERVICE_URL=http://localhost:3002
+      - RUTUBE_SERVICE_URL=http://localhost:8080
+      - APP_ENV=production
+      - BOT_POLLING=false
+      - USE_QUEUE=true
+      - BOT_ROLE=worker
+      - PORT=3005
+      - REDIS_URL=redis://localhost:6379
+      - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@localhost:5432/${DB_NAME:-vtb_db}
+      - S3_ENDPOINT=${S3_ENDPOINT:-https://storage.yandexcloud.net}
+      - S3_REGION=${S3_REGION:-ru-central1}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+    network_mode: host
+    volumes:
+      - ./docker_session:/app/packages/video-translate-bot/session
+      - ./storage:/app/packages/video-translate-bot/storage
+    deploy:
+      resources:
+        limits:
+          cpus: '0.7'
+          memory: 600M
 
   worker:
     build:
@@ -127,6 +185,26 @@ services:
         limits:
           cpus: '1.2'
           memory: 1500M
+
+  rutube-service:
+    build:
+      context: ../../../rutube-service
+    container_name: vtb-rutube
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./.env
+    network_mode: host
+    environment:
+      - PORT=8080
+    volumes:
+      - ../../../rutube-service/cookies.txt:/app/cookies.txt:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 150M
 
 networks:
   vtb-network:

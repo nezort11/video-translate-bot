@@ -21,15 +21,31 @@ services:
           cpus: '0.3'
           memory: 300M
 
-  bot:
+  redis:
+    image: redis:7-alpine
+    container_name: vtb-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - vtb-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 200M
+
+  bot-receiver:
     build:
       context: ../../
       dockerfile: packages/video-translate-bot/Dockerfile
-    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-bot:latest
-    container_name: vtb-bot
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-bot:latest
+    container_name: vtb-bot-receiver
+    command: pnpm run start:receiver
     restart: always
     depends_on:
       - postgres
+      - redis
       - telegram-service
       - ytdl-service
     env_file:
@@ -40,7 +56,10 @@ services:
       - VTRANS_SERVICE_URL=http://localhost:3002
       - APP_ENV=production
       - BOT_POLLING=false
+      - USE_QUEUE=true
+      - BOT_ROLE=receiver
       - PORT=8443
+      - REDIS_URL=redis://localhost:6379
       - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@localhost:5432/${DB_NAME:-vtb_db}
       - S3_ENDPOINT=${S3_ENDPOINT}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
@@ -55,16 +74,58 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.8'
-          memory: 800M
+          cpus: '0.5'
+          memory: 500M
+
+  bot-worker:
+    build:
+      context: ../../
+      dockerfile: packages/video-translate-bot/Dockerfile
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-bot:latest
+    container_name: vtb-bot-worker
+    command: pnpm run start:worker
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - telegram-service
+      - ytdl-service
+    env_file:
+      - ./.env
+    environment:
+      - TELEGRAM_SERVICE_URL=http://localhost:3001
+      - YTDL_API_BASE_URL=http://localhost:8000
+      - VTRANS_SERVICE_URL=http://localhost:3002
+      - APP_ENV=production
+      - BOT_POLLING=false
+      - USE_QUEUE=true
+      - BOT_ROLE=worker
+      - PORT=8444
+      - REDIS_URL=redis://localhost:6379
+      - POSTGRES_URL=postgresql://${DB_USER:-vtb_user}:${DB_PASSWORD:-vtb_pass}@localhost:5432/${DB_NAME:-vtb_db}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_REGION=${S3_REGION:-ru-central1}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+    network_mode: host
+    volumes:
+      - ./docker_session:/app/session
+      - ./storage:/app/storage
+      - ./certificates:/app/packages/video-translate-bot/certificates
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2500M
         reservations:
-          memory: 200M
+          memory: 500M
 
   worker:
     build:
       context: ../../
       dockerfile: packages/vtrans-service/Dockerfile
-    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-worker:latest
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-worker:latest
     container_name: vtb-worker
     restart: always
     ports:
@@ -76,14 +137,14 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 500M
+          cpus: '1.0'
+          memory: 2000M
 
   telegram-service:
     build:
       context: ../../../telegram-service
       dockerfile: Dockerfile.vps
-    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-telegram:latest
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-telegram:latest
     container_name: vtb-telegram
     restart: always
     env_file:
@@ -102,13 +163,13 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.3'
-          memory: 200M
+          cpus: '0.5'
+          memory: 500M
 
   ytdl-service:
     build:
       context: ../../../youtube-downloader
-    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-ytdl:latest
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-ytdl:latest
     container_name: vtb-ytdl
     restart: always
     ports:
@@ -127,8 +188,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.2'
-          memory: 1000M
+          cpus: '1.5'
+          memory: 1500M
 
 networks:
   vtb-network:

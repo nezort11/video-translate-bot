@@ -22,7 +22,7 @@ services:
           memory: 512M
 
   bot:
-    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-bot:latest
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-bot:latest
     container_name: vtb-bot
     restart: unless-stopped
     depends_on:
@@ -56,11 +56,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 400M
+          cpus: '2.0'
+          memory: 3000M
 
   worker:
-    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-worker:latest
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-worker:latest
     container_name: vtb-worker
     restart: unless-stopped
     ports:
@@ -72,11 +72,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 400M
+          cpus: '1.0'
+          memory: 2000M
 
   telegram-service:
-    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-telegram:latest
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-telegram:latest
     container_name: vtb-telegram
     ports:
       - "3001:3001"
@@ -99,11 +99,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.3'
-          memory: 150M
+          cpus: '0.5'
+          memory: 500M
 
   ytdl-service:
-    image: cr.yandex/crpjrn9k7jhi8i77e70f/vtb-ytdl:latest
+    image: cr.yandex/crpo38kbrng93vsp6bkh/vtb-ytdl:latest
     container_name: vtb-ytdl
     restart: unless-stopped
     ports:
@@ -122,8 +122,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.2'
-          memory: 1200M
+          cpus: '1.5'
+          memory: 1500M
 
 networks:
   vtb-network:
