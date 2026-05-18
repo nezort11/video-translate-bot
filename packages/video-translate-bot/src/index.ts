@@ -52,6 +52,14 @@ import { inspect } from "util";
 import { Update } from "telegraf/types";
 import { Context } from "aws-lambda";
 
+import {
+  initQueue,
+  initWorker,
+  pushUpdateToQueue,
+  stopQueue,
+} from "./services/queue";
+import { REDIS_URL, USE_QUEUE, BOT_ROLE, IS_PRODUCTION } from "./env";
+
 /**
  * Extended Yandex Cloud HTTP Event with missing 'path' property
  */
@@ -232,71 +240,115 @@ if (require.main === module) {
     logger.error("Failed to initialize database:", err);
   });
 
+  if (USE_QUEUE) {
+    if (BOT_ROLE === "all" || BOT_ROLE === "receiver") {
+      initQueue();
+    }
+    if (BOT_ROLE === "all" || BOT_ROLE === "worker") {
+      initWorker();
+    }
+  }
+
   const isPolling = process.env.BOT_POLLING === "true";
 
   if (isPolling) {
+    if (BOT_ROLE === "receiver") {
+      logger.error("Polling mode is not supported in receiver-only role.");
+      process.exit(1);
+    }
     logger.info("Starting bot in POLLING mode...");
     bot.launch({
       dropPendingUpdates: true,
     });
 
-    process.once("SIGINT", () => bot.stop("SIGINT"));
-    process.once("SIGTERM", () => bot.stop("SIGTERM"));
+    process.once("SIGINT", () => {
+      bot.stop("SIGINT");
+      stopQueue();
+    });
+    process.once("SIGTERM", () => {
+      bot.stop("SIGTERM");
+      stopQueue();
+    });
   } else {
-    logger.info("Starting bot in WEBHOOK mode...");
+    // Webhook mode logic
+    if (BOT_ROLE === "worker" && USE_QUEUE) {
+      logger.info("Starting bot in WORKER mode (no webhook listener)...");
+      // Still might want a simple health check server
+      handlerApp.get("/health", (req, res) => res.sendStatus(200));
+    } else {
+      logger.info(`Starting bot in WEBHOOK mode (ROLE: ${BOT_ROLE})...`);
 
-    // Use a provided secret token or generate a random one for this session if not provided
-    const secretToken =
-      WEBHOOK_SECRET_TOKEN || require("crypto").randomBytes(32).toString("hex");
+      // Use a provided secret token or generate a random one for this session if not provided
+      const secretToken =
+        WEBHOOK_SECRET_TOKEN ||
+        require("crypto").randomBytes(32).toString("hex");
 
-    if (!WEBHOOK_SECRET_TOKEN) {
-      logger.warn(
-        "WEBHOOK_SECRET_TOKEN is not set. A random token has been generated for this session."
-      );
-    }
-
-    handlerApp.use(bot.webhookCallback("/webhook", { secretToken }));
-
-    // Set webhook automatically on startup
-    const setupWebhook = async () => {
-      try {
-        const ip = await getPublicIP();
-        // Bot API supports ports 443, 80, 88, 8443
-        const portNumber = Number(PORT);
-        const isSupportedPort = [80, 443, 88, 8443].includes(portNumber);
-        const portSuffix = isSupportedPort
-          ? portNumber === 443
-            ? ""
-            : `:${portNumber}`
-          : `:${portNumber}`; // Still add it, but it might fail if not in supported list
-
-        const webhookUrl = `https://${ip}${portSuffix}/webhook`;
-
-        const certPath = path.resolve(ROOT_DIR_PATH, "certificates/cert.pem");
-        const hasCert = fs.existsSync(certPath);
-
-        logger.info(
-          `Setting webhook to ${webhookUrl}... (PORT: ${PORT}, hasCert: ${hasCert}, hasSecret: ${!!secretToken})`
+      if (!WEBHOOK_SECRET_TOKEN) {
+        logger.warn(
+          "WEBHOOK_SECRET_TOKEN is not set. A random token has been generated for this session."
         );
-        await bot.telegram.setWebhook(webhookUrl, {
-          drop_pending_updates: true,
-          certificate: hasCert ? { source: certPath } : undefined,
-          secret_token: secretToken,
-        });
-
-        const info = await bot.telegram.getWebhookInfo();
-        logger.info("Webhook info:", info);
-
-        if (!isSupportedPort) {
-          logger.warn(
-            `Port ${PORT} is not officially supported by Telegram Bot API webhooks. Supported ports: 443, 80, 88, 8443.`
-          );
-        }
-      } catch (error) {
-        logger.error("Failed to set webhook:", error);
       }
-    };
-    setupWebhook();
+
+      if (USE_QUEUE) {
+        handlerApp.post("/webhook", async (req, res) => {
+          const header = req.headers["x-telegram-bot-api-secret-token"];
+          if (secretToken && header !== secretToken) {
+            logger.warn("Unauthorized webhook request (secret token mismatch)");
+            return res.sendStatus(403);
+          }
+
+          try {
+            const update = req.body;
+            await pushUpdateToQueue(update);
+            res.sendStatus(200);
+          } catch (error) {
+            logger.error("Failed to push update to queue:", error);
+            res.sendStatus(500);
+          }
+        });
+      } else {
+        handlerApp.use(bot.webhookCallback("/webhook", { secretToken }));
+      }
+
+      // Set webhook automatically on startup
+      const setupWebhook = async () => {
+        try {
+          const ip = await getPublicIP();
+          // Bot API supports ports 443, 80, 88, 8443
+          const portNumber = Number(PORT);
+          const isSupportedPort = [80, 443, 88, 8443].includes(portNumber);
+          const portSuffix = isSupportedPort
+            ? portNumber === 443
+              ? ""
+              : `:${portNumber}`
+            : `:${portNumber}`;
+
+          const webhookUrl = `https://${ip}${portSuffix}/webhook`;
+
+          const certPath = path.resolve(ROOT_DIR_PATH, "certificates/cert.pem");
+          const hasCert = fs.existsSync(certPath);
+
+          logger.info(
+            `Setting webhook to ${webhookUrl}... (PORT: ${PORT}, hasCert: ${hasCert}, hasSecret: ${!!secretToken})`
+          );
+          await bot.telegram.setWebhook(webhookUrl, {
+            drop_pending_updates: true,
+            certificate: hasCert ? { source: certPath } : undefined,
+            secret_token: secretToken,
+          });
+
+          const info = await bot.telegram.getWebhookInfo();
+          logger.info("Webhook info:", info);
+        } catch (error) {
+          logger.error("Failed to set webhook:", error);
+        }
+      };
+
+      // Only receiver sets up the webhook in production
+      if ((BOT_ROLE === "all" || BOT_ROLE === "receiver") && IS_PRODUCTION) {
+        setupWebhook();
+      }
+    }
   }
 
   const QUEUE_WEBHOOK_PATH = "/queue/callback";
@@ -310,9 +362,7 @@ if (require.main === module) {
         const message = messages[0];
         const updateBody = message.details.message.body;
         const update =
-          typeof updateBody === "string"
-            ? JSON.parse(updateBody)
-            : updateBody;
+          typeof updateBody === "string" ? JSON.parse(updateBody) : updateBody;
 
         logger.info("queue webhook incoming request", {
           update_id: update?.update_id,

@@ -76,6 +76,13 @@ export const MAX_VIDEO_DURATION_MINUTES = +(
   process.env.MAX_VIDEO_DURATION_MINUTES ?? 70
 );
 
+export const GLOBAL_CONCURRENT_VIDEO_TRANSLATE_LIMIT = +(
+  process.env.GLOBAL_CONCURRENT_VIDEO_TRANSLATE_LIMIT ?? 5
+);
+export const PER_USER_CONCURRENT_VIDEO_TRANSLATE_LIMIT = +(
+  process.env.PER_USER_CONCURRENT_VIDEO_TRANSLATE_LIMIT ?? 2
+);
+
 export const DEBUG_ENV = process.env.DEBUG_ENV;
 
 export const PROXY_SERVER_URI = process.env.PROXY_SERVER_URI;
@@ -112,9 +119,12 @@ export const YDB_DATABASE = process.env.YDB_DATABASE;
 export const STORAGE_BUCKET = process.env.STORAGE_BUCKET;
 export const YTDL_STORAGE_BUCKET = process.env.YTDL_STORAGE_BUCKET;
 export const POSTGRES_URL = process.env.POSTGRES_URL;
-export const S3_ENDPOINT = process.env.S3_ENDPOINT || process.env.AWS_S3_ENDPOINT;
-export const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID;
-export const S3_SECRET_KEY = process.env.S3_SECRET_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+export const S3_ENDPOINT =
+  process.env.S3_ENDPOINT || process.env.AWS_S3_ENDPOINT;
+export const S3_ACCESS_KEY =
+  process.env.S3_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID;
+export const S3_SECRET_KEY =
+  process.env.S3_SECRET_KEY || process.env.AWS_SECRET_ACCESS_KEY;
 export const S3_REGION = process.env.S3_REGION || "us-east-1";
 export const WORKER_BOT_SERVER_WEBHOOK_URL =
   process.env.WORKER_BOT_SERVER_WEBHOOK_URL;
@@ -143,6 +153,10 @@ export const BOT_TOKEN = (IS_PRODUCTION ? BOT_TOKEN_PROD : BOT_TOKEN_DEV)!;
 
 export const WEBHOOK_SECRET_TOKEN = process.env.WEBHOOK_SECRET_TOKEN;
 
+export const REDIS_URL = process.env.REDIS_URL;
+export const USE_QUEUE = process.env.USE_QUEUE === "true";
+export const BOT_ROLE = process.env.BOT_ROLE || "all"; // 'all', 'receiver', 'worker'
+
 export const OWNER_USERNAME = process.env.OWNER_USERNAME!;
 
 export const ADMIN_IDS = (process.env.ADMIN_IDS ?? "")
@@ -151,6 +165,7 @@ export const ADMIN_IDS = (process.env.ADMIN_IDS ?? "")
   .filter(Boolean);
 
 export const ADMIN_DASHBOARD_URL = process.env.ADMIN_DASHBOARD_URL;
+export const RUTUBE_SERVICE_URL = process.env.RUTUBE_SERVICE_URL;
 
 const LOGGING_CHANNEL_ID = process.env.LOGGING_CHANNEL_ID;
 export const LOGGING_CHANNEL_CHAT_ID = getChatId(LOGGING_CHANNEL_ID);
