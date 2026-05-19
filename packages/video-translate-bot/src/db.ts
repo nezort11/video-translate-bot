@@ -259,7 +259,7 @@ export const getUserIdByUsername = async (
   const cleanUsername = username.startsWith("@") ? username.slice(1) : username;
   if (POSTGRES_URL && pool) {
     const res = await pool.query(
-      "SELECT user_id FROM users WHERE username = $1 LIMIT 1",
+      "SELECT user_id FROM users WHERE username ILIKE $1 LIMIT 1",
       [cleanUsername]
     );
     return res.rows[0] ? Number(res.rows[0].user_id) : null;
@@ -395,7 +395,12 @@ const trackNewUser = async (update: Update, eventTimestamp: number) => {
       await pool.query(
         `INSERT INTO users (user_id, first_seen_at, last_seen_at, username, first_name, last_name, language_code)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (user_id) DO NOTHING`,
+         ON CONFLICT (user_id) DO UPDATE SET 
+           last_seen_at = EXCLUDED.last_seen_at,
+           username = EXCLUDED.username,
+           first_name = EXCLUDED.first_name,
+           last_name = EXCLUDED.last_name,
+           language_code = EXCLUDED.language_code`,
         [
           userInfo.userId,
           eventTimestamp,
