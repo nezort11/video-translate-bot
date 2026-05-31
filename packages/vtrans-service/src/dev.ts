@@ -71,9 +71,10 @@ const server = http.createServer(async (req, res) => {
 
     if (result) {
       res.statusCode = result.statusCode;
-      if (result.headers) {
-        Object.entries(result.headers).forEach(([key, value]) => {
-          if (value) res.setHeader(key, value);
+      const headers = (result as any).headers;
+      if (headers) {
+        Object.entries(headers).forEach(([key, value]) => {
+          if (value) res.setHeader(key, value as any);
         });
       }
       res.end(result.body);

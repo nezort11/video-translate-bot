@@ -2479,6 +2479,7 @@ bot.action(/.+/, async (context) => {
           logger.info("Getting ffmpeg output in node environment");
           // const outputFile = ffmpeg.FS("readFile", resultFilePath);
           const outputBuffer = await fs.readFile(resultFilePath);
+          await fs.unlink(resultFilePath).catch(() => {});
           // const outputBuffer = Buffer.from(outputFile);
           (outputBuffer as any).name = `${videoTitle}.mp3`;
 
@@ -2587,6 +2588,7 @@ bot.action(/.+/, async (context) => {
           );
           logger.info("Reading ffmpeg output result file...", resultFilePath);
           const outputBuffer = await fs.readFile(resultFilePath);
+          await fs.unlink(resultFilePath).catch(() => {});
 
           // const outputFile = ffmpeg.FS("readFile", resultFilePath);
           // const outputBuffer: Buffer | null = Buffer.from(outputFile);

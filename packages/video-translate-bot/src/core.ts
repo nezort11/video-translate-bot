@@ -435,9 +435,14 @@ export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
   }
 
   // Local storage fallback for debugging
-  if (process.env.APP_ENV === "local" && process.env.USE_LOCAL_STORAGE === "true") {
+  if (
+    process.env.APP_ENV === "local" &&
+    process.env.USE_LOCAL_STORAGE === "true"
+  ) {
     const localFilePath = path.join(STORAGE_DIR_PATH, storageKey);
-    logger.info(`💾 [LOCAL MODE] Saving video to local storage: ${localFilePath}`);
+    logger.info(
+      `💾 [LOCAL MODE] Saving video to local storage: ${localFilePath}`
+    );
     if (!fs.existsSync(STORAGE_DIR_PATH)) {
       fs.mkdirSync(STORAGE_DIR_PATH, { recursive: true });
     }
@@ -453,7 +458,9 @@ export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
 
   try {
     // Check if video already exists in S3 to avoid unnecessary re-uploading
-    logger.info(`Checking if video exists in bucket: ${YTDL_STORAGE_BUCKET}, key: ${storageKey}`);
+    logger.info(
+      `Checking if video exists in bucket: ${YTDL_STORAGE_BUCKET}, key: ${storageKey}`
+    );
     await s3Localstorage.s3Client.send(
       new HeadObjectCommand({
         Bucket: YTDL_STORAGE_BUCKET,
@@ -466,11 +473,15 @@ export const uploadVideo = async (videoBuffer: Buffer, customKey?: string) => {
   } catch (error: any) {
     // If not found (404), proceed with upload
     if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
-      logger.info(`Uploading video to storage bucket: ${YTDL_STORAGE_BUCKET}, key: ${storageKey}`);
+      logger.info(
+        `Uploading video to storage bucket: ${YTDL_STORAGE_BUCKET}, key: ${storageKey}`
+      );
       await s3Localstorage.setItem(storageKey, videoBuffer);
     } else {
       // Log and re-throw other errors (e.g., credentials, networking)
-      logger.error(`Error checking video existence in S3 (Bucket: ${YTDL_STORAGE_BUCKET}): ${error.message}`);
+      logger.error(
+        `Error checking video existence in S3 (Bucket: ${YTDL_STORAGE_BUCKET}): ${error.message}`
+      );
       throw error;
     }
   }
@@ -794,7 +805,11 @@ export const translateVideoFull = async (
   }
 
   // Only auto-detect if no manual override was provided and it's not a direct mp4
-  if (sourceLanguage === undefined && !isDirectMp4 && videoPlatform !== VideoPlatform.Local) {
+  if (
+    sourceLanguage === undefined &&
+    !isDirectMp4 &&
+    videoPlatform !== VideoPlatform.Local
+  ) {
     // Detect source language from video
     try {
       logger.info("🔍 Detecting video language...");
@@ -904,15 +919,16 @@ export const mixTranslatedVideo = (
       .on("progress", (progress) => {
         logger.info(`Ffmpeg progress: ${progress.percent}% done`);
       })
-      .on("end", () => {
+      .on("end", async () => {
         logger.info("Processing finished");
-        // const outputBuffer_ = await fs.readFile(resultFilePath);
-        // // await Promise.all([
-        // //   fs.unlink(videoFilePath),
-        // //   fs.unlink(translateAudioFilePath),
-        // //   fs.unlink(resultFilePath),
-        // // ]);
-        // resolve(outputBuffer_);
+        try {
+          await Promise.all([
+            fs.promises.unlink(videoFilePath).catch(() => {}),
+            fs.promises.unlink(translatedAudioFilePath).catch(() => {}),
+          ]);
+        } catch (e) {
+          logger.warn("Failed to cleanup input files after mixing:", e);
+        }
         resolve(undefined);
       })
       .on("error", (err) => {

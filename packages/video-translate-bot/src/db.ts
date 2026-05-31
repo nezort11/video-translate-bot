@@ -303,9 +303,10 @@ export const getUserSession = async (
  */
 export const getUserBalance = async (userId: number): Promise<number> => {
   if (POSTGRES_URL && pool) {
-    const res = await pool.query("SELECT balance FROM users WHERE user_id = $1", [
-      userId,
-    ]);
+    const res = await pool.query(
+      "SELECT balance FROM users WHERE user_id = $1",
+      [userId]
+    );
     if (res.rows[0] && res.rows[0].balance !== null) {
       return Number(res.rows[0].balance);
     }

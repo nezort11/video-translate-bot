@@ -92,7 +92,7 @@ app.post(
   "/translate",
   async (
     req: Request<
-      {},
+      Record<string, never>,
       VideoTranslateResponse | ErrorObject,
       null,
       VideoTranslateParams
@@ -152,7 +152,7 @@ app.post(
   "/translate/full",
   async (
     req: Request<
-      {},
+      Record<string, never>,
       VideoTranslateResponse | ErrorObject,
       null,
       FullVideoTranslateParams
@@ -222,6 +222,9 @@ app.post(
 
       const resultVideoUrl = await uploadVideo(outputBuffer);
 
+      // Cleanup temporary files
+      await fs.unlink(resultFilePath).catch(() => {});
+
       res.json({ url: resultVideoUrl });
     } catch (error: unknown) {
       logger.info("Handling full translate exception error...");
@@ -245,7 +248,12 @@ app.post(
 app.get(
   "/info",
   async (
-    req: Request<{}, videoInfo | ErrorObject, null, GetInfoParams>,
+    req: Request<
+      Record<string, never>,
+      videoInfo | ErrorObject,
+      null,
+      GetInfoParams
+    >,
     res
   ) => {
     try {
@@ -274,7 +282,12 @@ app.get(
 app.post(
   "/download",
   async (
-    req: Request<{}, any | ErrorObject, null, YtdlDownloadParams>,
+    req: Request<
+      Record<string, never>,
+      any | ErrorObject,
+      null,
+      YtdlDownloadParams
+    >,
     res
   ) => {
     try {
@@ -378,7 +391,15 @@ app.post("/upload", async (req, res) => {
 
 app.post(
   "/send",
-  async (req: Request<{}, void | ErrorObject, SendVideoBody, null>, res) => {
+  async (
+    req: Request<
+      Record<string, never>,
+      void | ErrorObject,
+      SendVideoBody,
+      null
+    >,
+    res
+  ) => {
     try {
       const { key, link, duration, chatId } = req.body;
       const videoLink = link;
@@ -471,7 +492,7 @@ app.post(
   "/debug/download/thumbnail",
   async (
     req: Request<
-      {},
+      Record<string, never>,
       DownloadThumbnailResponse | ErrorObject,
       DownloadThumbnail,
       null

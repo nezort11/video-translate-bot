@@ -2,9 +2,7 @@
   Video translate command-line utility
 */
 import { fileURLToPath } from "url";
-import {
-  translateVideoFull,
-} from "./core";
+import { translateVideoFull } from "./core";
 import { TranslateInProgressException } from "./services/vtrans";
 import { inspect } from "util";
 import { logger } from "./logger";

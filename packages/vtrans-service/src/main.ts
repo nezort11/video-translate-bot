@@ -12,7 +12,28 @@ export const handler = async (event: Http.Event, context: Context) => {
     }
 
     // Parse body if it's a string
-    const payload = typeof body === "string" ? JSON.parse(body) : body;
+    let payload: any;
+    if (typeof body === "string") {
+      if (!body || body.trim() === "") {
+        console.log("Empty body received");
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: "Empty request body" }),
+        };
+      }
+      try {
+        payload = JSON.parse(body);
+      } catch (e) {
+        console.error("Failed to parse JSON body:", body);
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: "Invalid JSON" }),
+        };
+      }
+    } else {
+      payload = body;
+    }
+
     console.log("Incoming request payload:", JSON.stringify(payload, null, 2));
     const {
       url,
@@ -25,91 +46,34 @@ export const handler = async (event: Http.Event, context: Context) => {
       forceLively,
     } = payload;
 
-    if (!url) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Missing url parameter" }),
-      };
-    }
-
-    console.log(
-      `Processing translation for ${url}, forceRegular=${forceRegular}, firstRequest=${firstRequest}`
-    );
-
-    let result;
-    if (forceRegular) {
-      result = await translateVideo(url, {
-        useLivelyVoice: false,
-        sourceLanguage,
-        targetLanguage,
-        videoFileUrl,
-        subtitlesFileUrl,
-        firstRequest,
-      });
-    } else {
-      // Prefer live voices (default)
-      try {
-        result = await translateVideo(url, {
-          useLivelyVoice: true,
-          sourceLanguage,
-          targetLanguage,
-          videoFileUrl,
-          subtitlesFileUrl,
-          firstRequest,
-        });
-      } catch (error) {
-        if (error instanceof TranslateInProgressException) {
-          // If in progress, return the status (code 202 could be appropriate, but returning JSON with status works too)
-          // Returning success with status info so client can poll
-          return {
-            statusCode: 200, // Returning 200 to indicate valid response from Yandex (even if it says "Waiting")
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(error.data, null, 2),
-          };
-        }
-        if (forceLively) {
-          console.log(
-            "Live voice failed, but forceLively is true, not falling back"
-          );
-          throw error;
-        }
-
-        // Fallback to regular
-        console.log("Live voice failed, falling back to regular");
-        result = await translateVideo(url, {
-          useLivelyVoice: false,
-          sourceLanguage,
-          targetLanguage,
-          videoFileUrl,
-          subtitlesFileUrl,
-          firstRequest,
-        });
-      }
-    }
+    const result = await translateVideo(url, {
+      sourceLanguage,
+      targetLanguage,
+      videoFileUrl,
+      subtitlesFileUrl,
+      useLivelyVoice: forceLively ?? !forceRegular,
+      firstRequest,
+    });
 
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(result, null, 2),
+      body: JSON.stringify(result),
     };
   } catch (error: any) {
-    console.error("Handler error:", error);
     if (error instanceof TranslateInProgressException) {
       return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(error.data, null, 2),
+        statusCode: 202,
+        body: JSON.stringify(error.data),
       };
     }
 
+    console.error("Handler error:", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        { message: error.message, stack: error.stack },
-        null,
-        2
-      ),
+      body: JSON.stringify({
+        error: error.message || "Internal Server Error",
+        data: error.data,
+      }),
     };
   }
 };

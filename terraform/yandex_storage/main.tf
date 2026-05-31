@@ -54,37 +54,37 @@ resource "yandex_iam_service_account_static_access_key" "storage-static-key" {
 resource "yandex_storage_bucket" "env" {
   bucket    = "vtb-env-${var.yc_folder_id}"
   folder_id = var.yc_folder_id
-  max_size  = 1073741824 # 1GB
+  max_size  = 0
 }
 
 resource "yandex_storage_bucket" "vtrans-env" {
   bucket    = "vtb-vtrans-env-${var.yc_folder_id}"
   folder_id = var.yc_folder_id
-  max_size  = 1073741824 # 1GB
+  max_size  = 0
 }
 
 resource "yandex_storage_bucket" "admin-env" {
   bucket    = "vtb-admin-env-${var.yc_folder_id}"
   folder_id = var.yc_folder_id
-  max_size  = 1073741824 # 1GB
+  max_size  = 0
 }
 
 resource "yandex_storage_bucket" "storage" {
   bucket    = "vtb-storage-${var.yc_folder_id}"
   folder_id = var.yc_folder_id
-  max_size  = 5368709120 # 5GB
+  max_size  = 0
 }
 
 resource "yandex_storage_bucket" "code" {
   bucket    = "vtb-code-${var.yc_folder_id}"
   folder_id = var.yc_folder_id
-  max_size  = 1073741824 # 1GB
+  max_size  = 0
 }
 
 resource "yandex_storage_bucket" "ytdl-storage" {
   bucket    = "vtb-ytdl-storage-${var.yc_folder_id}"
   folder_id = var.yc_folder_id
-  max_size  = 5368709120 # 5GB
+  max_size  = 0
 }
 
 # =============================================================================
